@@ -1,0 +1,25 @@
+-- AI News Nexus Database Schema
+-- Optimized for MySQL 5.7+
+
+CREATE DATABASE IF NOT EXISTS ai_news CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+USE ai_news;
+
+CREATE TABLE IF NOT EXISTS `news_items` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `platform` VARCHAR(50) NOT NULL COMMENT '抓取平台: twitter, youtube, reddit, ph, hn',
+    `external_id` VARCHAR(255) NOT NULL COMMENT '平台原始ID',
+    `title` VARCHAR(500) NOT NULL COMMENT '文章/动态标题',
+    `content` LONGTEXT COMMENT '正文内容',
+    `url` VARCHAR(768) NOT NULL COMMENT '原始链接',
+    `published_at` DATETIME NOT NULL COMMENT '发布时间',
+    `scraped_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '系统抓取时间',
+    `metadata_json` JSON COMMENT '扩展数据 (存储点赞数、评论数、作者信息等)',
+    
+    -- 唯一性约束与索引
+    UNIQUE KEY `uk_platform_external` (`platform`, `external_id`), -- 防止同一平台重复抓取
+    UNIQUE KEY `uk_url` (`url`),                                   -- 确保链接全局唯一
+    INDEX `idx_platform` (`platform`),                             -- 加速按平台筛选
+    INDEX `idx_published` (`published_at`),                         -- 加速按时间排序和范围搜索
+    FULLTEXT INDEX `idx_search` (`title`, `content`)               -- 支持全文检索关键字
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
