@@ -16,6 +16,7 @@ defineProps<{
 
 const platformIcons: Record<string, any> = {
   twitter: Twitter,
+  x: Twitter,
   youtube: Youtube,
   reddit: Hash,
   ph: Box,
@@ -24,6 +25,7 @@ const platformIcons: Record<string, any> = {
 
 const platformColors: Record<string, string> = {
   twitter: 'text-sky-400',
+  x: 'text-text-primary',
   youtube: 'text-red-500',
   reddit: 'text-orange-500',
   ph: 'text-orange-600',
@@ -36,8 +38,8 @@ const platformColors: Record<string, string> = {
     <div class="flex justify-between items-start mb-4">
       <div class="flex items-center gap-2">
         <component 
-          :is="platformIcons[item.platform] || Hash" 
-          :class="['w-4 h-4', platformColors[item.platform] || 'text-text-muted']"
+          :is="platformIcons[item.platform.toLowerCase()] || Hash" 
+          :class="['w-4 h-4', platformColors[item.platform.toLowerCase()] || 'text-text-muted']"
         />
         <span class="text-xs font-medium uppercase tracking-wider text-text-muted">
           {{ item.platform }}

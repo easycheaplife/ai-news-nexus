@@ -1,18 +1,35 @@
 import logging
+import argparse
+import os
+from dotenv import load_dotenv
 from scrapers.engines.hn import HNScraper
-from scrapers.engines.platforms import RedditScraper
+from scrapers.engines.platforms import RedditScraper, TwitterScraper, ProductHuntScraper
+
+# 加载 .env 文件
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-def run_scrapers():
-    # 以后可以扩展更多引擎
-    engines = [
+def run_scrapers(target_platform: str = None):
+    # 所有可用引擎
+    all_engines = [
         HNScraper(),
         RedditScraper(),
+        TwitterScraper(),
+        ProductHuntScraper(),
     ]
+    
+    # 如果指定了平台，则进行过滤
+    if target_platform:
+        engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
+        if not engines:
+            logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
+            return
+    else:
+        engines = all_engines
     
     for engine in engines:
         logging.info(f"🚀 Starting {engine.platform} engine...")
@@ -22,4 +39,8 @@ def run_scrapers():
             logging.error(f"❌ Error in {engine.platform} engine: {e}")
 
 if __name__ == "__main__":
-    run_scrapers()
+    parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
+    parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
+    args = parser.parse_args()
+    
+    run_scrapers(args.platform)

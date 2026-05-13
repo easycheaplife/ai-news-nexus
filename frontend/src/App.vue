@@ -16,7 +16,7 @@ const filters = ref({
 
 const platforms = [
   { label: 'All Platforms', value: '' },
-  { label: 'Twitter', value: 'twitter' },
+  { label: 'Twitter (X)', value: 'twitter' },
   { label: 'YouTube', value: 'youtube' },
   { label: 'Reddit', value: 'reddit' },
   { label: 'Product Hunt', value: 'ph' },
