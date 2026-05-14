@@ -31,7 +31,8 @@ const fetchNews = async () => {
       query: filters.value.query || undefined,
       limit: filters.value.limit
     };
-    const response = await axios.get('http://localhost:8000/news/', { params });
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const response = await axios.get(`${apiUrl}/news/`, { params });
     news.value = response.data;
     error.value = null;
   } catch (err: any) {

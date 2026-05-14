@@ -5,6 +5,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "AI News Nexus"
     API_V1_STR: str = "/api/v1"
     
+    # App Startup
+    APP_HOST: str = "0.0.0.0"
+    APP_PORT: int = 8000
+    
     # Database
     MYSQL_USER: str = "root"
     MYSQL_PASSWORD: str = ""

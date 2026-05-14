@@ -14,12 +14,15 @@ logging.basicConfig(
 )
 
 def run_scrapers(target_platform: str = None):
+    # 获取后端 API 地址
+    api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
+    
     # 所有可用引擎
     all_engines = [
-        HNScraper(),
-        RedditScraper(),
-        TwitterScraper(),
-        ProductHuntScraper(),
+        HNScraper(api_url=api_url),
+        RedditScraper(api_url=api_url),
+        TwitterScraper(api_url=api_url),
+        ProductHuntScraper(api_url=api_url),
     ]
     
     # 如果指定了平台，则进行过滤

@@ -62,11 +62,27 @@ npm run dev
 ### 6.2 采集器导入错误 (ModuleNotFoundError: No module named 'scrapers')
 务必在 **项目根目录** (`ai-news-nexus/`) 运行命令，而不是进入 `scrapers/` 文件夹。运行命令应为 `python3 -m scrapers.run`。
 
-## 7. 生产环境部署建议
+## 8. 网络与端口配置 (Network & Port Configuration)
 
-访问 `http://localhost:5173` 即可看到界面。
+您可以通过环境变量灵活配置各组件的监听地址和端口。
 
-## 6. 生产环境部署建议
+### 8.1 后端配置 (backend/.env)
+- `APP_HOST`: 后端监听地址 (默认: `0.0.0.0`)
+- `APP_PORT`: 后端监听端口 (默认: `8000`)
+
+### 8.2 前端配置 (frontend/.env)
+- `VITE_HOST`: 前端开发服务器监听地址 (默认: `0.0.0.0`)
+- `VITE_PORT`: 前端开发服务器监听端口 (默认: `5173`)
+- `VITE_API_URL`: 前端调用的后端 API 地址 (默认: `http://localhost:8000`)
+
+### 8.3 采集器配置 (.env)
+- `SCRAPER_API_URL`: 采集器推送数据的后端 API 地址 (默认: `http://localhost:8000`)
+- `TWITTER_COOKIES_PATH`: Twitter Cookie 路径 (如果使用 Cookie 方案)
+- `HTTP_PROXY`/`HTTPS_PROXY`: 代理配置 (如果需要)
+
+---
+
+## 9. 生产环境部署建议
 
 -   **后端**: 使用 `gunicorn` 配合 `uvicorn` 工作进程。
 -   **前端**: 使用 `npm run build` 生成静态文件，并通过 Nginx 托管。
