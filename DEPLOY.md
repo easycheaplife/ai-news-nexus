@@ -41,6 +41,7 @@ python3 -m uvicorn main:app --reload --port 8000
 ```bash
 # 确保在项目根目录 ai-news-nexus 下执行
 python3 -m scrapers.run
+python3 -m scrapers.run -p twitter
 ```
 
 ## 5. 前端启动 (Vue 3)
