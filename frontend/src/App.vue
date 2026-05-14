@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
-import { Search, Filter, RefreshCw, Zap } from 'lucide-vue-next';
+import { Search, RefreshCw, Zap } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
 
 const news = ref<any[]>([]);

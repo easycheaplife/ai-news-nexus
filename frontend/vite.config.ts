@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       vue(),
       {
         name: 'log-api-url',
-        configureServer(server) {
+        configureServer(_server) {
           console.log('\n  \x1b[32m➜\x1b[0m  \x1b[1mAPI URL:\x1b[0m \x1b[36m' + apiUrl + '\x1b[0m\n');
         }
       }
