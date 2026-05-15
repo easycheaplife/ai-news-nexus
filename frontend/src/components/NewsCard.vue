@@ -72,7 +72,7 @@ const platformColors: Record<string, string> = {
         <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-6 p-4 rounded-2xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
           <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-50 group-hover/reason:opacity-100 transition-opacity"></div>
           <p class="text-sm text-slate-300 leading-relaxed italic relative">
-            <span class="not-italic font-black text-[9px] uppercase tracking-[0.2em] text-primary block mb-2 opacity-80">推荐理由 · Insight</span>
+            <span class="not-italic font-black text-[9px] uppercase tracking-[0.2em] text-primary block mb-2 opacity-80">AI 推荐理由 · Analysis</span>
             "{{ item.reason }}"
           </p>
         </div>

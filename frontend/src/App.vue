@@ -88,10 +88,10 @@ const handleSearch = () => {
             </div>
           </div>
           <div>
-            <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white italic">
-              AI HOT <span class="text-primary not-italic">NEXUS</span>
+            <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white">
+              AI NEWS <span class="text-primary">NEXUS</span>
             </h1>
-            <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Intelligence Aggregator</p>
+            <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
           </div>
         </div>
 
@@ -142,8 +142,8 @@ const handleSearch = () => {
         <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
           <Calendar class="w-12 h-12 text-text-muted opacity-20" />
         </div>
-        <h2 class="text-2xl font-bold text-white mb-2">信号中断</h2>
-        <p class="text-text-muted max-w-xs mx-auto">当前筛选条件下未发现资讯脉冲，请尝试调整搜索词或切换平台。</p>
+        <h2 class="text-2xl font-bold text-white mb-2">未发现相关内容</h2>
+        <p class="text-text-muted max-w-xs mx-auto">请尝试调整筛选条件或搜索关键词，查看更多资讯。</p>
       </div>
 
       <!-- Loading State -->
