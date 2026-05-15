@@ -3,6 +3,7 @@ import os
 import time
 from ..base import BaseScraper
 from datetime import datetime
+from ..utils.ai import evaluator
 
 class RedditScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -32,7 +33,18 @@ class RedditScraper(BaseScraper):
                     
                     if newest_timestamp is None:
                         newest_timestamp = created_utc
-                        
+                    
+                    # 🖼️ 提取多媒体
+                    media_urls = []
+                    if p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
+                        media_urls.append(p_data['thumbnail'])
+                    if p_data.get('url') and any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
+                        if p_data['url'] not in media_urls:
+                            media_urls.append(p_data['url'])
+
+                    # 🤖 AI 评分与理由
+                    score, reason = evaluator.evaluate(p_data['title'], p_data['selftext'])
+
                     item = {
                         "platform": "reddit",
                         "external_id": p_data['id'],
@@ -40,6 +52,9 @@ class RedditScraper(BaseScraper):
                         "content": p_data['selftext'],
                         "url": f"https://reddit.com{p_data['permalink']}",
                         "published_at": datetime.fromtimestamp(p_data['created_utc']).isoformat(),
+                        "score": score,
+                        "reason": reason,
+                        "media_urls": media_urls,
                         "metadata_json": {
                             "subreddit": sub,
                             "ups": p_data['ups'],
@@ -123,6 +138,22 @@ class TwitterScraper(BaseScraper):
                         
                         text = tweet.get('full_text', tweet.get('text', ''))
                         
+                        # 🖼️ 提取多媒体内容
+                        media_urls = []
+                        media_entries = tweet.get('entities', {}).get('media', [])
+                        for m in media_entries:
+                            media_urls.append(m.get('media_url_https'))
+                        
+                        # 如果有扩展媒体 (如视频、多图)
+                        ext_media = tweet.get('extended_entities', {}).get('media', [])
+                        for m in ext_media:
+                            m_url = m.get('media_url_https')
+                            if m_url not in media_urls:
+                                media_urls.append(m_url)
+                        
+                        # 🤖 AI 评分与理由
+                        score, reason = evaluator.evaluate(f"Tweet from @{username}", text)
+
                         # 解析推特日期格式: "Mon May 11 13:10:12 +0000 2026"
                         raw_date = tweet.get('created_at')
                         published_at = datetime.utcnow().isoformat()
@@ -140,6 +171,9 @@ class TwitterScraper(BaseScraper):
                             "content": text,
                             "url": f"https://twitter.com/{username}/status/{tweet_id}",
                             "published_at": published_at,
+                            "score": score,
+                            "reason": reason,
+                            "media_urls": media_urls,
                             "metadata_json": {
                                 "author": tweet.get('user', {}).get('name', username),
                                 "stats": {
@@ -185,6 +219,15 @@ class ProductHuntScraper(BaseScraper):
                     newest_timestamp = published_ts
 
                 if any(k in (entry.title + entry.get('summary', '')).lower() for k in ["ai ", "gpt", "llm", "bot"]):
+                    # 🖼️ 提取多媒体
+                    media_urls = []
+                    for link in entry.get('links', []):
+                        if link.get('type') == 'image/jpeg' or link.get('type') == 'image/png':
+                            media_urls.append(link.get('href'))
+                    
+                    # 🤖 AI 评分与理由
+                    score, reason = evaluator.evaluate(entry.title, entry.get('summary', ''))
+
                     item = {
                         "platform": "ph",
                         "external_id": entry.id.split('/')[-1],
@@ -192,6 +235,9 @@ class ProductHuntScraper(BaseScraper):
                         "content": entry.get('summary', ''),
                         "url": entry.link,
                         "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
+                        "score": score,
+                        "reason": reason,
+                        "media_urls": media_urls,
                         "metadata_json": {
                             "author": entry.get("author", "Unknown")
                         }

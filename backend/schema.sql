@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS `news_items` (
     `published_at` DATETIME NOT NULL COMMENT '发布时间',
     `scraped_at` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '系统抓取时间',
     `metadata_json` JSON COMMENT '扩展数据 (存储点赞数、评论数、作者信息等)',
+    `score` INT DEFAULT 0 COMMENT 'AI 评分 (0-100)',
+    `reason` TEXT COMMENT 'AI 推荐理由',
+    `media_urls` JSON COMMENT '多媒体链接列表 (图片、视频)',
     
     -- 唯一性约束与索引
     UNIQUE KEY `uk_platform_external` (`platform`, `external_id`), -- 防止同一平台重复抓取

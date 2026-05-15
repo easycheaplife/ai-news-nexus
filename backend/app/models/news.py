@@ -16,6 +16,9 @@ class NewsItem(Base):
     published_at = Column(DateTime, index=True)
     scraped_at = Column(DateTime, default=datetime.utcnow)
     metadata_json = Column(JSON)
+    score = Column(Integer, default=0)
+    reason = Column(Text)
+    media_urls = Column(JSON)
 
     __table_args__ = (
         UniqueConstraint('platform', 'external_id', name='_platform_external_id_uc'),

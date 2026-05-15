@@ -1,6 +1,7 @@
 import requests
 from ..base import BaseScraper
 from datetime import datetime
+from ..utils.ai import evaluator
 
 class HNScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -31,6 +32,9 @@ class HNScraper(BaseScraper):
                 # Simple AI keyword check
                 keywords = ["ai ", "llm", "gpt", "neural", "machine learning", "deepseek", "openai", "claude"]
                 if any(k in title.lower() for k in keywords):
+                    # 🤖 AI 评分与理由
+                    score, reason = evaluator.evaluate(title, story.get("text", ""))
+
                     item = {
                         "platform": "hn",
                         "external_id": str(story_id),
@@ -38,8 +42,10 @@ class HNScraper(BaseScraper):
                         "content": story.get("text", ""),
                         "url": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
                         "published_at": datetime.fromtimestamp(story.get("time")).isoformat(),
+                        "score": score,
+                        "reason": reason,
                         "metadata_json": {
-                            "score": story.get("score"),
+                            "hn_score": story.get("score"),
                             "by": story.get("by"),
                             "descendants": story.get("descendants")
                         }
