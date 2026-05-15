@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Flame, ImageIcon, User } from 'lucide-vue-next';
+import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User } from 'lucide-vue-next';
 
 defineProps<{
   item: {
@@ -39,7 +39,7 @@ const platformColors: Record<string, string> = {
 
 <template>
   <div class="group relative bg-[#131316] hover:bg-[#1a1a1e] border border-white/5 rounded-[2rem] p-5 md:p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 overflow-hidden">
-    <!-- Platform & Time & Hotness Row -->
+    <!-- Header: Platform, Time, Score -->
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div class="flex items-center gap-2">
         <div :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] flex items-center gap-1.5', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted']">
@@ -51,10 +51,10 @@ const platformColors: Record<string, string> = {
         </span>
       </div>
       
-      <!-- Hotness Score -->
-      <div v-if="item.score && item.score > 0" class="flex items-center gap-1.5 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
-        <Flame class="w-3.5 h-3.5 text-orange-500 fill-orange-500 animate-pulse" />
-        <span class="text-xs font-black text-orange-500">{{ item.score }}</span>
+      <!-- Quality Score -->
+      <div v-if="item.score && item.score > 0" class="flex items-center gap-1.5 bg-yellow-400/10 px-3 py-1 rounded-full border border-yellow-400/20">
+        <Star class="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
+        <span class="text-xs font-bold text-yellow-500">{{ item.score }}</span>
       </div>
     </div>
 
@@ -63,19 +63,20 @@ const platformColors: Record<string, string> = {
       <div class="flex-1 min-w-0">
         <!-- Title -->
         <a :href="item.url" target="_blank" class="block group/title">
-          <h3 class="text-lg md:text-xl font-bold text-white leading-[1.4] mb-4 group-hover/title:text-primary transition-colors line-clamp-2">
+          <h3 class="text-lg md:text-xl font-bold text-white leading-snug mb-4 group-hover/title:text-primary transition-colors line-clamp-2">
             {{ item.title }}
           </h3>
         </a>
 
         <!-- 🤖 AI 推荐理由 (高亮核心展示) -->
-        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-6 p-4 rounded-2xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
-          <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-50 group-hover/reason:opacity-100 transition-opacity"></div>
+        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-6 p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
+          <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-30 group-hover/reason:opacity-100 transition-opacity"></div>
           <p class="text-sm text-slate-300 leading-relaxed italic relative">
-            <span class="not-italic font-black text-[9px] uppercase tracking-[0.2em] text-primary block mb-2 opacity-80">AI 推荐理由 · Analysis</span>
+            <span class="not-italic font-bold text-[10px] uppercase tracking-widest text-primary block mb-2 opacity-60">AI 推荐理由</span>
             "{{ item.reason }}"
           </p>
         </div>
+
 
         <!-- Content Snippet -->
         <p class="text-sm text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium">

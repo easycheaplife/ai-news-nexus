@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
-import { Search, RefreshCw, Zap, Flame, Calendar } from 'lucide-vue-next';
+import { Search, RefreshCw, Zap, Calendar } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
 import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -32,7 +32,7 @@ const fetchNews = async () => {
       query: filters.value.query || undefined,
       limit: filters.value.limit
     };
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
     const response = await axios.get(`${apiUrl}/news/`, { params });
     news.value = response.data;
     error.value = null;
@@ -162,12 +162,12 @@ const handleSearch = () => {
           <!-- Date Header -->
           <div class="sticky top-[88px] z-40 bg-[#0a0a0c]/80 backdrop-blur-md py-4 mb-8 -mx-4 px-4">
             <div class="flex items-center gap-4">
-              <h2 class="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-3">
-                <span class="w-2 h-8 bg-primary rounded-full"></span>
+              <h2 class="text-lg md:text-xl font-bold text-white tracking-tight flex items-center gap-3">
+                <span class="w-1.5 h-6 bg-primary rounded-full"></span>
                 {{ formatDateHeader(date) }}
               </h2>
-              <div class="h-[1px] flex-1 bg-gradient-to-r from-white/10 to-transparent"></div>
-              <span class="text-[10px] font-black text-text-muted uppercase tracking-widest">{{ items.length }} ITEMS</span>
+              <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
+              <span class="text-xs font-medium text-text-muted italic">{{ items.length }} 条资讯</span>
             </div>
           </div>
 
