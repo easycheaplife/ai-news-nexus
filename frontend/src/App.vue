@@ -48,6 +48,9 @@ const fetchNews = async () => {
 const groupedNews = computed(() => {
   const groups: Record<string, any[]> = {};
   news.value.forEach(item => {
+    // 🛡️ 质量过滤：仅显示评分 >= 60 的优质资讯
+    if (!item.score || item.score < 60) return;
+
     const dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     if (!groups[dateKey]) groups[dateKey] = [];
     groups[dateKey].push(item);
