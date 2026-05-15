@@ -29,17 +29,19 @@ class HNScraper(BaseScraper):
                 if not story: continue
                 
                 title = story.get("title", "")
+                text = story.get("text", "")
+                
                 # Simple AI keyword check
                 keywords = ["ai ", "llm", "gpt", "neural", "machine learning", "deepseek", "openai", "claude"]
                 if any(k in title.lower() for k in keywords):
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(title, story.get("text", ""))
+                    score, reason = evaluator.evaluate(title, text)
 
                     item = {
                         "platform": "hn",
                         "external_id": str(story_id),
                         "title": title,
-                        "content": story.get("text", ""),
+                        "content": text,
                         "url": story.get("url", f"https://news.ycombinator.com/item?id={story_id}"),
                         "published_at": datetime.fromtimestamp(story.get("time")).isoformat(),
                         "score": score,

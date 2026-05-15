@@ -11,6 +11,33 @@ class RedditScraper(BaseScraper):
         self.reddit_url = "https://www.reddit.com/r/MachineLearning/new.json?limit=50"
         self.headers = {"User-Agent": "AI News Bot 1.0"}
 
+    def _get_top_comments(self, permalink: str, limit: int = 5) -> str:
+        """获取帖子的热门评论"""
+        url = f"https://www.reddit.com{permalink}.json"
+        try:
+            time.sleep(1) # 礼貌延迟
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code != 200:
+                return ""
+            
+            # Reddit 评论接口返回一个列表，[0] 是帖子信息，[1] 是评论树
+            comments_data = response.json()[1]['data']['children']
+            top_comments = []
+            
+            for comment in comments_data[:limit]:
+                if comment['kind'] == 't1': # 确保是评论
+                    c_data = comment['data']
+                    body = c_data.get('body', '').strip()
+                    ups = c_data.get('ups', 0)
+                    if body and body != '[deleted]' and body != '[removed]':
+                        top_comments.append(f"💬 (Ups: {ups}): {body}")
+            
+            if top_comments:
+                return "\n\n--- 热门评论 ---\n" + "\n\n".join(top_comments)
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch comments for {permalink}: {e}")
+        return ""
+
     def scrape(self):
         subs = ["MachineLearning", "ArtificialInteligence", "OpenAI", "LocalLLaMA"]
         for sub in subs:
@@ -34,6 +61,10 @@ class RedditScraper(BaseScraper):
                     if newest_timestamp is None:
                         newest_timestamp = created_utc
                     
+                    # 🧵 获取热门评论增强内容
+                    comments_text = self._get_top_comments(p_data['permalink'])
+                    full_content = (p_data['selftext'] or "") + comments_text
+
                     # 🖼️ 提取多媒体
                     media_urls = []
                     if p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
@@ -43,13 +74,13 @@ class RedditScraper(BaseScraper):
                             media_urls.append(p_data['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(p_data['title'], p_data['selftext'])
+                    score, reason = evaluator.evaluate(p_data['title'], full_content)
 
                     item = {
                         "platform": "reddit",
                         "external_id": p_data['id'],
                         "title": p_data['title'],
-                        "content": p_data['selftext'],
+                        "content": full_content,
                         "url": f"https://reddit.com{p_data['permalink']}",
                         "published_at": datetime.fromtimestamp(p_data['created_utc']).isoformat(),
                         "score": score,
@@ -138,6 +169,16 @@ class TwitterScraper(BaseScraper):
                         
                         text = tweet.get('full_text', tweet.get('text', ''))
                         
+                        # 🧵 捕捉上下文 (如果是回复，尝试获取父推文内容)
+                        full_content = text
+                        parent_tweet = None
+                        if tweet.get('in_reply_to_status_id_str'):
+                            # 尝试从 JSON 数据中寻找引用的推文 (有时包含在 data 中)
+                            # 在免登录 API 中，通常很难获取完整的 thread，但我们可以尝试提取可用信息
+                            parent_name = tweet.get('in_reply_to_screen_name')
+                            if parent_name:
+                                full_content = f"回复 @{parent_name}: {text}\n\n(上下文: 这是一条回复消息)"
+
                         # 🖼️ 提取多媒体内容
                         media_urls = []
                         media_entries = tweet.get('entities', {}).get('media', [])
@@ -152,7 +193,7 @@ class TwitterScraper(BaseScraper):
                                 media_urls.append(m_url)
                         
                         # 🤖 AI 评分与理由
-                        score, reason = evaluator.evaluate(f"Tweet from @{username}", text)
+                        score, reason = evaluator.evaluate(f"Tweet from @{username}", full_content)
 
                         # 解析推特日期格式: "Mon May 11 13:10:12 +0000 2026"
                         raw_date = tweet.get('created_at')
@@ -164,11 +205,14 @@ class TwitterScraper(BaseScraper):
                             except Exception as date_e:
                                 self.logger.warning(f"Date parsing failed for {raw_date}: {date_e}")
 
+                        # 优化标题展示
+                        display_title = text[:100].replace('\n', ' ') + ('...' if len(text) > 100 else '')
+
                         item = {
                             "platform": "twitter",
                             "external_id": tweet_id,
-                            "title": f"Tweet from @{username}: " + (text[:80] + "..."),
-                            "content": text,
+                            "title": f"@{username}: {display_title}",
+                            "content": full_content,
                             "url": f"https://twitter.com/{username}/status/{tweet_id}",
                             "published_at": published_at,
                             "score": score,
@@ -225,14 +269,20 @@ class ProductHuntScraper(BaseScraper):
                         if link.get('type') == 'image/jpeg' or link.get('type') == 'image/png':
                             media_urls.append(link.get('href'))
                     
+                    # 🧩 提取更详细的内容 (RSS feed 可能包含 summary 和 content)
+                    rich_content = entry.get('summary', '')
+                    if entry.get('content'):
+                        # 如果有 content_list，通常包含更详细的描述
+                        rich_content = entry.get('content')[0].value
+                    
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(entry.title, entry.get('summary', ''))
+                    score, reason = evaluator.evaluate(entry.title, rich_content)
 
                     item = {
                         "platform": "ph",
                         "external_id": entry.id.split('/')[-1],
                         "title": entry.title,
-                        "content": entry.get('summary', ''),
+                        "content": rich_content,
                         "url": entry.link,
                         "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
                         "score": score,

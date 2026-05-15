@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { formatDistanceToNow } from 'date-fns';
-import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, Image as ImageIcon } from 'lucide-vue-next';
+import { zhCN } from 'date-fns/locale';
+import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Flame, ImageIcon, User } from 'lucide-vue-next';
 
 defineProps<{
   item: {
@@ -27,84 +28,99 @@ const platformIcons: Record<string, any> = {
 };
 
 const platformColors: Record<string, string> = {
-  twitter: 'text-sky-400',
-  x: 'text-text-primary',
-  youtube: 'text-red-500',
-  reddit: 'text-orange-500',
-  ph: 'text-orange-600',
-  hn: 'text-orange-400',
+  twitter: 'bg-[#1DA1F2]/10 text-[#1DA1F2]',
+  x: 'bg-white/10 text-white',
+  youtube: 'bg-[#FF0000]/10 text-[#FF0000]',
+  reddit: 'bg-[#FF4500]/10 text-[#FF4500]',
+  ph: 'bg-[#DA552F]/10 text-[#DA552F]',
+  hn: 'bg-[#FF6600]/10 text-[#FF6600]',
 };
 </script>
 
 <template>
-  <div class="glass-card rounded-2xl p-4 md:p-6 transition-all duration-300 hover:translate-y-[-4px] hover:border-white/10 group animate-slide-up flex flex-col h-full">
-    <div class="flex justify-between items-start mb-3 md:mb-4">
+  <div class="group relative bg-[#131316] hover:bg-[#1a1a1e] border border-white/5 rounded-[2rem] p-5 md:p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 overflow-hidden">
+    <!-- Platform & Time & Hotness Row -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
       <div class="flex items-center gap-2">
-        <component 
-          :is="platformIcons[item.platform.toLowerCase()] || Hash" 
-          :class="['w-3.5 h-3.5 md:w-4 md:h-4', platformColors[item.platform.toLowerCase()] || 'text-text-muted']"
-        />
-        <span class="text-[10px] md:text-xs font-medium uppercase tracking-wider text-text-muted">
+        <div :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] flex items-center gap-1.5', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted']">
+          <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-3 h-3" />
           {{ item.platform }}
+        </div>
+        <span class="text-[10px] font-bold text-text-muted uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
+          {{ formatDistanceToNow(new Date(item.published_at), { locale: zhCN, addSuffix: true }) }}
         </span>
       </div>
-      <span class="text-[10px] md:text-xs text-text-muted">
-        {{ formatDistanceToNow(new Date(item.published_at)) }} 前
-      </span>
-    </div>
-
-    <!-- 🖼️ Media Preview -->
-    <div v-if="item.media_urls && item.media_urls.length > 0" class="mb-3 md:mb-4 rounded-xl overflow-hidden aspect-video bg-white/5 border border-white/5 relative shrink-0">
-      <img 
-        :src="item.media_urls[0]" 
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        alt="Media content"
-        loading="lazy"
-        @error="(e: any) => e.target.style.display = 'none'"
-      />
-      <!-- 🤖 AI Score Badge -->
-      <div v-if="item.score && item.score > 0" class="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg border border-white/10 flex items-center gap-1">
-        <Star class="w-2.5 h-2.5 md:w-3 md:h-3 text-yellow-400 fill-yellow-400" />
-        <span class="text-[9px] md:text-[10px] font-bold text-white">{{ item.score }}</span>
-      </div>
-    </div>
-    
-    <h3 class="text-base md:text-lg font-semibold leading-snug mb-2 md:mb-3 group-hover:text-primary transition-colors line-clamp-2">
-      {{ item.title }}
-    </h3>
-
-    <!-- 🤖 AI 推荐理由 -->
-    <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="mb-3 md:mb-4 p-2.5 md:p-3 rounded-xl bg-primary/5 border border-primary/10 italic shrink-0">
-      <p class="text-[11px] md:text-xs text-primary leading-relaxed">
-        <span class="font-bold uppercase tracking-widest text-[9px] md:text-[10px] block mb-0.5 md:mb-1 opacity-80">推荐理由</span>
-        "{{ item.reason }}"
-      </p>
-    </div>
-    
-    <p class="text-xs md:text-sm text-text-secondary line-clamp-3 mb-4 md:mb-6 leading-relaxed flex-grow">
-      {{ item.content || '暂无详细描述。' }}
-    </p>
-    
-    <div class="flex justify-between items-center mt-auto pt-2 border-t border-white/5">
-      <div class="flex items-center gap-3">
-        <div v-if="item.metadata_json?.score || item.metadata_json?.ups" class="text-[10px] md:text-xs text-text-muted flex items-center gap-1">
-          <span class="font-medium text-text-secondary">{{ item.metadata_json?.score || item.metadata_json?.ups }}</span> 互动
-        </div>
-        <!-- Non-media items still show score here if not on badge -->
-        <div v-if="(!item.media_urls || item.media_urls.length === 0) && item.score" class="flex items-center gap-1 bg-yellow-400/10 px-1.5 py-0.5 rounded text-[9px] md:text-[10px] text-yellow-500 font-bold border border-yellow-400/20">
-          <Star class="w-2.5 h-2.5 fill-yellow-500" />
-          {{ item.score }}
-        </div>
-      </div>
       
-      <a 
-        :href="item.url" 
-        target="_blank" 
-        class="inline-flex items-center gap-1 text-[10px] md:text-xs font-semibold text-primary hover:text-accent transition-colors"
-      >
-        阅读原文
-        <ExternalLink class="w-3 h-3" />
-      </a>
+      <!-- Hotness Score -->
+      <div v-if="item.score && item.score > 0" class="flex items-center gap-1.5 bg-orange-500/10 px-3 py-1 rounded-full border border-orange-500/20">
+        <Flame class="w-3.5 h-3.5 text-orange-500 fill-orange-500 animate-pulse" />
+        <span class="text-xs font-black text-orange-500">{{ item.score }}</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+      <!-- Content Side -->
+      <div class="flex-1 min-w-0">
+        <!-- Title -->
+        <a :href="item.url" target="_blank" class="block group/title">
+          <h3 class="text-lg md:text-xl font-bold text-white leading-[1.4] mb-4 group-hover/title:text-primary transition-colors line-clamp-2">
+            {{ item.title }}
+          </h3>
+        </a>
+
+        <!-- 🤖 AI 推荐理由 (高亮核心展示) -->
+        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-6 p-4 rounded-2xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
+          <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-50 group-hover/reason:opacity-100 transition-opacity"></div>
+          <p class="text-sm text-slate-300 leading-relaxed italic relative">
+            <span class="not-italic font-black text-[9px] uppercase tracking-[0.2em] text-primary block mb-2 opacity-80">推荐理由 · Insight</span>
+            "{{ item.reason }}"
+          </p>
+        </div>
+
+        <!-- Content Snippet -->
+        <p class="text-sm text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium">
+          {{ item.content || '暂无详细描述。' }}
+        </p>
+
+        <!-- Footer Info -->
+        <div class="flex items-center justify-between pt-6 border-t border-white/5 mt-auto">
+          <div class="flex items-center gap-4">
+            <!-- Author -->
+            <div v-if="item.metadata_json?.author || item.metadata_json?.by" class="flex items-center gap-1.5 text-[11px] font-bold text-text-muted">
+              <User class="w-3 h-3 opacity-50" />
+              <span class="truncate max-w-[100px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
+            </div>
+            <!-- Interactions -->
+            <div v-if="item.metadata_json?.hn_score || item.metadata_json?.ups" class="text-[11px] font-bold text-text-muted flex items-center gap-1.5">
+              <span class="bg-white/5 px-2 py-0.5 rounded-md text-text-secondary">{{ item.metadata_json?.hn_score || item.metadata_json?.ups }}</span>
+              <span>互动</span>
+            </div>
+          </div>
+
+          <a 
+            :href="item.url" 
+            target="_blank" 
+            class="flex items-center gap-2 text-xs font-black text-primary hover:text-white transition-all group/link"
+          >
+            详情
+            <ExternalLink class="w-3 h-3 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+          </a>
+        </div>
+      </div>
+
+      <!-- Media Side (PC side, Mobile below) -->
+      <div v-if="item.media_urls && item.media_urls.length > 0" class="w-full md:w-[240px] shrink-0">
+        <div class="relative aspect-video md:aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 bg-white/5">
+          <img 
+            :src="item.media_urls[0]" 
+            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            alt="Content preview"
+            loading="lazy"
+            @error="(e: any) => e.target.style.display = 'none'"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
