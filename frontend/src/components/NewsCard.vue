@@ -35,6 +35,20 @@ const platformColors: Record<string, string> = {
   ph: 'bg-[#DA552F]/10 text-[#DA552F]',
   hn: 'bg-[#FF6600]/10 text-[#FF6600]',
 };
+
+// 🛠️ 处理编码过的 URL (如 Reddit 的 &amp;)
+const decodeUrl = (url: string) => {
+  if (!url) return '';
+  const txt = document.createElement('textarea');
+  txt.innerHTML = url;
+  return txt.value;
+};
+
+// 🎥 判断是否为视频
+const isVideo = (url: string) => {
+  const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8'];
+  return videoExtensions.some(ext => url.toLowerCase().includes(ext));
+};
 </script>
 
 <template>
@@ -77,7 +91,6 @@ const platformColors: Record<string, string> = {
           </p>
         </div>
 
-
         <!-- Content Snippet -->
         <p class="text-sm text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium">
           {{ item.content || '暂无详细描述。' }}
@@ -112,15 +125,26 @@ const platformColors: Record<string, string> = {
       <!-- Media Side (PC side, Mobile below) -->
       <div v-if="item.media_urls && item.media_urls.length > 0" class="w-full md:w-[240px] shrink-0">
         <div class="relative aspect-video md:aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 bg-white/5">
+          <!-- Video Player -->
+          <video 
+            v-if="isVideo(item.media_urls[0])"
+            :src="decodeUrl(item.media_urls[0])" 
+            class="w-full h-full object-cover"
+            controls
+            preload="metadata"
+            referrerpolicy="no-referrer"
+          ></video>
+          <!-- Image Player -->
           <img 
-            :src="item.media_urls[0]" 
+            v-else
+            :src="decodeUrl(item.media_urls[0])" 
             class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             alt="Content preview"
             loading="lazy"
             referrerpolicy="no-referrer"
             @error="(e: any) => e.target.style.display = 'none'"
           />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+          <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
         </div>
       </div>
     </div>
