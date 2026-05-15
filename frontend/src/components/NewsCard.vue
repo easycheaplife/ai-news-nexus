@@ -123,13 +123,17 @@ const isVideo = (url: string) => {
       </div>
 
       <!-- Media Side (PC side, Mobile below) -->
-      <div v-if="item.media_urls && item.media_urls.length > 0" class="w-full md:w-[240px] shrink-0">
-        <div class="relative aspect-video md:aspect-[4/3] rounded-2xl overflow-hidden border border-white/5 bg-white/5">
+      <div v-if="item.media_urls && item.media_urls.length > 0" class="w-full md:w-[380px] shrink-0">
+        <div class="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-white/5">
           <!-- Video Player -->
           <video 
             v-if="isVideo(item.media_urls[0])"
             :src="decodeUrl(item.media_urls[0])" 
             class="w-full h-full object-cover"
+            autoplay
+            muted
+            loop
+            playsinline
             controls
             preload="metadata"
             referrerpolicy="no-referrer"
