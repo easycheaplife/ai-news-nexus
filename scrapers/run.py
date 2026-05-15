@@ -40,6 +40,8 @@ def run_scrapers(target_platform: str = None):
             engine.scrape()
         except Exception as e:
             logging.error(f"❌ Error in {engine.platform} engine: {e}")
+            
+    logging.info("🏁 All scrapers finished successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")

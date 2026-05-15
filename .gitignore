@@ -16,5 +16,7 @@ backend/app/schemas/__pycache__/
 backend/*.db
 scrapers/__pycache__/
 scrapers/engines/__pycache__/
+scrapers/state.json
+scrapers/.env
 .vscode/
 .idea/

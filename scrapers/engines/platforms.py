@@ -1,10 +1,8 @@
 import requests
 import os
+import time
 from ..base import BaseScraper
 from datetime import datetime
-from ntscraper import Nitter
-from twikit import Client
-import asyncio
 
 class RedditScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -15,12 +13,26 @@ class RedditScraper(BaseScraper):
     def scrape(self):
         subs = ["MachineLearning", "ArtificialInteligence", "OpenAI", "LocalLLaMA"]
         for sub in subs:
+            last_timestamp = self.get_last_id(sub)
             url = f"https://www.reddit.com/r/{sub}/new.json?limit=25"
             try:
                 response = requests.get(url, headers=self.headers)
                 data = response.json()
+                
+                newest_timestamp = None
+                
                 for post in data['data']['children']:
                     p_data = post['data']
+                    created_utc = str(int(p_data['created_utc']))
+                    
+                    # 增量判断
+                    if last_timestamp and int(created_utc) <= int(last_timestamp):
+                        self.logger.info(f"⏱️ Reached last seen post in r/{sub}, stopping.")
+                        break
+                    
+                    if newest_timestamp is None:
+                        newest_timestamp = created_utc
+                        
                     item = {
                         "platform": "reddit",
                         "external_id": p_data['id'],
@@ -36,6 +48,11 @@ class RedditScraper(BaseScraper):
                         }
                     }
                     self.push_to_backend(item)
+                
+                # 更新游标
+                if newest_timestamp:
+                    self.update_last_id(sub, newest_timestamp)
+                    
             except Exception as e:
                 self.logger.error(f"Error scraping Reddit r/{sub}: {e}")
 
@@ -45,7 +62,11 @@ from bs4 import BeautifulSoup
 class TwitterScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("twitter", api_url)
-        self.ai_accounts = ["OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy"]
+        self.ai_accounts = [
+            "OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy",
+            "AnthropicAI", "sama", "gdb", "demishassabis", "perplexity_ai", "Cohere",
+            "NVIDIAAI", "MetaAI", "AndrewYNg", "ArowLau"
+        ]
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -57,7 +78,10 @@ class TwitterScraper(BaseScraper):
         
         for username in self.ai_accounts:
             try:
+                # 💡 增加延迟防止 429
+                time.sleep(2)
                 self.logger.info(f"👤 Scraping tweets from: @{username}")
+                last_id = self.get_last_id(username)
                 url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
                 
                 response = requests.get(url, headers=self.headers, timeout=15)
@@ -66,7 +90,6 @@ class TwitterScraper(BaseScraper):
                     continue
 
                 soup = BeautifulSoup(response.text, 'html.parser')
-                # Twitter 嵌入页面将数据存储在 <script id="__NEXT_DATA__"> 中
                 script_tag = soup.find('script', id='__NEXT_DATA__')
                 
                 if not script_tag:
@@ -75,14 +98,13 @@ class TwitterScraper(BaseScraper):
 
                 data = json.loads(script_tag.string)
                 
-                # 提取推文列表
-                # 路径通常是: props -> pageProps -> timeline -> entries
                 try:
                     timeline = data['props']['pageProps']['timeline']['entries']
                 except KeyError:
                     self.logger.error(f"❌ Unexpected data structure for @{username}")
                     continue
 
+                newest_id = None
                 for entry in timeline:
                     try:
                         tweet = entry.get('content', {}).get('tweet')
@@ -90,6 +112,15 @@ class TwitterScraper(BaseScraper):
                             continue
                         
                         tweet_id = tweet['id_str']
+                        
+                        if newest_id is None:
+                            newest_id = tweet_id
+
+                        # 增量判断
+                        if last_id and int(tweet_id) <= int(last_id):
+                            self.logger.info(f"⏱️ Reached last seen tweet for @{username}, stopping.")
+                            break
+                        
                         text = tweet.get('full_text', tweet.get('text', ''))
                         
                         # 解析推特日期格式: "Mon May 11 13:10:12 +0000 2026"
@@ -97,7 +128,6 @@ class TwitterScraper(BaseScraper):
                         published_at = datetime.utcnow().isoformat()
                         if raw_date:
                             try:
-                                # Twitter 日期格式转换
                                 dt = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
                                 published_at = dt.isoformat()
                             except Exception as date_e:
@@ -122,6 +152,10 @@ class TwitterScraper(BaseScraper):
                         self.push_to_backend(item)
                     except Exception as inner_e:
                         self.logger.error(f"Error processing tweet: {inner_e}")
+                
+                # 更新游标
+                if newest_id:
+                    self.update_last_id(username, newest_id)
                         
             except Exception as e:
                 self.logger.error(f"Critical error scraping @{username}: {e}")
@@ -135,8 +169,21 @@ class ProductHuntScraper(BaseScraper):
         try:
             import feedparser
             self.logger.info("📦 Scraping Product Hunt RSS feed...")
+            last_timestamp = self.get_last_id("ph_main")
             feed = feedparser.parse(self.rss_url)
+            
+            newest_timestamp = None
             for entry in feed.entries:
+                # 获取时间戳字符串用于比较
+                published_ts = str(int(datetime(*entry.published_parsed[:6]).timestamp()))
+                
+                if last_timestamp and int(published_ts) <= int(last_timestamp):
+                    self.logger.info("⏱️ Reached last seen Product Hunt post, stopping.")
+                    break
+                
+                if newest_timestamp is None:
+                    newest_timestamp = published_ts
+
                 if any(k in (entry.title + entry.get('summary', '')).lower() for k in ["ai ", "gpt", "llm", "bot"]):
                     item = {
                         "platform": "ph",
@@ -144,11 +191,15 @@ class ProductHuntScraper(BaseScraper):
                         "title": entry.title,
                         "content": entry.get('summary', ''),
                         "url": entry.link,
-                        "published_at": datetime.utcnow().isoformat(),
+                        "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
                         "metadata_json": {
                             "author": entry.get("author", "Unknown")
                         }
                     }
                     self.push_to_backend(item)
+            
+            if newest_timestamp:
+                self.update_last_id("ph_main", newest_timestamp)
+                
         except Exception as e:
             self.logger.error(f"Error scraping Product Hunt: {e}")
