@@ -209,11 +209,3 @@ const handleSearch = () => {
   scrollbar-width: none;
 }
 </style>
-
-    <!-- Background Decoration -->
-    <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-      <div class="absolute top-[20%] -left-20 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[120px]"></div>
-      <div class="absolute bottom-[10%] -right-20 w-[400px] h-[400px] bg-secondary/10 rounded-full blur-[100px]"></div>
-    </div>
-  </div>
-</template>
