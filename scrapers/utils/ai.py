@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -21,13 +21,13 @@ class GeminiEvaluator:
             self.model = genai.GenerativeModel(self.model_name)
             self.enabled = True
 
-    def evaluate(self, title: str, content: str) -> Tuple[int, str]:
+    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str]]:
         """
         使用 Gemini 对内容进行评分并给出推荐理由
         返回: (分数, 理由)
         """
         if not self.enabled:
-            return 0, "AI Evaluation disabled (No API Key)"
+            return 0, None
 
         prompt = f"""
         你是一个资深的 AI 行业分析师。请对以下新闻/动态进行评估：
@@ -58,10 +58,10 @@ class GeminiEvaluator:
                 text = text.split("```")[1].split("```")[0].strip()
             
             data = json.loads(text)
-            return data.get("score", 0), data.get("reason", "无推荐理由")
+            return data.get("score", 0), data.get("reason")
         except Exception as e:
             self.logger.error(f"❌ Gemini evaluation failed: {e}")
-            return 0, f"Evaluation error: {str(e)}"
+            return 0, None
 
 # 单例模式
 evaluator = GeminiEvaluator()

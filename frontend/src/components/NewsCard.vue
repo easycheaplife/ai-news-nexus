@@ -72,10 +72,10 @@ const platformColors: Record<string, string> = {
       {{ item.title }}
     </h3>
 
-    <!-- 🤖 AI Recommendation Reason -->
-    <div v-if="item.reason" class="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 italic">
+    <!-- 🤖 AI 推荐理由 -->
+    <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="mb-4 p-3 rounded-xl bg-primary/5 border border-primary/10 italic">
       <p class="text-xs text-primary leading-relaxed">
-        <span class="font-bold uppercase tracking-widest text-[10px] block mb-1">AI Reason</span>
+        <span class="font-bold uppercase tracking-widest text-[10px] block mb-1">推荐理由</span>
         "{{ item.reason }}"
       </p>
     </div>
