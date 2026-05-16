@@ -101,9 +101,9 @@ const getPoster = (mediaUrls?: string[]) => {
       </div>
     </div>
 
-    <div :class="['flex flex-col gap-6 md:gap-8 items-start relative z-10', isFeatured ? 'lg:flex-row' : '']">
+    <div class="flex flex-col lg:flex-row gap-6 md:gap-8 items-start relative z-10">
       <!-- Media Side -->
-      <div v-if="item.media_urls && item.media_urls.length > 0" :class="['w-full shrink-0', isFeatured ? 'lg:w-[480px]' : '']">
+      <div v-if="item.media_urls && item.media_urls.length > 0" :class="['w-full lg:w-[320px] shrink-0', isFeatured ? 'lg:w-[400px]' : '']">
         <div class="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-white/5 shadow-2xl">
           <video 
             v-if="isVideo(item.media_urls[0])"
