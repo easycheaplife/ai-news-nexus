@@ -374,9 +374,4 @@ const platformStats = computed(() => {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-
-/* Staggered entrance for items */
-.grid > div {
-  opacity: 0;
-}
 </style>
