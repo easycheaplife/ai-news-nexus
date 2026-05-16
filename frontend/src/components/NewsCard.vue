@@ -22,7 +22,9 @@ defineProps<{
   isFeatured?: boolean
 }>();
 
-const showTakeaways = ref(false);
+const emit = defineEmits(['expand-media']);
+
+const showDetails = ref(false);
 
 const platformIcons: Record<string, any> = {
   twitter: Twitter,
@@ -36,17 +38,16 @@ const platformIcons: Record<string, any> = {
 };
 
 const platformColors: Record<string, string> = {
-  twitter: 'bg-[#1DA1F2]/10 text-[#1DA1F2]',
-  x: 'bg-white/10 text-white',
-  youtube: 'bg-[#FF0000]/10 text-[#FF0000]',
-  reddit: 'bg-[#FF4500]/10 text-[#FF4500]',
-  ph: 'bg-[#DA552F]/10 text-[#DA552F]',
-  hn: 'bg-[#FF6600]/10 text-[#FF6600]',
-  github: 'bg-[#333]/40 text-[#ffffff]',
-  arxiv: 'bg-[#B31B1B]/10 text-[#B31B1B]',
+  twitter: 'bg-[#1DA1F2]/10 text-[#1DA1F2] border-[#1DA1F2]/30',
+  x: 'bg-white/10 text-white border-white/20',
+  youtube: 'bg-[#FF0000]/10 text-[#FF0000] border-[#FF0000]/30',
+  reddit: 'bg-[#FF4500]/10 text-[#FF4500] border-[#FF4500]/30',
+  ph: 'bg-[#DA552F]/10 text-[#DA552F] border-[#DA552F]/30',
+  hn: 'bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/30',
+  github: 'bg-[#333]/40 text-[#ffffff] border-white/20',
+  arxiv: 'bg-[#B31B1B]/10 text-[#B31B1B] border-[#B31B1B]/30',
 };
 
-// 🛠️ 处理编码过的 URL (如 Reddit 的 &amp;)
 const decodeUrl = (url: string) => {
   if (!url) return '';
   const txt = document.createElement('textarea');
@@ -54,7 +55,6 @@ const decodeUrl = (url: string) => {
   return txt.value;
 };
 
-// 🎥 判断是否为视频
 const isVideo = (url: string) => {
   if (!url) return false;
   const decoded = url.toLowerCase();
@@ -62,7 +62,6 @@ const isVideo = (url: string) => {
   return videoExtensions.some(ext => decoded.includes(ext));
 };
 
-// 🖼️ 获取备选封面图
 const getPoster = (mediaUrls?: string[]) => {
   if (!mediaUrls || mediaUrls.length < 2) return undefined;
   return isVideo(mediaUrls[0]) ? decodeUrl(mediaUrls[1]) : undefined;
@@ -71,118 +70,129 @@ const getPoster = (mediaUrls?: string[]) => {
 
 <template>
   <div :class="[
-    'group relative border rounded-[2rem] transition-all duration-700 overflow-hidden flex flex-col h-full',
+    'group relative border transition-all duration-500 overflow-hidden flex flex-col w-full animate-slide-up',
     isFeatured 
-      ? 'bg-gradient-to-br from-[#1a1a24] via-[#131316] to-[#0a0a0c] border-primary/30 shadow-[0_0_50px_rgba(37,99,235,0.15)] p-6 md:p-10' 
-      : 'bg-[#131316] hover:bg-[#1a1a1e] border-white/5 p-5 md:p-8 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1'
+      ? 'bg-gradient-to-r from-[#1a1a24] to-[#0a0a0c] border-primary/40 shadow-[0_0_40px_rgba(37,99,235,0.1)] rounded-[1.5rem]' 
+      : 'bg-[#131316] hover:bg-[#18181c] border-white/5 rounded-xl hover:border-white/10'
   ]">
-    <!-- 🌠 Premium Glow Effect for Featured -->
-    <div v-if="isFeatured" class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
-    
-    <!-- Header: Platform, Time, Score -->
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6 relative z-10">
-      <div class="flex items-center gap-2">
-        <div :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] flex items-center gap-1.5', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted']">
-          <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-3 h-3" />
-          {{ item.platform }}
-        </div>
-        <span class="text-[10px] font-bold text-text-muted uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
-          {{ formatDistanceToNow(new Date(item.published_at), { locale: zhCN, addSuffix: true }) }}
-        </span>
-        <div v-if="isFeatured" class="px-3 py-1 rounded-full bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 animate-pulse">
-          Featured
-        </div>
-      </div>
-      
-      <!-- Quality Score -->
-      <div v-if="item.score && item.score > 0" class="flex items-center gap-1.5 bg-yellow-400/10 px-3 py-1 rounded-full border border-yellow-400/20">
-        <Star class="w-3.5 h-3.5 text-yellow-500 fill-yellow-500" />
-        <span class="text-xs font-bold text-yellow-500">{{ item.score }}</span>
-      </div>
-    </div>
+    <!-- ⚡️ Featured Accent -->
+    <div v-if="isFeatured" class="absolute top-0 left-0 w-1.5 h-full bg-primary shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
 
-    <div class="flex flex-col lg:flex-row gap-6 md:gap-8 items-start relative z-10">
-      <!-- Media Side -->
-      <div v-if="item.media_urls && item.media_urls.length > 0" :class="['w-full lg:w-[320px] shrink-0', isFeatured ? 'lg:w-[400px]' : '']">
-        <div class="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-white/5 shadow-2xl">
+    <div class="flex flex-col md:flex-row items-stretch gap-0 md:gap-6 p-3 md:p-4">
+      <!-- 1. Media Preview (Compact) -->
+      <div 
+        v-if="item.media_urls && item.media_urls.length > 0" 
+        class="w-full md:w-[220px] lg:w-[320px] shrink-0 cursor-zoom-in group/media"
+        @click="emit('expand-media', item)"
+      >
+        <div class="relative aspect-video rounded-lg overflow-hidden bg-black/20 border border-white/5 h-full">
           <video 
             v-if="isVideo(item.media_urls[0])"
             :src="decodeUrl(item.media_urls[0])" 
             :poster="getPoster(item.media_urls)"
             class="w-full h-full object-cover"
-            autoplay muted loop playsinline controls preload="auto"
+            autoplay muted loop playsinline preload="auto"
             referrerpolicy="no-referrer"
           ></video>
           <img 
             v-else
             :src="decodeUrl(item.media_urls[0])" 
-            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-            alt="Content preview"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-110"
+            alt="Thumbnail"
             loading="lazy"
             referrerpolicy="no-referrer"
-            @error="(e: any) => e.target.style.display = 'none'"
           />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+          
+          <!-- 🔍 Expand Indicator -->
+          <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
+            <div class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl">
+              Expand Content
+            </div>
+          </div>
+          
+          <!-- Multi-media badge -->
+          <div v-if="item.media_urls.length > 1" class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white border border-white/10">
+            +{{ item.media_urls.length - 1 }} More
+          </div>
         </div>
       </div>
 
-      <!-- Content Side -->
-      <div class="flex-1 min-w-0">
-        <a :href="item.url" target="_blank" class="block group/title">
+      <!-- 2. Core Content -->
+      <div class="flex-1 flex flex-col justify-center min-w-0 py-4 md:py-1 pr-2 md:pr-4">
+        <!-- Platform & Time Header -->
+        <div class="flex items-center gap-3 mb-2">
+          <div :class="['px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted border-white/10']">
+            <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-2.5 h-2.5" />
+            {{ item.platform }}
+          </div>
+          <span class="text-[10px] font-bold text-text-muted uppercase">
+            {{ formatDistanceToNow(new Date(item.published_at), { locale: zhCN, addSuffix: true }) }}
+          </span>
+          <div v-if="item.cluster_id" class="flex items-center gap-1 text-[10px] font-bold text-primary/60 truncate max-w-[150px]">
+            <Layers class="w-2.5 h-2.5" />
+            {{ item.cluster_id }}
+          </div>
+        </div>
+
+        <!-- Title & Link -->
+        <a :href="item.url" target="_blank" class="block mb-2 group/title">
           <h3 :class="[
-            'font-bold text-white leading-tight mb-4 group-hover/title:text-primary transition-colors line-clamp-2',
-            isFeatured ? 'text-2xl md:text-3xl' : 'text-lg md:text-xl'
+            'font-bold text-white transition-colors line-clamp-1 group-hover/title:text-primary',
+            isFeatured ? 'text-lg md:text-xl' : 'text-base md:text-lg'
           ]">
             {{ item.title }}
           </h3>
         </a>
 
-        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-4 p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
-          <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-30 group-hover/reason:opacity-100 transition-opacity"></div>
-          <p class="text-sm text-slate-300 leading-relaxed italic relative">
-            <span class="not-italic font-bold text-[10px] uppercase tracking-widest text-primary block mb-2 opacity-60">AI 推荐理由</span>
+        <!-- AI Reason (Inline focus) -->
+        <div v-if="item.reason" class="flex items-start gap-2 mb-3">
+          <span class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
+          <p class="text-xs text-slate-400 italic line-clamp-1">
             "{{ item.reason }}"
           </p>
         </div>
 
-        <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-6">
-          <button @click="showTakeaways = !showTakeaways" class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors">
-            <ChevronRight :class="['w-3.5 h-3.5 transition-transform duration-300', (showTakeaways || isFeatured) ? 'rotate-90' : '']" />
-            核心要点 · Key Takeaways
-          </button>
-          <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="max-h-0 opacity-0" enter-to-class="max-h-60 opacity-100">
-            <ul v-if="showTakeaways || isFeatured" class="mt-4 space-y-3 pl-2 border-l border-white/5 ml-1.5">
-              <li v-for="point in item.takeaways" :key="point" class="flex items-start gap-3 group/point">
-                <CheckCircle2 class="w-3.5 h-3.5 text-primary/60 group-hover/point:text-primary transition-colors mt-0.5" />
-                <span :class="['text-slate-400 group-hover/point:text-slate-200 transition-colors', isFeatured ? 'text-sm' : 'text-xs']">{{ point }}</span>
-              </li>
-            </ul>
-          </transition>
-        </div>
-
-        <p :class="['text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium', isFeatured ? 'text-base' : 'text-sm']">
-          {{ item.content || '暂无详细描述。' }}
-        </p>
-
-        <div class="flex items-center justify-between pt-6 border-t border-white/5 mt-auto">
+        <!-- Takeaways & Meta Footer -->
+        <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
           <div class="flex items-center gap-4">
-            <div v-if="item.metadata_json?.author || item.metadata_json?.by" class="flex items-center gap-1.5 text-[11px] font-bold text-text-muted">
-              <User class="w-3 h-3 opacity-50" />
-              <span class="truncate max-w-[150px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
-            </div>
-            <div v-if="item.metadata_json?.hn_score || item.metadata_json?.ups" class="text-[11px] font-bold text-text-muted flex items-center gap-1.5">
-              <span class="bg-white/5 px-2 py-0.5 rounded-md text-text-secondary">{{ item.metadata_json?.hn_score || item.metadata_json?.ups }}</span>
-              <span>互动</span>
-            </div>
-            <div v-if="item.cluster_id" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-wider border border-blue-500/20">
-              <Layers class="w-3 h-3" />
-              {{ item.cluster_id }}
+            <button 
+              v-if="item.takeaways && item.takeaways.length > 0"
+              @click="showDetails = !showDetails"
+              class="text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors flex items-center gap-1"
+            >
+              要点 <ChevronRight :class="['w-3 h-3 transition-transform', showDetails ? 'rotate-90' : '']" />
+            </button>
+            <div v-if="item.metadata_json?.author || item.metadata_json?.by" class="flex items-center gap-1 text-[10px] font-bold text-text-muted">
+              <User class="w-2.5 h-2.5 opacity-50" />
+              <span class="truncate max-w-[100px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
             </div>
           </div>
-          <a :href="item.url" target="_blank" class="flex items-center gap-2 text-xs font-black text-primary hover:text-white transition-all group/link">
-            详情 <ExternalLink class="w-3 h-3 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
-          </a>
+          
+          <div class="flex items-center gap-4">
+             <div v-if="item.metadata_json?.ups || item.metadata_json?.hn_score" class="text-[10px] font-bold text-text-muted flex items-center gap-1">
+              <span class="text-text-secondary">{{ item.metadata_json?.ups || item.metadata_json?.hn_score }}</span> 互动
+            </div>
+            <a :href="item.url" target="_blank" class="text-[10px] font-black text-primary hover:text-white transition-colors uppercase tracking-widest">
+              Detail
+            </a>
+          </div>
         </div>
+
+        <!-- Expandable Takeaways -->
+        <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="max-h-0 opacity-0" enter-to-class="max-h-40 opacity-100">
+          <ul v-if="showDetails" class="mt-4 space-y-2 border-t border-white/5 pt-4">
+            <li v-for="p in item.takeaways" :key="p" class="flex items-center gap-2 text-[11px] text-slate-300">
+              <CheckCircle2 class="w-3 h-3 text-primary/60" /> {{ p }}
+            </li>
+          </ul>
+        </transition>
+      </div>
+
+      <!-- 3. Score (Prominent Right Side) -->
+      <div class="hidden md:flex flex-col items-center justify-center w-20 border-l border-white/5 px-4 bg-white/[0.02]">
+        <Star class="w-4 h-4 text-yellow-500 fill-yellow-500 mb-1" />
+        <span class="text-xl font-black text-white leading-none">{{ item.score || 0 }}</span>
+        <span class="text-[8px] text-text-muted font-bold uppercase mt-1 tracking-tighter">Score</span>
       </div>
     </div>
   </div>

@@ -12,6 +12,40 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const showBriefing = ref(true);
 
+// 🔍 灯箱 (Lightbox) 状态
+const lightbox = ref({
+  isOpen: false,
+  mediaUrl: '',
+  title: '',
+  isVideo: false
+});
+
+const openLightbox = (item: any) => {
+  if (!item.media_urls || item.media_urls.length === 0) return;
+  const url = item.media_urls[0];
+  const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
+  
+  lightbox.value = {
+    isOpen: true,
+    mediaUrl: url,
+    title: item.title,
+    isVideo: videoExtensions.some(ext => url.toLowerCase().includes(ext))
+  };
+  document.body.style.overflow = 'hidden';
+};
+
+const closeLightbox = () => {
+  lightbox.value.isOpen = false;
+  document.body.style.overflow = 'auto';
+};
+
+// 监听键盘 ESC
+onMounted(() => {
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && lightbox.value.isOpen) closeLightbox();
+  });
+});
+
 const filters = ref({
   platform: '',
   query: '',
@@ -160,6 +194,44 @@ const renderMarkdown = (text: string) => {
   <div class="min-h-screen bg-[#0a0a0c] text-slate-200 selection:bg-primary/30">
     <!-- Top Progress Bar -->
     <div v-if="loading" class="fixed top-0 left-0 h-[2px] bg-primary z-[60] animate-progress shadow-[0_0_10px_#2563eb]"></div>
+
+    <!-- 🌠 Global Lightbox -->
+    <transition
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="lightbox.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 bg-black/95 backdrop-blur-2xl" @click="closeLightbox">
+        <button class="absolute top-6 right-8 text-white/50 hover:text-white transition-colors p-2 z-[110]">
+          <RefreshCw class="w-8 h-8 rotate-45" /> 
+        </button>
+        
+        <div class="relative max-w-6xl w-full flex flex-col items-center gap-8" @click.stop>
+          <div class="w-full aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+            <video 
+              v-if="lightbox.isVideo" 
+              :src="lightbox.mediaUrl" 
+              class="w-full h-full object-contain" 
+              controls 
+              autoplay
+            ></video>
+            <img 
+              v-else 
+              :src="lightbox.mediaUrl" 
+              class="w-full h-full object-contain" 
+              alt="Full resolution preview"
+            />
+          </div>
+          <div class="text-center space-y-2">
+            <h2 class="text-xl md:text-2xl font-bold text-white leading-tight px-4">{{ lightbox.title }}</h2>
+            <p class="text-sm text-text-muted italic">点击背景区域或按 ESC 退出预览</p>
+          </div>
+        </div>
+      </div>
+    </transition>
 
     <!-- Header / Navigation -->
     <header class="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
@@ -331,7 +403,7 @@ const renderMarkdown = (text: string) => {
       </div>
     </section>
 
-    <main class="max-w-[900px] mx-auto px-4 md:px-8 py-10 md:py-16">
+    <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-10 md:py-16">
       <!-- Welcome Message -->
       <div v-if="!news.length && !loading" class="text-center py-20 animate-fade-in">
         <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
@@ -366,13 +438,14 @@ const renderMarkdown = (text: string) => {
             </div>
           </div>
 
-          <div class="flex flex-col gap-8 md:gap-12">
+          <div class="flex flex-col gap-4 md:gap-5">
             <NewsCard 
               v-for="item in items" 
               :key="item.id" 
               :item="item" 
               :isFeatured="item.score >= 90"
               class="w-full"
+              @expand-media="openLightbox"
             />
           </div>
         </section>
