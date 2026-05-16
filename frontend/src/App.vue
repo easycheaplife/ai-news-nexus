@@ -562,6 +562,3 @@ const renderMarkdown = (text: string) => {
   border-radius: 4px;
 }
 </style>
- border-radius: 4px;
-}
-</style>
