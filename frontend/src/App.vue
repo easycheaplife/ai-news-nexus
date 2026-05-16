@@ -46,10 +46,14 @@ onMounted(() => {
   });
 });
 
+const hasMore = ref(true);
+const loadingMore = ref(false);
+
 const filters = ref({
   platform: '',
   query: '',
-  limit: 100
+  limit: 50,
+  skip: 0
 });
 
 const platforms = [
@@ -63,32 +67,55 @@ const platforms = [
   { label: 'Product Hunt', value: 'ph' },
 ];
 
-const fetchNews = async () => {
-  loading.value = true;
+const fetchNews = async (isLoadMore = false) => {
+  if (isLoadMore) {
+    loadingMore.value = true;
+  } else {
+    loading.value = true;
+    filters.value.skip = 0;
+  }
+
   try {
     const params = {
       platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
-      limit: filters.value.limit
+      limit: filters.value.limit,
+      skip: filters.value.skip
     };
     const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
     
-    // 并行抓取资讯和最新洞察
-    const [newsRes, insightRes] = await Promise.all([
-      axios.get(`${apiUrl}/news/`, { params }),
-      axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null }))
-    ]);
+    if (isLoadMore) {
+      // 仅抓取更多资讯
+      const response = await axios.get(`${apiUrl}/news/`, { params });
+      const newItems = response.data;
+      news.value = [...news.value, ...newItems];
+      hasMore.value = newItems.length === filters.value.limit;
+    } else {
+      // 并行抓取资讯和最新洞察
+      const [newsRes, insightRes] = await Promise.all([
+        axios.get(`${apiUrl}/news/`, { params }),
+        axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null }))
+      ]);
+      
+      news.value = newsRes.data;
+      latestInsight.value = insightRes.data;
+      hasMore.value = news.value.length === filters.value.limit;
+      console.log('Briefing Data Received:', latestInsight.value);
+    }
     
-    news.value = newsRes.data;
-    latestInsight.value = insightRes.data;
-    console.log('Briefing Data Received:', latestInsight.value);
     error.value = null;
   } catch (err: any) {
     error.value = '无法连接到资讯引擎。';
     console.error(err);
   } finally {
     loading.value = false;
+    loadingMore.value = false;
   }
+};
+
+const loadMore = () => {
+  filters.value.skip += filters.value.limit;
+  fetchNews(true);
 };
 
 // 按日期分组
@@ -112,13 +139,14 @@ const formatDateHeader = (dateStr: string) => {
   return format(date, 'MM月dd日 EEEE', { locale: zhCN });
 };
 
-onMounted(fetchNews);
-watch(() => filters.value.platform, fetchNews);
+onMounted(() => fetchNews(false));
+watch(() => filters.value.platform, () => fetchNews(false));
 
 let searchTimeout: any;
 const handleSearch = () => {
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(fetchNews, 500);
+  filters.value.skip = 0; // 重置分页
+  searchTimeout = setTimeout(() => fetchNews(false), 500);
 };
 
 // 📈 提取今日热点关键词 (优先从后端 Insight 获取)
@@ -131,7 +159,7 @@ const hotTopics = computed(() => {
   currentItems.forEach(item => {
     const matches = item.title.match(/[A-Z]{2,}|AI|GPT|LLM|Sora|Gemini|Claude|DeepSeek/g);
     if (matches) {
-      matches.forEach(w => {
+      matches.forEach((w: string) => {
         words[w] = (words[w] || 0) + 1;
       });
     }
@@ -236,7 +264,7 @@ const renderMarkdown = (text: string) => {
     <!-- Header / Navigation -->
     <header class="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
       <div class="max-w-[1200px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-6">
-        <div class="flex items-center gap-4 group cursor-pointer" @click="fetchNews">
+        <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
           <div class="relative">
             <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
             <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
@@ -281,7 +309,7 @@ const renderMarkdown = (text: string) => {
             </div>
 
             <button 
-              @click="fetchNews"
+              @click="() => fetchNews(false)"
               class="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
               title="刷新数据"
             >
@@ -379,7 +407,7 @@ const renderMarkdown = (text: string) => {
                   <div 
                     class="w-full relative rounded-t-md transition-all duration-700 hover:brightness-125"
                     :class="[platformBarColors[platform] || 'bg-primary/20', count === 0 ? 'opacity-10' : 'opacity-60']"
-                    :style="{ height: `${(count / (Math.max(...Object.values(platformStats)) || 1)) * 100}%` }"
+                    :style="{ height: `${(count / (Math.max(...(Object.values(platformStats) as number[])) || 1)) * 100}%` }"
                   >
                     <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-white opacity-0 group-hover/bar:opacity-100 transition-opacity">
                       {{ count }}
@@ -449,6 +477,19 @@ const renderMarkdown = (text: string) => {
             />
           </div>
         </section>
+
+        <!-- 🚀 Load More -->
+        <div v-if="hasMore" class="flex justify-center pt-10 pb-20">
+          <button 
+            @click="loadMore"
+            :disabled="loadingMore"
+            class="flex items-center gap-3 px-10 py-4 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/30 rounded-2xl text-sm font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none group"
+          >
+            <RefreshCw v-if="loadingMore" class="w-4 h-4 animate-spin" />
+            <ChevronDown v-else class="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
+            {{ loadingMore ? '正在加载...' : '加载更多资讯 · Load More' }}
+          </button>
+        </div>
       </div>
     </main>
 

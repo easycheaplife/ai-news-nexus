@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers } from 'lucide-vue-next';
 
 defineProps<{
   item: {
