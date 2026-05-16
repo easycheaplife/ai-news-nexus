@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 import google.generativeai as genai
 from dotenv import load_dotenv
 
@@ -21,13 +21,13 @@ class GeminiEvaluator:
             self.model = genai.GenerativeModel(self.model_name)
             self.enabled = True
 
-    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str]]:
+    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str]]:
         """
-        使用 Gemini 对内容进行评分并给出推荐理由
-        返回: (分数, 理由)
+        使用 Gemini 对内容进行评分、理由提炼、核心要点总结及语义聚类
+        返回: (分数, 理由, 核心要点列表, 语义聚类ID)
         """
         if not self.enabled:
-            return 0, None
+            return 0, None, None, None
 
         prompt = f"""
         你是一个资深的 AI 行业分析师。请对以下新闻/动态进行评估：
@@ -35,15 +35,12 @@ class GeminiEvaluator:
         标题: {title}
         内容: {content}
         
-        请基于以下标准进行评分 (0-100)：
-        1. 创新性: 是否是重大的技术突破或新产品发布？
-        2. 影响力: 对 AI 行业、开发者或普通用户的潜在影响。
-        3. 真实性/来源: 是否是可靠的一手信息。
-        
         请严格按以下 JSON 格式返回结果，不要包含任何其他文字：
         {{
-            "score": 评分值(数字),
-            "reason": "一句话推荐理由 (50字以内，重点说明为什么值得关注)"
+            "score": 评分值(数字 0-100),
+            "reason": "一句话推荐理由 (50字以内)",
+            "takeaways": ["核心要点1", "核心要点2", "核心要点3"],
+            "cluster_id": "用2-4个词概括其核心语义主题，作为聚类ID (例如: 'OpenAI Sora', 'DeepSeek V3', 'Apple Intelligence')"
         }}
         """
 
@@ -51,17 +48,21 @@ class GeminiEvaluator:
             response = self.model.generate_content(prompt)
             # 尝试解析返回的 JSON
             text = response.text.strip()
-            # 有时模型会返回 ```json ... ```
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0].strip()
             elif "```" in text:
                 text = text.split("```")[1].split("```")[0].strip()
             
             data = json.loads(text)
-            return data.get("score", 0), data.get("reason")
+            return (
+                data.get("score", 0), 
+                data.get("reason"), 
+                data.get("takeaways"),
+                data.get("cluster_id")
+            )
         except Exception as e:
             self.logger.error(f"❌ Gemini evaluation failed: {e}")
-            return 0, None
+            return 0, None, None, None
 
 # 单例模式
 evaluator = GeminiEvaluator()

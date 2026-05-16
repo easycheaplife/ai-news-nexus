@@ -35,7 +35,7 @@ class HNScraper(BaseScraper):
                 keywords = ["ai ", "llm", "gpt", "neural", "machine learning", "deepseek", "openai", "claude"]
                 if any(k in title.lower() for k in keywords):
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(title, text)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(title, text)
 
                     item = {
                         "platform": "hn",
@@ -46,6 +46,8 @@ class HNScraper(BaseScraper):
                         "published_at": datetime.fromtimestamp(story.get("time")).isoformat(),
                         "score": score,
                         "reason": reason,
+                        "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                         "metadata_json": {
                             "hn_score": story.get("score"),
                             "by": story.get("by"),

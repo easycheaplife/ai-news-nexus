@@ -13,6 +13,8 @@ class NewsItemBase(BaseModel):
     score: Optional[int] = 0
     reason: Optional[str] = None
     media_urls: Optional[List[str]] = None
+    takeaways: Optional[List[str]] = None
+    cluster_id: Optional[str] = None
 
 class NewsItemCreate(NewsItemBase):
     pass

@@ -69,7 +69,7 @@ class GitHubScraper(BaseScraper):
                          pass 
 
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(f"GitHub Repository: {title}", description)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"GitHub Repository: {title}", description)
 
                     item = {
                         "platform": "github",
@@ -80,6 +80,8 @@ class GitHubScraper(BaseScraper):
                         "published_at": datetime.utcnow().isoformat(),
                         "score": score,
                         "reason": reason,
+                        "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                         "metadata_json": {
                             "author": title.split('/')[0],
                             "stars": stars

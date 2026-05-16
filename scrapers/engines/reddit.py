@@ -84,7 +84,7 @@ class RedditScraper(BaseScraper):
                             media_urls.append(p_data['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(p_data['title'], full_content)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(p_data['title'], full_content)
 
                     item = {
                         "platform": "reddit",
@@ -95,6 +95,8 @@ class RedditScraper(BaseScraper):
                         "published_at": datetime.fromtimestamp(p_data['created_utc']).isoformat(),
                         "score": score,
                         "reason": reason,
+                        "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "subreddit": sub,

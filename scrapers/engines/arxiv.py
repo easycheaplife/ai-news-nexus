@@ -36,7 +36,7 @@ class ArxivScraper(BaseScraper):
                 pdf_link = next((link.href for link in entry.links if link.get('title') == 'pdf'), entry.link)
 
                 # 🤖 AI 评分与理由
-                score, reason = evaluator.evaluate(f"ArXiv Paper: {title}", abstract)
+                score, reason, takeaways, cluster_id = evaluator.evaluate(f"ArXiv Paper: {title}", abstract)
 
                 item = {
                     "platform": "arxiv",
@@ -47,6 +47,8 @@ class ArxivScraper(BaseScraper):
                     "published_at": datetime(*entry.published_parsed[:6]).isoformat(),
                     "score": score,
                     "reason": reason,
+                    "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                     "metadata_json": {
                         "author": ", ".join(authors[:3]) + (" et al." if len(authors) > 3 else ""),
                         "pdf_url": pdf_link

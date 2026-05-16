@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS `news_items` (
     `score` INT DEFAULT 0 COMMENT 'AI 评分 (0-100)',
     `reason` TEXT COMMENT 'AI 推荐理由',
     `media_urls` JSON COMMENT '多媒体链接列表 (图片、视频)',
+    `takeaways` JSON COMMENT 'AI 提炼的核心要点 (列表)',
+    `cluster_id` VARCHAR(100) COMMENT '聚合簇ID，用于关联相似资讯',
     
     -- 唯一性约束与索引
     UNIQUE KEY `uk_platform_external` (`platform`, `external_id`), -- 防止同一平台重复抓取

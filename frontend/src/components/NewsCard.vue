@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen } from 'lucide-vue-next';
+import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers } from 'lucide-vue-next';
 
 defineProps<{
   item: {
@@ -13,10 +14,14 @@ defineProps<{
     published_at: string;
     score?: number;
     reason?: string;
+    takeaways?: string[];
+    cluster_id?: string;
     media_urls?: string[];
     metadata_json?: any;
   }
 }>();
+
+const showTakeaways = ref(false);
 
 const platformIcons: Record<string, any> = {
   twitter: Twitter,
@@ -97,12 +102,39 @@ const getPoster = (mediaUrls?: string[]) => {
         </a>
 
         <!-- 🤖 AI 推荐理由 (高亮核心展示) -->
-        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-6 p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
+        <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-4 p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
           <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-30 group-hover/reason:opacity-100 transition-opacity"></div>
           <p class="text-sm text-slate-300 leading-relaxed italic relative">
             <span class="not-italic font-bold text-[10px] uppercase tracking-widest text-primary block mb-2 opacity-60">AI 推荐理由</span>
             "{{ item.reason }}"
           </p>
+        </div>
+
+        <!-- 🧩 核心要点 (Takeaways) - 可折叠 -->
+        <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-6">
+          <button 
+            @click="showTakeaways = !showTakeaways"
+            class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors"
+          >
+            <ChevronRight :class="['w-3.5 h-3.5 transition-transform duration-300', showTakeaways ? 'rotate-90' : '']" />
+            核心要点 · Key Takeaways
+          </button>
+          
+          <transition 
+            enter-active-class="transition-all duration-300 ease-out" 
+            enter-from-class="max-h-0 opacity-0 transform -translate-y-2" 
+            enter-to-class="max-h-40 opacity-100 transform translate-y-0"
+            leave-active-class="transition-all duration-200 ease-in"
+            leave-from-class="max-h-40 opacity-100"
+            leave-to-class="max-h-0 opacity-0"
+          >
+            <ul v-if="showTakeaways" class="mt-3 space-y-2 pl-2 border-l border-white/5 ml-1.5">
+              <li v-for="point in item.takeaways" :key="point" class="flex items-start gap-3 group/point">
+                <CheckCircle2 class="w-3.5 h-3.5 text-primary/40 group-hover/point:text-primary transition-colors mt-0.5" />
+                <span class="text-xs text-slate-400 group-hover/point:text-slate-200 transition-colors">{{ point }}</span>
+              </li>
+            </ul>
+          </transition>
         </div>
 
         <!-- Content Snippet -->
@@ -122,6 +154,11 @@ const getPoster = (mediaUrls?: string[]) => {
             <div v-if="item.metadata_json?.hn_score || item.metadata_json?.ups" class="text-[11px] font-bold text-text-muted flex items-center gap-1.5">
               <span class="bg-white/5 px-2 py-0.5 rounded-md text-text-secondary">{{ item.metadata_json?.hn_score || item.metadata_json?.ups }}</span>
               <span>互动</span>
+            </div>
+            <!-- Related Clustering -->
+            <div v-if="item.cluster_id" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-wider border border-blue-500/20">
+              <Layers class="w-3 h-3" />
+              聚合
             </div>
           </div>
 

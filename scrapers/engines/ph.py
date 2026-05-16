@@ -42,7 +42,7 @@ class ProductHuntScraper(BaseScraper):
                         rich_content = entry.get('content')[0].value
                     
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(entry.title, rich_content)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(entry.title, rich_content)
 
                     item = {
                         "platform": "ph",
@@ -53,6 +53,8 @@ class ProductHuntScraper(BaseScraper):
                         "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
                         "score": score,
                         "reason": reason,
+                        "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "author": entry.get("author", "Unknown")

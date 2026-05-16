@@ -19,6 +19,8 @@ class NewsItem(Base):
     score = Column(Integer, default=0)
     reason = Column(Text)
     media_urls = Column(JSON)
+    takeaways = Column(JSON)
+    cluster_id = Column(String(100), index=True)
 
     __table_args__ = (
         UniqueConstraint('platform', 'external_id', name='_platform_external_id_uc'),

@@ -59,7 +59,7 @@ class YouTubeScraper(BaseScraper):
                         media_urls.append(best_thumb['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason = evaluator.evaluate(f"YouTube Video: {entry.title}", description)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"YouTube Video: {entry.title}", description)
 
                     item = {
                         "platform": "youtube",
@@ -70,6 +70,8 @@ class YouTubeScraper(BaseScraper):
                         "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
                         "score": score,
                         "reason": reason,
+                        "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "author": channel_name,

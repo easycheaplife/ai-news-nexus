@@ -12,7 +12,9 @@ class TwitterScraper(BaseScraper):
         self.ai_accounts = [
             "OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy",
             "AnthropicAI", "sama", "gdb", "demishassabis", "perplexity_ai", "Cohere",
-            "NVIDIAAI", "MetaAI", "AndrewYNg", "ArowLau"
+            "NVIDIAAI", "MetaAI", "AndrewYNg", "ArowLau", "DrJimFan", "fchollet",
+            "bindureddy", "emostaque", "swyx", "RowanChevalier", "levelsio", "AravSrinivas",
+            "shaneleg", "ilyasut", "gdb", "woj_zaremba", "reidhoffman", "p_george"
         ]
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -104,7 +106,7 @@ class TwitterScraper(BaseScraper):
                                 media_urls.append(m.get('media_url_https'))
                         
                         # 🤖 AI 评分与理由
-                        score, reason = evaluator.evaluate(f"Tweet from @{username}", full_content)
+                        score, reason, takeaways, cluster_id = evaluator.evaluate(f"Tweet from @{username}", full_content)
 
                         # 解析推特日期格式: "Mon May 11 13:10:12 +0000 2026"
                         raw_date = tweet.get('created_at')
@@ -128,6 +130,8 @@ class TwitterScraper(BaseScraper):
                             "published_at": published_at,
                             "score": score,
                             "reason": reason,
+                            "takeaways": takeaways,
+                            "cluster_id": cluster_id,
                             "media_urls": media_urls,
                             "metadata_json": {
                                 "author": tweet.get('user', {}).get('name', username),
