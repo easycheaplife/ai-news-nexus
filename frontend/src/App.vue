@@ -191,8 +191,8 @@ const platformStats = computed(() => {
     </header>
 
     <!-- Briefing Center (Top Dashboard) -->
-    <section class="max-w-[1000px] mx-auto px-4 md:px-8 pt-8">
-      <div class="glass-card rounded-[2.5rem] border border-white/5 bg-[#131316]/50 overflow-hidden">
+    <section class="max-w-[1400px] mx-auto px-4 md:px-8 pt-8">
+      <div class="glass-card rounded-[2.5rem] border border-white/5 bg-[#131316]/50 overflow-hidden shadow-2xl shadow-primary/5">
         <!-- Toggle Header -->
         <button 
           @click="showBriefing = !showBriefing"
