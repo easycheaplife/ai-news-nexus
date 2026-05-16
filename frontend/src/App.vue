@@ -353,15 +353,3 @@ const platformStats = computed(() => {
   scrollbar-width: none;
 }
 </style>
- { transform: translateX(100%); }
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-</style>
-tyle>
