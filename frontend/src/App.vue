@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
-import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3 } from 'lucide-vue-next';
+import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
 import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
@@ -22,9 +22,19 @@ const lightbox = ref({
 
 const openLightbox = (item: any) => {
   if (!item.media_urls || item.media_urls.length === 0) return;
-  const url = item.media_urls[0];
+  
+  // 🧩 处理编码过的 URL
+  const decodeUrl = (url: string) => {
+    const txt = document.createElement('textarea');
+    txt.innerHTML = url;
+    return txt.value;
+  };
+
+  const rawUrl = item.media_urls[0];
+  const url = decodeUrl(rawUrl);
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
   
+  lightboxLoading.value = true;
   lightbox.value = {
     isOpen: true,
     mediaUrl: url,
@@ -233,29 +243,40 @@ const renderMarkdown = (text: string) => {
       leave-to-class="opacity-0"
     >
       <div v-if="lightbox.isOpen" class="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10 bg-black/95 backdrop-blur-2xl" @click="closeLightbox">
-        <button class="absolute top-6 right-8 text-white/50 hover:text-white transition-colors p-2 z-[110]">
-          <RefreshCw class="w-8 h-8 rotate-45" /> 
+        <button class="absolute top-6 right-8 text-white/50 hover:text-white transition-all p-2 z-[110] hover:rotate-90">
+          <X class="w-10 h-10" /> 
         </button>
         
         <div class="relative max-w-6xl w-full flex flex-col items-center gap-8" @click.stop>
-          <div class="w-full aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black">
+          <div class="w-full aspect-video rounded-3xl overflow-hidden shadow-2xl border border-white/10 bg-black flex items-center justify-center relative">
+            <!-- Loading Spinner -->
+            <div v-if="lightboxLoading" class="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-[#0a0a0c]">
+              <RefreshCw class="w-10 h-10 text-primary animate-spin" />
+              <span class="text-xs font-bold text-text-muted uppercase tracking-[0.2em]">正在加载高清资源...</span>
+            </div>
+
             <video 
               v-if="lightbox.isVideo" 
               :src="lightbox.mediaUrl" 
               class="w-full h-full object-contain" 
               controls 
               autoplay
+              referrerpolicy="no-referrer"
+              @loadedmetadata="lightboxLoading = false"
             ></video>
             <img 
               v-else 
               :src="lightbox.mediaUrl" 
               class="w-full h-full object-contain" 
               alt="Full resolution preview"
+              referrerpolicy="no-referrer"
+              @load="lightboxLoading = false"
+              @error="lightboxLoading = false"
             />
           </div>
           <div class="text-center space-y-2">
             <h2 class="text-xl md:text-2xl font-bold text-white leading-tight px-4">{{ lightbox.title }}</h2>
-            <p class="text-sm text-text-muted italic">点击背景区域或按 ESC 退出预览</p>
+            <p class="text-sm text-text-muted italic opacity-50">点击背景区域、按 ESC 或 [X] 退出预览</p>
           </div>
         </div>
       </div>
@@ -539,5 +560,8 @@ const renderMarkdown = (text: string) => {
   background: rgba(37, 99, 235, 0.1);
   padding: 0 4px;
   border-radius: 4px;
+}
+</style>
+ border-radius: 4px;
 }
 </style>
