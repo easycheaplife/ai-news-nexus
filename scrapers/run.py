@@ -21,50 +21,51 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-def run_scrapers(target_platform: str = None):
-    # 获取后端 API 地址
-    api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
-    
-    # 所有可用引擎
-    all_engines = [
-        HNScraper(api_url=api_url),
-        RedditScraper(api_url=api_url),
-        TwitterScraper(api_url=api_url),
-        ProductHuntScraper(api_url=api_url),
-        GitHubScraper(api_url=api_url),
-        ArxivScraper(api_url=api_url),
-        YouTubeScraper(api_url=api_url)
-    ]
-    
-    # 如果指定了平台，则进行过滤
-    if target_platform:
-        engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
-        if not engines:
-            logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
+def generate_daily_insights(api_url: str):
+    """
+    抓取后分析逻辑：从后端获取今日资讯，进行聚类分析并生成 AI 战略简报
+    """
+    logging.info("🧠 Starting AI Deep Insights synthesis...")
+    try:
+        # 1. 获取近期资讯用于分析
+        response = requests.get(f"{api_url}/news/", params={"limit": 200})
+        if response.status_code != 200:
+            logging.error(f"❌ Failed to fetch news for analysis: {response.text}")
             return
-    else:
-        engines = all_engines
-    
-    for engine in engines:
-        logging.info(f"🚀 Starting {engine.platform} engine...")
-        try:
-            engine.scrape()
-        except Exception as e:
-            logging.error(f"❌ Error in {engine.platform} engine: {e}")
-            
-    logging.info("🏁 All scrapers finished successfully.")
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
-    parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
-    args = parser.parse_args()
-    
-    run_scrapers(args.platform)
-platform to scrape (hn, reddit, twitter, ph)")
-    args = parser.parse_args()
-    
-    run_scrapers(args.platform)
-    "date": today,
+        all_news = response.json()
+        if not all_news:
+            logging.warning("⚠️ No news found to analyze.")
+            return
+        
+        # 2. 按 cluster_id 聚合
+        clusters = {}
+        platform_counts = {}
+        for item in all_news:
+            # 统计平台分布
+            p = item['platform']
+            platform_counts[p] = platform_counts.get(p, 0) + 1
+
+            cid = item.get('cluster_id')
+            if not cid: continue
+            
+            if cid not in clusters:
+                clusters[cid] = {"cluster_id": cid, "count": 0, "reasons": []}
+            
+            clusters[cid]["count"] += 1
+            if item.get('reason'):
+                clusters[cid]["reasons"].append(item['reason'])
+
+        # 3. 排序并取前 10 个热点
+        sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
+        
+        # 4. 调用 AI 生成简报
+        briefing_content = evaluator.summarize_clusters(sorted_clusters)
+        
+        # 5. 回传到后端存储 (使用 UTC 日期)
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        insight_data = {
+            "date": today,
             "content": briefing_content,
             "hot_topics": [c['cluster_id'] for c in sorted_clusters[:8]],
             "stats_json": platform_counts
@@ -110,6 +111,10 @@ def run_scrapers(target_platform: str = None):
         except Exception as e:
             logging.error(f"❌ Error in {engine.platform} engine: {e}")
             
+    # 🏁 抓取结束后自动生成今日 AI 深度洞察
+    if not target_platform:
+        generate_daily_insights(api_url)
+
     logging.info("🏁 All scrapers finished successfully.")
 
 if __name__ == "__main__":

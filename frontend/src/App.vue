@@ -38,8 +38,16 @@ const fetchNews = async () => {
       limit: filters.value.limit
     };
     const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
-    const response = await axios.get(`${apiUrl}/news/`, { params });
-    news.value = response.data;
+    
+    // 并行抓取资讯和最新洞察
+    const [newsRes, insightRes] = await Promise.all([
+      axios.get(`${apiUrl}/news/`, { params }),
+      axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null }))
+    ]);
+    
+    news.value = newsRes.data;
+    latestInsight.value = insightRes.data;
+    console.log('Briefing Data Received:', latestInsight.value);
     error.value = null;
   } catch (err: any) {
     error.value = '无法连接到资讯引擎。';
@@ -79,8 +87,11 @@ const handleSearch = () => {
   searchTimeout = setTimeout(fetchNews, 500);
 };
 
-// 📈 提取今日热点关键词 (基于最新资讯)
+// 📈 提取今日热点关键词 (优先从后端 Insight 获取)
 const hotTopics = computed(() => {
+  if (latestInsight.value?.hot_topics) {
+    return latestInsight.value.hot_topics;
+  }
   const words: Record<string, number> = {};
   const currentItems = news.value.slice(0, 30);
   currentItems.forEach(item => {
