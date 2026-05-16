@@ -291,7 +291,7 @@ const platformStats = computed(() => {
       </div>
     </section>
 
-    <main class="max-w-[1200px] mx-auto px-4 md:px-8 py-10 md:py-16">
+    <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-10 md:py-16">
       <!-- Welcome Message -->
       <div v-if="!news.length && !loading" class="text-center py-20 animate-fade-in">
         <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
@@ -326,13 +326,13 @@ const platformStats = computed(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 grid-flow-row-dense">
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 md:gap-8 grid-flow-row-dense">
             <NewsCard 
               v-for="item in items" 
               :key="item.id" 
               :item="item" 
               :isFeatured="item.score >= 90"
-              :class="item.score >= 90 ? 'lg:col-span-2' : 'col-span-1'"
+              :class="item.score >= 90 ? 'md:col-span-2' : 'col-span-1'"
             />
           </div>
         </section>
