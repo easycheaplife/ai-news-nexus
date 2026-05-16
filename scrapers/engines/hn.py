@@ -1,5 +1,5 @@
 import requests
-from ..base import BaseScraper
+from .base import BaseScraper
 from datetime import datetime
 from ..utils.ai import evaluator
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User } from 'lucide-vue-next';
+import { ExternalLink, Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen } from 'lucide-vue-next';
 
 defineProps<{
   item: {
@@ -25,6 +25,8 @@ const platformIcons: Record<string, any> = {
   reddit: Hash,
   ph: Box,
   hn: Terminal,
+  github: Github,
+  arxiv: BookOpen,
 };
 
 const platformColors: Record<string, string> = {
@@ -34,6 +36,8 @@ const platformColors: Record<string, string> = {
   reddit: 'bg-[#FF4500]/10 text-[#FF4500]',
   ph: 'bg-[#DA552F]/10 text-[#DA552F]',
   hn: 'bg-[#FF6600]/10 text-[#FF6600]',
+  github: 'bg-[#333]/40 text-[#ffffff]',
+  arxiv: 'bg-[#B31B1B]/10 text-[#B31B1B]',
 };
 
 // 🛠️ 处理编码过的 URL (如 Reddit 的 &amp;)

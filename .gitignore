@@ -20,3 +20,4 @@ scrapers/state.json
 scrapers/.env
 .vscode/
 .idea/
+frontend/netlify.toml

@@ -19,6 +19,9 @@ const filters = ref({
 const platforms = [
   { label: '全部来源', value: '' },
   { label: 'Twitter / X', value: 'twitter' },
+  { label: 'GitHub', value: 'github' },
+  { label: 'ArXiv', value: 'arxiv' },
+  { label: 'YouTube', value: 'youtube' },
   { label: 'Reddit', value: 'reddit' },
   { label: 'Hacker News', value: 'hn' },
   { label: 'Product Hunt', value: 'ph' },

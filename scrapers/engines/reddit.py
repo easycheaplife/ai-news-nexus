@@ -1,0 +1,113 @@
+import requests
+import time
+from .base import BaseScraper
+from datetime import datetime
+from ..utils.ai import evaluator
+
+class RedditScraper(BaseScraper):
+    def __init__(self, api_url: str = "http://localhost:8000"):
+        super().__init__("reddit", api_url)
+        self.reddit_url = "https://www.reddit.com/r/MachineLearning/new.json?limit=50"
+        self.headers = {"User-Agent": "AI News Bot 1.0"}
+
+    def _get_top_comments(self, permalink: str, limit: int = 5) -> str:
+        """获取帖子的热门评论"""
+        url = f"https://www.reddit.com{permalink}.json"
+        try:
+            time.sleep(1) # 礼貌延迟
+            response = requests.get(url, headers=self.headers, timeout=10)
+            if response.status_code != 200:
+                return ""
+            
+            # Reddit 评论接口返回一个列表，[0] 是帖子信息，[1] 是评论树
+            comments_data = response.json()[1]['data']['children']
+            top_comments = []
+            
+            for comment in comments_data[:limit]:
+                if comment['kind'] == 't1': # 确保是评论
+                    c_data = comment['data']
+                    body = c_data.get('body', '').strip()
+                    ups = c_data.get('ups', 0)
+                    if body and body != '[deleted]' and body != '[removed]':
+                        top_comments.append(f"💬 (Ups: {ups}): {body}")
+            
+            if top_comments:
+                return "\n\n--- 热门评论 ---\n" + "\n\n".join(top_comments)
+        except Exception as e:
+            self.logger.warning(f"Failed to fetch comments for {permalink}: {e}")
+        return ""
+
+    def scrape(self):
+        subs = ["MachineLearning", "ArtificialInteligence", "OpenAI", "LocalLLaMA"]
+        for sub in subs:
+            last_timestamp = self.get_last_id(sub)
+            url = f"https://www.reddit.com/r/{sub}/new.json?limit=25"
+            try:
+                response = requests.get(url, headers=self.headers)
+                data = response.json()
+                
+                newest_timestamp = None
+                
+                for post in data['data']['children']:
+                    p_data = post['data']
+                    created_utc = str(int(p_data['created_utc']))
+                    
+                    # 增量判断
+                    if last_timestamp and int(created_utc) <= int(last_timestamp):
+                        self.logger.info(f"⏱️ Reached last seen post in r/{sub}, stopping.")
+                        break
+                    
+                    if newest_timestamp is None:
+                        newest_timestamp = created_utc
+                    
+                    # 🧵 获取热门评论增强内容
+                    comments_text = self._get_top_comments(p_data['permalink'])
+                    full_content = (p_data['selftext'] or "") + comments_text
+
+                    # 🖼️ 提取多媒体
+                    media_urls = []
+                    
+                    # 优先提取 Reddit 视频
+                    if p_data.get('is_video') and p_data.get('media', {}).get('reddit_video'):
+                        video_url = p_data['media']['reddit_video'].get('fallback_url')
+                        if video_url:
+                            # 移除可能存在的 URL 参数以便播放器识别
+                            clean_video_url = video_url.split('?')[0]
+                            media_urls.append(clean_video_url)
+                    
+                    # 备选提取缩略图或直接图
+                    if p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
+                        if p_data['thumbnail'] not in media_urls:
+                            media_urls.append(p_data['thumbnail'])
+                    if p_data.get('url') and any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
+                        if p_data['url'] not in media_urls:
+                            media_urls.append(p_data['url'])
+
+                    # 🤖 AI 评分与理由
+                    score, reason = evaluator.evaluate(p_data['title'], full_content)
+
+                    item = {
+                        "platform": "reddit",
+                        "external_id": p_data['id'],
+                        "title": p_data['title'],
+                        "content": full_content,
+                        "url": f"https://reddit.com{p_data['permalink']}",
+                        "published_at": datetime.fromtimestamp(p_data['created_utc']).isoformat(),
+                        "score": score,
+                        "reason": reason,
+                        "media_urls": media_urls,
+                        "metadata_json": {
+                            "subreddit": sub,
+                            "ups": p_data['ups'],
+                            "num_comments": p_data['num_comments'],
+                            "author": p_data['author']
+                        }
+                    }
+                    self.push_to_backend(item)
+                
+                # 更新游标
+                if newest_timestamp:
+                    self.update_last_id(sub, newest_timestamp)
+                    
+            except Exception as e:
+                self.logger.error(f"Error scraping Reddit r/{sub}: {e}")

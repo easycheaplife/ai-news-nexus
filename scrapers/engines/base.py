@@ -12,8 +12,8 @@ class BaseScraper:
         # 本地去重缓存（仅限本次运行）
         self.seen_ids = set()
         
-        # 状态持久化文件路径
-        self.state_file = os.path.join(os.path.dirname(__file__), "state.json")
+        # 状态持久化文件路径 (放在 scrapers 根目录)
+        self.state_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "state.json")
         self.state = self._load_state()
 
     def _load_state(self):

@@ -3,7 +3,12 @@ import argparse
 import os
 from dotenv import load_dotenv
 from scrapers.engines.hn import HNScraper
-from scrapers.engines.platforms import RedditScraper, TwitterScraper, ProductHuntScraper
+from scrapers.engines.reddit import RedditScraper
+from scrapers.engines.twitter import TwitterScraper
+from scrapers.engines.ph import ProductHuntScraper
+from scrapers.engines.github import GitHubScraper
+from scrapers.engines.arxiv import ArxivScraper
+from scrapers.engines.youtube import YouTubeScraper
 
 # 加载 .env 文件
 load_dotenv()
@@ -23,6 +28,9 @@ def run_scrapers(target_platform: str = None):
         RedditScraper(api_url=api_url),
         TwitterScraper(api_url=api_url),
         ProductHuntScraper(api_url=api_url),
+        GitHubScraper(api_url=api_url),
+        ArxivScraper(api_url=api_url),
+        YouTubeScraper(api_url=api_url)
     ]
     
     # 如果指定了平台，则进行过滤
