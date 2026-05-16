@@ -67,8 +67,19 @@ class RedditScraper(BaseScraper):
 
                     # 🖼️ 提取多媒体
                     media_urls = []
+                    
+                    # 优先提取 Reddit 视频
+                    if p_data.get('is_video') and p_data.get('media', {}).get('reddit_video'):
+                        video_url = p_data['media']['reddit_video'].get('fallback_url')
+                        if video_url:
+                            # 移除可能存在的 URL 参数以便播放器识别
+                            clean_video_url = video_url.split('?')[0]
+                            media_urls.append(clean_video_url)
+                    
+                    # 备选提取缩略图或直接图
                     if p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
-                        media_urls.append(p_data['thumbnail'])
+                        if p_data['thumbnail'] not in media_urls:
+                            media_urls.append(p_data['thumbnail'])
                     if p_data.get('url') and any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
                         if p_data['url'] not in media_urls:
                             media_urls.append(p_data['url'])
@@ -181,16 +192,26 @@ class TwitterScraper(BaseScraper):
 
                         # 🖼️ 提取多媒体内容
                         media_urls = []
-                        media_entries = tweet.get('entities', {}).get('media', [])
-                        for m in media_entries:
-                            media_urls.append(m.get('media_url_https'))
                         
-                        # 如果有扩展媒体 (如视频、多图)
-                        ext_media = tweet.get('extended_entities', {}).get('media', [])
-                        for m in ext_media:
-                            m_url = m.get('media_url_https')
-                            if m_url not in media_urls:
-                                media_urls.append(m_url)
+                        # 优先从扩展实体中提取视频
+                        ext_entities = tweet.get('extended_entities', {})
+                        for m in ext_entities.get('media', []):
+                            if m.get('type') == 'video' or m.get('type') == 'animated_gif':
+                                variants = m.get('video_info', {}).get('variants', [])
+                                # 寻找比特率最高的 mp4
+                                mp4_variants = [v for v in variants if v.get('content_type') == 'video/mp4']
+                                if mp4_variants:
+                                    best_video = max(mp4_variants, key=lambda x: x.get('bitrate', 0))
+                                    media_urls.append(best_video['url'])
+                            
+                            # 同时也把封面图存下来作为备选
+                            if m.get('media_url_https') not in media_urls:
+                                media_urls.append(m.get('media_url_https'))
+                        
+                        # 如果没有扩展实体，尝试普通实体
+                        if not media_urls:
+                            for m in tweet.get('entities', {}).get('media', []):
+                                media_urls.append(m.get('media_url_https'))
                         
                         # 🤖 AI 评分与理由
                         score, reason = evaluator.evaluate(f"Tweet from @{username}", full_content)

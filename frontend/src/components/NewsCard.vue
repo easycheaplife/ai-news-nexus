@@ -46,8 +46,18 @@ const decodeUrl = (url: string) => {
 
 // 🎥 判断是否为视频
 const isVideo = (url: string) => {
-  const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8'];
-  return videoExtensions.some(ext => url.toLowerCase().includes(ext));
+  if (!url) return false;
+  const decoded = url.toLowerCase();
+  // 增加对 Twitter/Reddit 视频特征字符的匹配
+  const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
+  return videoExtensions.some(ext => decoded.includes(ext));
+};
+
+// 🖼️ 获取备选封面图
+const getPoster = (mediaUrls?: string[]) => {
+  if (!mediaUrls || mediaUrls.length < 2) return undefined;
+  // 如果第一个是视频，第二个通常是封面图
+  return isVideo(mediaUrls[0]) ? decodeUrl(mediaUrls[1]) : undefined;
 };
 </script>
 
@@ -129,13 +139,14 @@ const isVideo = (url: string) => {
           <video 
             v-if="isVideo(item.media_urls[0])"
             :src="decodeUrl(item.media_urls[0])" 
+            :poster="getPoster(item.media_urls)"
             class="w-full h-full object-cover"
             autoplay
             muted
             loop
             playsinline
             controls
-            preload="metadata"
+            preload="auto"
             referrerpolicy="no-referrer"
           ></video>
           <!-- Image Player -->
