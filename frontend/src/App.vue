@@ -124,6 +124,36 @@ const platformStats = computed(() => {
   });
   return stats;
 });
+
+const platformFullNames: Record<string, string> = {
+  twitter: 'Twitter',
+  github: 'GitHub',
+  arxiv: 'ArXiv',
+  youtube: 'YouTube',
+  reddit: 'Reddit',
+  hn: 'HackerNews',
+  ph: 'ProductHunt'
+};
+
+const platformBarColors: Record<string, string> = {
+  twitter: 'bg-sky-500',
+  github: 'bg-slate-200',
+  arxiv: 'bg-red-500',
+  youtube: 'bg-red-600',
+  reddit: 'bg-orange-500',
+  hn: 'bg-orange-400',
+  ph: 'bg-orange-600'
+};
+
+// 📝 极简 Markdown 渲染逻辑
+const renderMarkdown = (text: string) => {
+  if (!text) return '';
+  return text
+    .replace(/### (.*)/g, '<h3 class="text-lg font-bold text-white mb-4 mt-2 border-l-4 border-primary pl-3">$1</h3>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-primary font-bold">$1</strong>')
+    .replace(/\n\n/g, '<br/>')
+    .replace(/\n/g, '<br/>');
+};
 </script>
 
 <template>
@@ -216,74 +246,84 @@ const platformStats = computed(() => {
         <transition 
           enter-active-class="transition-all duration-500 ease-out" 
           enter-from-class="max-h-0 opacity-0" 
-          enter-to-class="max-h-[500px] opacity-100"
+          enter-to-class="max-h-[800px] opacity-100"
           leave-active-class="transition-all duration-400 ease-in"
-          leave-from-class="max-h-[500px] opacity-100"
+          leave-from-class="max-h-[800px] opacity-100"
           leave-to-class="max-h-0 opacity-0"
         >
-          <div v-if="showBriefing" class="px-8 pb-8 pt-2 grid grid-cols-1 md:grid-cols-2 gap-10 border-t border-white/5">
-            <!-- Left: Hot Topics & Summary -->
-            <div class="space-y-6">
-              <div>
-                <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <span class="w-1 h-1 bg-primary rounded-full"></span>
-                  热门关键词 Trending
-                </h4>
-                <div class="flex flex-wrap gap-2">
-                  <button 
-                    v-for="topic in hotTopics" 
-                    :key="topic"
-                    @click="filters.query = topic; handleSearch()"
-                    class="px-4 py-2 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl text-xs font-bold transition-all text-slate-300 hover:text-primary active:scale-95"
-                  >
-                    # {{ topic }}
-                  </button>
-                </div>
-              </div>
-              
-              <div class="p-5 rounded-2xl bg-white/5 border border-white/5 italic">
-                <p v-if="latestInsight" class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
-                  <span class="not-italic font-black text-[10px] text-primary uppercase block mb-2 opacity-60">AI 深度分析 · AI Analysis ({{ latestInsight.date }})</span>
-                  {{ latestInsight.content }}
-                </p>
-                <p v-else class="text-sm text-slate-400 leading-relaxed">
-                  <span class="not-italic font-black text-[10px] text-primary uppercase block mb-2 opacity-60">AI 总览 · AI Summary</span>
-                  根据今日 {{ news.length }} 条资讯分析，AI 圈主要聚焦于 
-                  <span class="text-white font-bold">{{ hotTopics.slice(0, 2).join(' 和 ') }}</span> 
-                  相关进展。整体技术密度极高，建议优先关注评分 90+ 的硬核发布。
-                </p>
+          <div v-if="showBriefing" class="px-8 pb-10 pt-4 flex flex-col xl:flex-row gap-10 border-t border-white/5 bg-[#1a1a20]/30">
+            <!-- 1. Left Column: Hot Topics (1/4) -->
+            <div class="xl:w-1/4 space-y-6">
+              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+                <span class="w-1 h-1 bg-primary rounded-full"></span>
+                热门关键词 Trending
+              </h4>
+              <div class="flex flex-wrap gap-2">
+                <button 
+                  v-for="topic in hotTopics" 
+                  :key="topic"
+                  @click="filters.query = topic; handleSearch()"
+                  class="px-3 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[11px] font-bold transition-all text-slate-400 hover:text-primary active:scale-95"
+                >
+                  # {{ topic }}
+                </button>
               </div>
             </div>
 
-            <!-- Right: Pulse Chart (Custom Minimal implementation) -->
-            <div>
-              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+            <!-- 2. Middle Column: AI Strategic Briefing (2/4) -->
+            <div class="xl:w-2/4 xl:border-x xl:border-white/5 xl:px-10">
+              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2">
+                <span class="w-1 h-1 bg-primary rounded-full"></span>
+                AI 战略简报 Strategic Insights
+              </h4>
+              <div class="prose prose-invert max-w-none">
+                <div 
+                  v-if="latestInsight" 
+                  class="text-sm text-slate-300 leading-loose"
+                  v-html="renderMarkdown(latestInsight.content)"
+                ></div>
+                <div v-else class="p-6 rounded-2xl bg-primary/5 border border-primary/10 italic">
+                  <p class="text-sm text-primary leading-relaxed">
+                    根据今日 {{ news.length }} 条资讯分析，AI 圈主要聚焦于 
+                    <span class="text-white font-bold">{{ hotTopics.slice(0, 2).join(' 和 ') }}</span> 
+                    相关进展。整体技术密度极高，建议优先关注评分 90+ 的硬核发布。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Right Column: Daily Pulse Chart (1/4) -->
+            <div class="xl:w-1/4">
+              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-8 flex items-center gap-2">
                 <span class="w-1 h-1 bg-primary rounded-full"></span>
                 全平台脉冲 Daily Pulse
               </h4>
-              <div class="flex items-end justify-between gap-2 h-32 pt-4">
+              <div class="flex items-end justify-between gap-2 h-36 pt-4 px-2">
                 <div 
                   v-for="(count, platform) in platformStats" 
                   :key="platform"
                   class="flex-1 flex flex-col items-center group/bar"
                 >
                   <div 
-                    class="w-full bg-primary/20 group-hover/bar:bg-primary/40 rounded-t-lg transition-all duration-700 relative"
+                    class="w-full relative rounded-t-md transition-all duration-700 hover:brightness-125"
+                    :class="[platformBarColors[platform] || 'bg-primary/20', count === 0 ? 'opacity-10' : 'opacity-60']"
                     :style="{ height: `${(count / (Math.max(...Object.values(platformStats)) || 1)) * 100}%` }"
                   >
-                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-primary opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-white opacity-0 group-hover/bar:opacity-100 transition-opacity">
                       {{ count }}
                     </div>
                   </div>
-                  <span class="text-[9px] font-black uppercase text-text-muted mt-2 opacity-50">{{ platform.slice(0, 2) }}</span>
+                  <span class="text-[8px] font-black uppercase text-text-muted mt-3 opacity-50 rotate-[-45deg] origin-top-left whitespace-nowrap">
+                    {{ platformFullNames[platform] || platform }}
+                  </span>
                 </div>
               </div>
-              <div class="mt-6 flex justify-between items-center text-[10px] text-text-muted font-bold px-2">
+              <div class="mt-12 flex justify-between items-center text-[9px] text-text-muted font-bold px-2 pt-4 border-t border-white/5">
                 <div class="flex items-center gap-1">
                   <BarChart3 class="w-3 h-3" />
-                  各来源活跃度
+                  源活跃度分布
                 </div>
-                <span>Update: {{ format(new Date(), 'HH:mm') }}</span>
+                <span>{{ format(new Date(), 'HH:mm') }}</span>
               </div>
             </div>
           </div>
@@ -373,5 +413,17 @@ const platformStats = computed(() => {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* 📝 Markdown Rendering Styles */
+.prose h3 {
+  letter-spacing: -0.025em;
+  text-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+}
+.prose strong {
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
 }
 </style>
