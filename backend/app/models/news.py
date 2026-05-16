@@ -25,3 +25,13 @@ class NewsItem(Base):
     __table_args__ = (
         UniqueConstraint('platform', 'external_id', name='_platform_external_id_uc'),
     )
+
+class DailyInsight(Base):
+    __tablename__ = "daily_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, unique=True, index=True, nullable=False)
+    content = Column(Text, nullable=False)
+    hot_topics = Column(JSON)
+    stats_json = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)

@@ -19,6 +19,7 @@ app.add_middleware(
 )
 
 app.include_router(news_router, prefix="/news", tags=["news"])
+app.include_router(insights_router, prefix="/insights", tags=["insights"])
 
 @app.get("/")
 def root():

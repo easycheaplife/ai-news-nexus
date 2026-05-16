@@ -7,6 +7,7 @@ import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 const news = ref<any[]>([]);
+const latestInsight = ref<any>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const showBriefing = ref(true);
@@ -96,8 +97,11 @@ const hotTopics = computed(() => {
     .map(entry => entry[0]);
 });
 
-// 📊 计算各平台分布 (用于脉冲图表)
+// 📊 计算各平台分布 (优先使用存档数据)
 const platformStats = computed(() => {
+  if (latestInsight.value?.stats_json) {
+    return latestInsight.value.stats_json;
+  }
   const stats: Record<string, number> = {};
   const platforms_list = ['twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph'];
   platforms_list.forEach(p => stats[p] = 0);
@@ -227,7 +231,11 @@ const platformStats = computed(() => {
               </div>
               
               <div class="p-5 rounded-2xl bg-white/5 border border-white/5 italic">
-                <p class="text-sm text-slate-400 leading-relaxed">
+                <p v-if="latestInsight" class="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  <span class="not-italic font-black text-[10px] text-primary uppercase block mb-2 opacity-60">AI 深度分析 · AI Analysis ({{ latestInsight.date }})</span>
+                  {{ latestInsight.content }}
+                </p>
+                <p v-else class="text-sm text-slate-400 leading-relaxed">
                   <span class="not-italic font-black text-[10px] text-primary uppercase block mb-2 opacity-60">AI 总览 · AI Summary</span>
                   根据今日 {{ news.length }} 条资讯分析，AI 圈主要聚焦于 
                   <span class="text-white font-bold">{{ hotTopics.slice(0, 2).join(' 和 ') }}</span> 
@@ -345,3 +353,15 @@ const platformStats = computed(() => {
   scrollbar-width: none;
 }
 </style>
+ { transform: translateX(100%); }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>
+tyle>

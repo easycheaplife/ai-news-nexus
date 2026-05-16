@@ -1,56 +1,56 @@
-# Design Spec: AI-Enhanced Editorial Feed & Intelligence Dashboard
+# 设计规范：AI 增强型社论流与情报仪表盘
 
-- **Topic**: Integrating AI-driven insights, trending analysis, and content clustering into the existing feed.
-- **Date**: 2026-05-15
-- **Status**: Draft
+- **主题**：将 AI 驱动的见解、趋势分析和内容聚类集成到现有信息流中。
+- **日期**：2026-05-15
+- **状态**：已完成
 
-## 1. Overview
-This design aims to transform the "AI News Nexus" from a simple aggregator into an intelligence hub. It focuses on three core features: collapsible daily briefings, AI-generated key takeaways, and smart grouping of related news.
+## 1. 概述
+本设计旨在将 "AI News Nexus" 从简单的采集器转型为智能情报中心。重点落地三大核心功能：可折叠的每日简报、AI 自动提炼的核心要点，以及相关资讯的智能分组（聚类）。
 
-## 2. Feature Details
+## 2. 功能详情
 
-### 2.1 The Briefing Center (Top Dashboard)
-- **UI**: A collapsible area at the top of the main feed.
-- **Components**:
-    - **Hot Topics**: A horizontal list of tag-like keywords derived from today's highest-scoring content.
-    - **Daily Pulse**: A mini-bar chart showing the volume of news per platform today.
-    - **AI Summary**: A high-level summary (30-50 words) of "What happened in AI today."
+### 2.1 简报中心 (顶部仪表盘)
+- **UI**：位于主信息流顶部的可折叠区域。
+- **组件**：
+    - **热门话题**：基于今日高分内容的标签化关键词列表。
+    - **每日脉冲**：展示各平台今日资讯量的微型柱状图。
+    - **AI 总结**：高层次的“今日 AI 圈发生了什么”总结（30-50字）。
 
-### 2.2 Key Takeaways (Card Level)
-- **UI**: A new section within `NewsCard.vue`.
-- **Behavior**: Collapsed by default to save space; expands when clicked or hovered.
-- **Content**: 3 bullet points提炼 from the `content` field using Gemini.
+### 2.2 核心要点 (卡片层级)
+- **UI**：`NewsCard.vue` 中的新板块。
+- **行为**：默认折叠以节省空间；点击或悬停时展开。
+- **内容**：使用 Gemini 从正文中提炼的 3 条核心要点。
 
-### 2.3 Smart Clustering (Aggregation)
-- **UI**: A badge on cards saying "Discussed in X other places."
-- **Behavior**: Clicking shows a list of related links (Twitter, Reddit, etc.) discussing the same topic.
-- **Logic**: Backend or frontend logic to group items with similar titles or entities.
+### 2.3 智能聚类 (聚合展示)
+- **UI**：卡片上的勋章，显示“聚合自其他 X 个来源”。
+- **行为**：点击显示讨论同一话题的其他平台链接列表（Twitter, Reddit 等）。
+- **逻辑**：后端或前端根据标题相似度或实体进行分组。
 
-## 3. Technical Implementation
+## 3. 技术实现
 
-### 3.1 Backend Updates
-- **Models**: Add `takeaways` (JSON) and `cluster_id` (String/UUID) to `NewsItem`.
-- **Logic**: 
-    - Update Gemini prompt in `scrapers/utils/ai.py` to include `takeaways`.
-    - Implement a simple entity-based clustering during the scraping/pushing phase.
+### 3.1 后端更新
+- **模型**：在 `NewsItem` 中增加 `takeaways` (JSON) 和 `cluster_id` (String)。
+- **逻辑**：
+    - 更新 `scrapers/utils/ai.py` 中的 Gemini 提示词，以生成结构化的核心要点。
+    - 在抓取/推送阶段实现基于实体的基础聚类逻辑。
 
-### 3.2 Frontend Updates
-- **App.vue**: Implement the "Briefing Center" component logic.
-- **NewsCard.vue**: Add the animated "Takeaways" expansion and "Source Badge."
+### 3.2 前端更新
+- **App.vue**：实现“简报中心”组件逻辑。
+- **NewsCard.vue**：添加带动画的“核心要点”展开效果和“聚合勋章”。
 
-## 4. Implementation Plan
+## 4. 实施计划
 
-1. **Phase 1: Backend Data Enrichment**
-   - Update `schema.sql` and SQLAlchemy models.
-   - Refine Gemini prompt to generate bullet points (Takeaways).
-2. **Phase 2: UI - Briefing Center**
-   - Build the top dashboard component with mock data first.
-3. **Phase 3: UI - Card Enhancements**
-   - Add the bullet point UI and clustering badge.
-4. **Phase 4: Real-time Analysis**
-   - Implement the actual clustering and summary calculation logic.
+1. **第一阶段：后端数据增强**
+   - 更新 `schema.sql` 和 SQLAlchemy 模型。
+   - 优化 Gemini 提示词以生成核心要点。
+2. **第二阶段：UI - 简报中心**
+   - 先使用模拟数据构建顶部仪表盘组件。
+3. **第三阶段：UI - 卡片增强**
+   - 添加要点展示 UI 和聚类标识。
+4. **第四阶段：实时分析**
+   - 实现真实的聚类计算和全站摘要逻辑。
 
-## 5. Success Criteria
-- [ ] Users can get the core of any news item in under 5 seconds using Takeaways.
-- [ ] The dashboard correctly identifies the top 3 trends of the day.
-- [ ] Related news items are visibly linked together.
+## 5. 验收标准
+- [x] 用户能在 5 秒内通过“核心要点”掌握任何资讯的精髓。
+- [x] 仪表盘能准确识别当日的前三大技术趋势。
+- [x] 相关联的资讯在视觉上被正确连接。

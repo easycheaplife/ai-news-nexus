@@ -28,3 +28,15 @@ CREATE TABLE IF NOT EXISTS `news_items` (
     INDEX `idx_published` (`published_at`),                         -- 加速按时间排序和范围搜索
     FULLTEXT INDEX `idx_search` (`title`, `content`)               -- 支持全文检索关键字
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 每日 AI 深度洞察表
+CREATE TABLE IF NOT EXISTS `daily_insights` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `date` DATE NOT NULL COMMENT '简报日期',
+    `content` LONGTEXT NOT NULL COMMENT 'AI 生成的 Markdown 简报内容',
+    `hot_topics` JSON COMMENT '当日热门关键词/聚类列表',
+    `stats_json` JSON COMMENT '各平台资讯量统计',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_date` (`date`),
+    INDEX `idx_date` (`date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

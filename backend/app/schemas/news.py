@@ -25,3 +25,19 @@ class NewsItem(NewsItemBase):
 
     class Config:
         from_attributes = True
+
+class DailyInsightBase(BaseModel):
+    date: date
+    content: str
+    hot_topics: Optional[List[str]] = None
+    stats_json: Optional[Dict[str, Any]] = None
+
+class DailyInsightCreate(DailyInsightBase):
+    pass
+
+class DailyInsight(DailyInsightBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

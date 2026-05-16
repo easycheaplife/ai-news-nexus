@@ -64,5 +64,38 @@ class GeminiEvaluator:
             self.logger.error(f"❌ Gemini evaluation failed: {e}")
             return 0, None, None, None
 
+    def summarize_clusters(self, clusters_data: List[Dict[str, Any]]) -> str:
+        """
+        根据今日抓取的聚类簇信息，生成一份全局战略简报
+        """
+        if not self.enabled or not clusters_data:
+            return "今日暂无深度情报分析。"
+
+        # 将聚类信息序列化为提示词背景
+        summary_payload = ""
+        for i, c in enumerate(clusters_data[:10]): # 仅分析前10个最火的热点
+            summary_payload += f"{i+1}. 热点: {c['cluster_id']}\n   规模: {c['count']} 条相关资讯\n   观点摘要: {c['reasons'][:3]}\n\n"
+
+        prompt = f"""
+        你是一个资深的 AI 行业战略分析师。以下是今日全球 AI 圈最重要的热点事件聚合数据：
+        
+        {summary_payload}
+        
+        请基于以上数据，撰写一份 200 字左右的《今日 AI 战略简报》。
+        要求：
+        1. 使用 Markdown 格式，语言专业、犀利。
+        2. 识别出今日最重要的 1-2 个核心趋势。
+        3. 解释为什么这些进展值得关注，以及对行业的潜在影响。
+        4. 不要包含任何客套话，直接进入核心洞察。
+        5. 结尾给出一句“明日关注建议”。
+        """
+
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            self.logger.error(f"❌ Summary generation failed: {e}")
+            return "深度简报生成失败，请稍后重试。"
+
 # 单例模式
 evaluator = GeminiEvaluator()
