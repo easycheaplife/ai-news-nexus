@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.news import router as news_router
+from app.api.v1.insights import router as insights_router
 from app.core.config import settings
 from app.db.session import engine
 from app.models.news import Base
