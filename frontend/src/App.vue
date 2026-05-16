@@ -326,7 +326,7 @@ const platformStats = computed(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 grid-flow-row-dense">
             <NewsCard 
               v-for="item in items" 
               :key="item.id" 
