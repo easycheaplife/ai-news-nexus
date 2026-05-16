@@ -291,7 +291,7 @@ const platformStats = computed(() => {
       </div>
     </section>
 
-    <main class="max-w-[1000px] mx-auto px-4 md:px-8 py-10 md:py-16">
+    <main class="max-w-[1200px] mx-auto px-4 md:px-8 py-10 md:py-16">
       <!-- Welcome Message -->
       <div v-if="!news.length && !loading" class="text-center py-20 animate-fade-in">
         <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
@@ -312,7 +312,7 @@ const platformStats = computed(() => {
       </div>
 
       <!-- News Feed (Date Grouped) -->
-      <div v-else class="space-y-16">
+      <div v-else class="space-y-20">
         <section v-for="[date, items] in groupedNews" :key="date" class="relative">
           <!-- Date Header -->
           <div class="sticky top-[88px] z-40 bg-[#0a0a0c]/80 backdrop-blur-md py-4 mb-8 -mx-4 px-4">
@@ -326,11 +326,13 @@ const platformStats = computed(() => {
             </div>
           </div>
 
-          <div class="grid grid-cols-1 gap-6 md:gap-8">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12">
             <NewsCard 
               v-for="item in items" 
               :key="item.id" 
               :item="item" 
+              :isFeatured="item.score >= 90"
+              :class="item.score >= 90 ? 'lg:col-span-2' : 'col-span-1'"
             />
           </div>
         </section>
@@ -356,11 +358,25 @@ const platformStats = computed(() => {
   100% { transform: translateX(100%); }
 }
 
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Staggered entrance for items */
+.grid > div {
+  opacity: 0;
 }
 </style>

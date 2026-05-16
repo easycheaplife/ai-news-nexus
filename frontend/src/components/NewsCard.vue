@@ -18,7 +18,8 @@ defineProps<{
     cluster_id?: string;
     media_urls?: string[];
     metadata_json?: any;
-  }
+  },
+  isFeatured?: boolean
 }>();
 
 const showTakeaways = ref(false);
@@ -57,7 +58,6 @@ const decodeUrl = (url: string) => {
 const isVideo = (url: string) => {
   if (!url) return false;
   const decoded = url.toLowerCase();
-  // 增加对 Twitter/Reddit 视频特征字符的匹配
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
   return videoExtensions.some(ext => decoded.includes(ext));
 };
@@ -65,15 +65,22 @@ const isVideo = (url: string) => {
 // 🖼️ 获取备选封面图
 const getPoster = (mediaUrls?: string[]) => {
   if (!mediaUrls || mediaUrls.length < 2) return undefined;
-  // 如果第一个是视频，第二个通常是封面图
   return isVideo(mediaUrls[0]) ? decodeUrl(mediaUrls[1]) : undefined;
 };
 </script>
 
 <template>
-  <div class="group relative bg-[#131316] hover:bg-[#1a1a1e] border border-white/5 rounded-[2rem] p-5 md:p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1 overflow-hidden">
+  <div :class="[
+    'group relative border rounded-[2rem] transition-all duration-700 overflow-hidden flex flex-col h-full',
+    isFeatured 
+      ? 'bg-gradient-to-br from-[#1a1a24] via-[#131316] to-[#0a0a0c] border-primary/30 shadow-[0_0_50px_rgba(37,99,235,0.15)] p-6 md:p-10' 
+      : 'bg-[#131316] hover:bg-[#1a1a1e] border-white/5 p-5 md:p-8 hover:shadow-[0_20px_50px_rgba(0,0,0,0.5)] hover:-translate-y-1'
+  ]">
+    <!-- 🌠 Premium Glow Effect for Featured -->
+    <div v-if="isFeatured" class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-[100px] pointer-events-none"></div>
+    
     <!-- Header: Platform, Time, Score -->
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6 relative z-10">
       <div class="flex items-center gap-2">
         <div :class="['px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-[0.1em] flex items-center gap-1.5', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted']">
           <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-3 h-3" />
@@ -82,6 +89,9 @@ const getPoster = (mediaUrls?: string[]) => {
         <span class="text-[10px] font-bold text-text-muted uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">
           {{ formatDistanceToNow(new Date(item.published_at), { locale: zhCN, addSuffix: true }) }}
         </span>
+        <div v-if="isFeatured" class="px-3 py-1 rounded-full bg-primary text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20 animate-pulse">
+          Featured
+        </div>
       </div>
       
       <!-- Quality Score -->
@@ -91,17 +101,42 @@ const getPoster = (mediaUrls?: string[]) => {
       </div>
     </div>
 
-    <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+    <div :class="['flex flex-col gap-6 md:gap-8 items-start relative z-10', isFeatured ? 'lg:flex-row' : 'md:flex-row']">
+      <!-- Media Side -->
+      <div v-if="item.media_urls && item.media_urls.length > 0" :class="['w-full shrink-0', isFeatured ? 'lg:w-[500px]' : 'md:w-[380px]']">
+        <div class="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-white/5 shadow-2xl">
+          <video 
+            v-if="isVideo(item.media_urls[0])"
+            :src="decodeUrl(item.media_urls[0])" 
+            :poster="getPoster(item.media_urls)"
+            class="w-full h-full object-cover"
+            autoplay muted loop playsinline controls preload="auto"
+            referrerpolicy="no-referrer"
+          ></video>
+          <img 
+            v-else
+            :src="decodeUrl(item.media_urls[0])" 
+            class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+            alt="Content preview"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+            @error="(e: any) => e.target.style.display = 'none'"
+          />
+          <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+        </div>
+      </div>
+
       <!-- Content Side -->
       <div class="flex-1 min-w-0">
-        <!-- Title -->
         <a :href="item.url" target="_blank" class="block group/title">
-          <h3 class="text-lg md:text-xl font-bold text-white leading-snug mb-4 group-hover/title:text-primary transition-colors line-clamp-2">
+          <h3 :class="[
+            'font-bold text-white leading-tight mb-4 group-hover/title:text-primary transition-colors line-clamp-2',
+            isFeatured ? 'text-2xl md:text-3xl' : 'text-lg md:text-xl'
+          ]">
             {{ item.title }}
           </h3>
         </a>
 
-        <!-- 🤖 AI 推荐理由 (高亮核心展示) -->
         <div v-if="item.reason && item.reason.length > 5 && !item.reason.includes('Evaluation error')" class="relative mb-4 p-4 rounded-xl bg-primary/5 border border-primary/10 overflow-hidden group/reason">
           <div class="absolute top-0 left-0 w-1 h-full bg-primary opacity-30 group-hover/reason:opacity-100 transition-opacity"></div>
           <p class="text-sm text-slate-300 leading-relaxed italic relative">
@@ -110,97 +145,43 @@ const getPoster = (mediaUrls?: string[]) => {
           </p>
         </div>
 
-        <!-- 🧩 核心要点 (Takeaways) - 可折叠 -->
         <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-6">
-          <button 
-            @click="showTakeaways = !showTakeaways"
-            class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors"
-          >
-            <ChevronRight :class="['w-3.5 h-3.5 transition-transform duration-300', showTakeaways ? 'rotate-90' : '']" />
+          <button @click="showTakeaways = !showTakeaways" class="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors">
+            <ChevronRight :class="['w-3.5 h-3.5 transition-transform duration-300', (showTakeaways || isFeatured) ? 'rotate-90' : '']" />
             核心要点 · Key Takeaways
           </button>
-          
-          <transition 
-            enter-active-class="transition-all duration-300 ease-out" 
-            enter-from-class="max-h-0 opacity-0 transform -translate-y-2" 
-            enter-to-class="max-h-40 opacity-100 transform translate-y-0"
-            leave-active-class="transition-all duration-200 ease-in"
-            leave-from-class="max-h-40 opacity-100"
-            leave-to-class="max-h-0 opacity-0"
-          >
-            <ul v-if="showTakeaways" class="mt-3 space-y-2 pl-2 border-l border-white/5 ml-1.5">
+          <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="max-h-0 opacity-0" enter-to-class="max-h-60 opacity-100">
+            <ul v-if="showTakeaways || isFeatured" class="mt-4 space-y-3 pl-2 border-l border-white/5 ml-1.5">
               <li v-for="point in item.takeaways" :key="point" class="flex items-start gap-3 group/point">
-                <CheckCircle2 class="w-3.5 h-3.5 text-primary/40 group-hover/point:text-primary transition-colors mt-0.5" />
-                <span class="text-xs text-slate-400 group-hover/point:text-slate-200 transition-colors">{{ point }}</span>
+                <CheckCircle2 class="w-3.5 h-3.5 text-primary/60 group-hover/point:text-primary transition-colors mt-0.5" />
+                <span :class="['text-slate-400 group-hover/point:text-slate-200 transition-colors', isFeatured ? 'text-sm' : 'text-xs']">{{ point }}</span>
               </li>
             </ul>
           </transition>
         </div>
 
-        <!-- Content Snippet -->
-        <p class="text-sm text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium">
+        <p :class="['text-text-muted leading-relaxed line-clamp-3 mb-6 font-medium', isFeatured ? 'text-base' : 'text-sm']">
           {{ item.content || '暂无详细描述。' }}
         </p>
 
-        <!-- Footer Info -->
         <div class="flex items-center justify-between pt-6 border-t border-white/5 mt-auto">
           <div class="flex items-center gap-4">
-            <!-- Author -->
             <div v-if="item.metadata_json?.author || item.metadata_json?.by" class="flex items-center gap-1.5 text-[11px] font-bold text-text-muted">
               <User class="w-3 h-3 opacity-50" />
-              <span class="truncate max-w-[100px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
+              <span class="truncate max-w-[150px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
             </div>
-            <!-- Interactions -->
             <div v-if="item.metadata_json?.hn_score || item.metadata_json?.ups" class="text-[11px] font-bold text-text-muted flex items-center gap-1.5">
               <span class="bg-white/5 px-2 py-0.5 rounded-md text-text-secondary">{{ item.metadata_json?.hn_score || item.metadata_json?.ups }}</span>
               <span>互动</span>
             </div>
-            <!-- Related Clustering -->
             <div v-if="item.cluster_id" class="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 text-[10px] font-black uppercase tracking-wider border border-blue-500/20">
               <Layers class="w-3 h-3" />
-              聚合
+              {{ item.cluster_id }}
             </div>
           </div>
-
-          <a 
-            :href="item.url" 
-            target="_blank" 
-            class="flex items-center gap-2 text-xs font-black text-primary hover:text-white transition-all group/link"
-          >
-            详情
-            <ExternalLink class="w-3 h-3 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
+          <a :href="item.url" target="_blank" class="flex items-center gap-2 text-xs font-black text-primary hover:text-white transition-all group/link">
+            详情 <ExternalLink class="w-3 h-3 group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5 transition-transform" />
           </a>
-        </div>
-      </div>
-
-      <!-- Media Side (PC side, Mobile below) -->
-      <div v-if="item.media_urls && item.media_urls.length > 0" class="w-full md:w-[380px] shrink-0">
-        <div class="relative aspect-video rounded-2xl overflow-hidden border border-white/5 bg-white/5">
-          <!-- Video Player -->
-          <video 
-            v-if="isVideo(item.media_urls[0])"
-            :src="decodeUrl(item.media_urls[0])" 
-            :poster="getPoster(item.media_urls)"
-            class="w-full h-full object-cover"
-            autoplay
-            muted
-            loop
-            playsinline
-            controls
-            preload="auto"
-            referrerpolicy="no-referrer"
-          ></video>
-          <!-- Image Player -->
-          <img 
-            v-else
-            :src="decodeUrl(item.media_urls[0])" 
-            class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            alt="Content preview"
-            loading="lazy"
-            referrerpolicy="no-referrer"
-            @error="(e: any) => e.target.style.display = 'none'"
-          />
-          <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
         </div>
       </div>
     </div>
