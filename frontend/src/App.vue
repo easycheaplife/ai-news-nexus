@@ -31,8 +31,22 @@ const openLightbox = (item: any) => {
     return txt.value;
   };
 
+  // 🔗 智能路径拼接
+  const getFullUrl = (url: string) => {
+    if (!url) return '';
+    const decoded = decodeUrl(url);
+    // 如果是相对路径 (/f/ 打头)，自动拼接后端地址
+    if (decoded.startsWith('/f/')) {
+      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+      // 如果 apiUrl 是 /api (Netlify 代理模式)，则保持相对路径，让浏览器处理
+      if (!apiUrl.startsWith('http')) return decoded;
+      return `${apiUrl}${decoded}`;
+    }
+    return decoded;
+  };
+
   const rawUrl = item.media_urls[0];
-  const url = decodeUrl(rawUrl);
+  const url = getFullUrl(rawUrl);
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
   
   lightboxLoading.value = true;

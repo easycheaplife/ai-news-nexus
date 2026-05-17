@@ -3,3 +3,14 @@
   to = "http://127.0.0.1:8000/:splat"
   status = 200
   force = true
+
+[[redirects]]
+  from = "/f/*"
+  to = "http://127.0.0.1:8000/f/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
