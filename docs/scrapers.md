@@ -44,8 +44,8 @@
 # Gemini API Key (从 Google AI Studio 获取)
 GEMINI_API_KEY=your_api_key_here
 
-# 选用的 Gemini 模型
-GEMINI_MODEL=gemini-1.5-flash
+# 选用的 Gemini 模型 (支持以逗号分隔的优先级列表，实现自动降级)
+GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 ```
 
 ### 可用模型列表 (2026版)

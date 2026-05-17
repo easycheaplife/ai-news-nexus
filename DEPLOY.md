@@ -58,9 +58,9 @@ python3 -m uvicorn main:app --reload --port 8000
     # 后端 API 地址 (本地开发)
     SCRAPER_API_URL=http://localhost:8000
 
-    # Gemini AI 配置
+    # Gemini AI 配置 (支持以逗号分隔的模型列表，按优先级自动降级)
     GEMINI_API_KEY=your_gemini_api_key_here
-    GEMINI_MODEL=gemini-3.1-flash-lite
+    GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 
     # 网络代理 (国内环境访问 Twitter/Google 通常需要)
     # HTTP_PROXY=http://127.0.0.1:7890

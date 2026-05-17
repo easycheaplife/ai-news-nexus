@@ -10,7 +10,9 @@ load_dotenv()
 class GeminiEvaluator:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        self.model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        # 支持以逗号分隔的模型列表，按优先级尝试
+        models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-3.1-flash-lite-preview,gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash-lite,gemini-2.0-flash,gemini-flash-latest")
+        self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
         self.logger = logging.getLogger("evaluator.gemini")
         
         if not self.api_key:
@@ -18,8 +20,26 @@ class GeminiEvaluator:
             self.enabled = False
         else:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel(self.model_name)
             self.enabled = True
+
+    def _generate_content_with_fallback(self, prompt: str):
+        """核心生成逻辑：支持模型自动降级"""
+        for model_name in self.model_names:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                return response
+            except Exception as e:
+                error_msg = str(e)
+                if "429" in error_msg or "quota" in error_msg.lower():
+                    self.logger.warning(f"⚠️ Model {model_name} hit quota limit (429). Trying next fallback...")
+                    continue
+                else:
+                    self.logger.error(f"❌ Gemini error with model {model_name}: {e}")
+                    continue
+        
+        self.logger.error("🚫 All Gemini fallback models failed.")
+        return None
 
     def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
         """
@@ -47,7 +67,10 @@ class GeminiEvaluator:
         """
 
         try:
-            response = self.model.generate_content(prompt)
+            response = self._generate_content_with_fallback(prompt)
+            if not response:
+                return 0, None, None, None, None, None
+
             # 尝试解析返回的 JSON
             text = response.text.strip()
             if "```json" in text:
@@ -95,8 +118,8 @@ class GeminiEvaluator:
         """
 
         try:
-            response = self.model.generate_content(prompt)
-            return response.text.strip()
+            response = self._generate_content_with_fallback(prompt)
+            return response.text.strip() if response else "深度简报生成失败。"
         except Exception as e:
             self.logger.error(f"❌ Summary generation failed: {e}")
             return "深度简报生成失败，请稍后重试。"
