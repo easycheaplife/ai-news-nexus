@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers, MessageSquare } from 'lucide-vue-next';
 
-defineProps<{
+const props = defineProps<{
   item: {
     id: number;
     platform: string;
@@ -24,7 +24,23 @@ defineProps<{
 
 const emit = defineEmits(['expand-media']);
 
-const showDetails = ref(false);
+// 🛠️ 提取正文和评论
+const contentParts = computed(() => {
+  const content = props.item.content || '';
+  // 识别不同的评论分隔符
+  const separators = ['--- Reddit Community Insights ---', '--- HN Top Discussions ---', '--- 热门评论 ---'];
+  
+  for (const sep of separators) {
+    if (content.includes(sep)) {
+      const parts = content.split(sep);
+      const postBody = parts[0].trim();
+      // 提取前 2 条评论
+      const comments = parts[1].trim().split('\n\n').filter(c => c.trim()).slice(0, 2);
+      return { postBody, comments };
+    }
+  }
+  return { postBody: content, comments: [] };
+});
 
 const platformIcons: Record<string, any> = {
   twitter: Twitter,
@@ -103,14 +119,12 @@ const getPoster = (mediaUrls?: string[]) => {
             referrerpolicy="no-referrer"
           />
           
-          <!-- 🔍 Expand Indicator -->
           <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
             <div class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl">
               Expand Content
             </div>
           </div>
           
-          <!-- Multi-media badge -->
           <div v-if="item.media_urls.length > 1" class="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded text-[8px] font-bold text-white border border-white/10">
             +{{ item.media_urls.length - 1 }} More
           </div>
@@ -135,57 +149,60 @@ const getPoster = (mediaUrls?: string[]) => {
         </div>
 
         <!-- Title & Link -->
-        <a :href="item.url" target="_blank" class="block mb-2 group/title">
+        <a :href="item.url" target="_blank" class="block mb-3 group/title">
           <h3 :class="[
-            'font-bold text-white transition-colors line-clamp-1 group-hover/title:text-primary',
+            'font-bold text-white transition-colors line-clamp-2 group-hover/title:text-primary',
             isFeatured ? 'text-lg md:text-xl' : 'text-base md:text-lg'
           ]">
             {{ item.title }}
           </h3>
         </a>
 
+        <!-- 🧩 核心观点 (Takeaways) - 直接显示 -->
+        <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-4 space-y-1.5">
+          <div v-for="point in item.takeaways" :key="point" class="flex items-start gap-2">
+            <CheckCircle2 class="w-3 h-3 text-primary mt-1 shrink-0" />
+            <span class="text-[12px] font-bold text-slate-200 leading-snug">{{ point }}</span>
+          </div>
+        </div>
+
+        <!-- 💬 精彩回帖 (Top Comments) -->
+        <div v-if="contentParts.comments.length > 0" class="mb-4 space-y-2 bg-white/[0.03] p-2.5 rounded-lg border border-white/5">
+          <div class="flex items-center gap-2 mb-1 opacity-50">
+            <MessageSquare class="w-2.5 h-2.5" />
+            <span class="text-[9px] font-black uppercase tracking-widest">社区精华讨论</span>
+          </div>
+          <div v-for="(comment, idx) in contentParts.comments" :key="idx" class="text-[11px] text-slate-400 italic leading-relaxed border-l border-white/10 pl-3 py-0.5 line-clamp-2">
+            {{ comment }}
+          </div>
+        </div>
+
         <!-- AI Reason (Inline focus) -->
-        <div v-if="item.reason" class="flex items-start gap-2 mb-3">
-          <span class="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0"></span>
-          <p class="text-xs text-slate-400 italic line-clamp-1">
-            "{{ item.reason }}"
+        <div v-if="item.reason" class="flex items-start gap-2 mb-4">
+          <span class="mt-1.5 w-1 h-1 rounded-full bg-primary shrink-0"></span>
+          <p class="text-[11px] text-text-muted italic opacity-80">
+            AI 分析: "{{ item.reason }}"
           </p>
         </div>
 
         <!-- Takeaways & Meta Footer -->
         <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
           <div class="flex items-center gap-4">
-            <button 
-              v-if="item.takeaways && item.takeaways.length > 0"
-              @click="showDetails = !showDetails"
-              class="text-[10px] font-black uppercase tracking-widest text-primary/80 hover:text-primary transition-colors flex items-center gap-1"
-            >
-              要点 <ChevronRight :class="['w-3 h-3 transition-transform', showDetails ? 'rotate-90' : '']" />
-            </button>
             <div v-if="item.metadata_json?.author || item.metadata_json?.by" class="flex items-center gap-1 text-[10px] font-bold text-text-muted">
               <User class="w-2.5 h-2.5 opacity-50" />
               <span class="truncate max-w-[100px]">{{ item.metadata_json?.author || item.metadata_json?.by }}</span>
             </div>
+            <div v-if="item.metadata_json?.ups || item.metadata_json?.hn_score" class="text-[10px] font-bold text-text-muted flex items-center gap-1">
+              <span class="text-text-secondary">{{ item.metadata_json?.ups || item.metadata_json?.hn_score }}</span> 互动
+            </div>
           </div>
           
           <div class="flex items-center gap-4">
-             <div v-if="item.metadata_json?.ups || item.metadata_json?.hn_score" class="text-[10px] font-bold text-text-muted flex items-center gap-1">
-              <span class="text-text-secondary">{{ item.metadata_json?.ups || item.metadata_json?.hn_score }}</span> 互动
-            </div>
             <a :href="item.url" target="_blank" class="text-[10px] font-black text-primary hover:text-white transition-colors uppercase tracking-widest">
-              Detail
+              Read Original
             </a>
           </div>
         </div>
-
-        <!-- Expandable Takeaways -->
-        <transition enter-active-class="transition-all duration-300 ease-out" enter-from-class="max-h-0 opacity-0" enter-to-class="max-h-40 opacity-100">
-          <ul v-if="showDetails" class="mt-4 space-y-2 border-t border-white/5 pt-4">
-            <li v-for="p in item.takeaways" :key="p" class="flex items-center gap-2 text-[11px] text-slate-300">
-              <CheckCircle2 class="w-3 h-3 text-primary/60" /> {{ p }}
-            </li>
-          </ul>
-        </transition>
       </div>
 
       <!-- 3. Score (Prominent Right Side) -->

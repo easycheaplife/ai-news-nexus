@@ -17,6 +17,28 @@ class YouTubeScraper(BaseScraper):
         }
         self.rss_base = "https://www.youtube.com/feeds/videos.xml?channel_id="
 
+    def _get_transcript(self, video_id: str) -> str:
+        """获取视频的字幕文本"""
+        try:
+            from youtube_transcript_api import YouTubeTranscriptApi
+            # 尝试获取中文或英文字幕
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+            
+            # 优先顺序：中文 -> 英文
+            try:
+                transcript = transcript_list.find_transcript(['zh-Hans', 'zh-CN', 'zh-TW', 'zh', 'en'])
+            except:
+                # 都没有的话取第一个可用的
+                transcript = next(iter(transcript_list))
+                
+            data = transcript.fetch()
+            # 拼接文本并限制长度 (前 3000 字符)
+            full_text = " ".join([t['text'] for t in data])
+            return full_text[:3000]
+        except Exception:
+            # 很多视频（如 Short 或未开启字幕的视频）会失败，静默处理
+            return ""
+
     def scrape(self):
         self.logger.info("▶️ Starting YouTube scraping...")
         
@@ -42,15 +64,15 @@ class YouTubeScraper(BaseScraper):
                         
                     # YouTube RSS content is in summary or media_description
                     description = ""
-                    if 'media_content' in entry and len(entry.media_content) > 0:
-                        # Extract thumbnail from media_content if needed, though usually media_thumbnail is better
-                        pass
-                    
                     if 'summary' in entry:
                         description = entry.summary
                     elif 'media_description' in entry:
                         description = entry.media_description
                         
+                    # 🧵 获取视频字幕深度内容
+                    transcript_text = self._get_transcript(entry.yt_videoid)
+                    full_content = f"{description}\n\n[视频字幕摘要]:\n{transcript_text}".strip()
+
                     # 提取封面图 (最大分辨率)
                     media_urls = []
                     if 'media_thumbnail' in entry and len(entry.media_thumbnail) > 0:
@@ -59,19 +81,19 @@ class YouTubeScraper(BaseScraper):
                         media_urls.append(best_thumb['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"YouTube Video: {entry.title}", description)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"YouTube Video: {entry.title}", full_content)
 
                     item = {
                         "platform": "youtube",
                         "external_id": entry.yt_videoid,
                         "title": entry.title,
-                        "content": description,
+                        "content": full_content,
                         "url": entry.link,
                         "published_at": datetime.fromtimestamp(int(published_ts)).isoformat(),
                         "score": score,
                         "reason": reason,
                         "takeaways": takeaways,
-                            "cluster_id": cluster_id,
+                        "cluster_id": cluster_id,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "author": channel_name,

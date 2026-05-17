@@ -10,3 +10,4 @@ requests
 ntscraper
 feedparser
 twikit
+youtube-transcript-api

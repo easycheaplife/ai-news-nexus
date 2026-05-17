@@ -18,6 +18,21 @@ class GitHubScraper(BaseScraper):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
         }
 
+    def _get_readme(self, repo_path: str) -> str:
+        """尝试抓取仓库的 README 内容"""
+        # 尝试几个常见的分支名
+        branches = ["main", "master"]
+        for branch in branches:
+            url = f"https://raw.githubusercontent.com/{repo_path}/{branch}/README.md"
+            try:
+                response = requests.get(url, timeout=10)
+                if response.status_code == 200:
+                    # 截取前 4000 字，防止内容过长
+                    return response.text[:4000]
+            except Exception:
+                continue
+        return ""
+
     def scrape(self):
         self.logger.info("🚀 Starting GitHub Trending scraping...")
         last_id = self.get_last_id("trending")
@@ -64,24 +79,24 @@ class GitHubScraper(BaseScraper):
                     if newest_id is None:
                         newest_id = today_str
 
-                    if last_id and today_str <= last_id:
-                         # 因为按天更新，遇到同一天就不强行 break，但如果业务需要可以 break
-                         pass 
+                    # 🤖 获取 README 深度内容
+                    readme_content = self._get_readme(repo_path)
+                    full_content = (description + "\n\n" + readme_content).strip()
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"GitHub Repository: {title}", description)
+                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"GitHub Repository: {title}", full_content)
 
                     item = {
                         "platform": "github",
                         "external_id": external_id,
                         "title": f"🐙 {title}",
-                        "content": description,
+                        "content": full_content,
                         "url": full_url,
                         "published_at": datetime.utcnow().isoformat(),
                         "score": score,
                         "reason": reason,
                         "takeaways": takeaways,
-                            "cluster_id": cluster_id,
+                        "cluster_id": cluster_id,
                         "metadata_json": {
                             "author": title.split('/')[0],
                             "stars": stars

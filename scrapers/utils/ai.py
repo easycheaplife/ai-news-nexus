@@ -30,7 +30,7 @@ class GeminiEvaluator:
             return 0, None, None, None
 
         prompt = f"""
-        你是一个资深的 AI 行业分析师。请对以下新闻/动态进行评估：
+        你是一个资深的 AI 行业分析师。请对以下新闻/动态进行评估，如果内容包含“热门评论”或“社区讨论”，请务必提炼出社区的核心观点：
         
         标题: {title}
         内容: {content}

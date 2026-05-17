@@ -3,6 +3,7 @@ import time
 from .base import BaseScraper
 from datetime import datetime
 from ..utils.ai import evaluator
+from ..utils.link_scraper import scrape_link_content
 
 class RedditScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -10,8 +11,8 @@ class RedditScraper(BaseScraper):
         self.reddit_url = "https://www.reddit.com/r/MachineLearning/new.json?limit=50"
         self.headers = {"User-Agent": "AI News Bot 1.0"}
 
-    def _get_top_comments(self, permalink: str, limit: int = 5) -> str:
-        """获取帖子的热门评论"""
+    def _get_top_comments(self, permalink: str, limit: int = 8) -> str:
+        """获取帖子的热门评论 (带质量过滤)"""
         url = f"https://www.reddit.com{permalink}.json"
         try:
             time.sleep(1) # 礼貌延迟
@@ -21,18 +22,23 @@ class RedditScraper(BaseScraper):
             
             # Reddit 评论接口返回一个列表，[0] 是帖子信息，[1] 是评论树
             comments_data = response.json()[1]['data']['children']
-            top_comments = []
+            qualified_comments = []
             
-            for comment in comments_data[:limit]:
+            for comment in comments_data:
                 if comment['kind'] == 't1': # 确保是评论
                     c_data = comment['data']
                     body = c_data.get('body', '').strip()
                     ups = c_data.get('ups', 0)
-                    if body and body != '[deleted]' and body != '[removed]':
-                        top_comments.append(f"💬 (Ups: {ups}): {body}")
+                    
+                    # 质量过滤：长度 > 40，点赞 > 2，且不是删除内容
+                    if len(body) > 40 and ups >= 2 and body != '[deleted]' and body != '[removed]':
+                        qualified_comments.append(f"💬 (Ups: {ups}): {body}")
+                
+                if len(qualified_comments) >= limit:
+                    break
             
-            if top_comments:
-                return "\n\n--- 热门评论 ---\n" + "\n\n".join(top_comments)
+            if qualified_comments:
+                return "\n\n--- Reddit Community Insights ---\n" + "\n\n".join(qualified_comments)
         except Exception as e:
             self.logger.warning(f"Failed to fetch comments for {permalink}: {e}")
         return ""
@@ -62,7 +68,14 @@ class RedditScraper(BaseScraper):
                     
                     # 🧵 获取热门评论增强内容
                     comments_text = self._get_top_comments(p_data['permalink'])
-                    full_content = (p_data['selftext'] or "") + comments_text
+                    
+                    # 🔗 获取外链内容摘要 (如果帖子是一个外链)
+                    link_context = ""
+                    if p_data.get('url') and not any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
+                        # 排除掉图片链接，只抓取文章类链接
+                        link_context = scrape_link_content(p_data['url'])
+                    
+                    full_content = f"{p_data['selftext'] or ''}\n\n{link_context}\n\n{comments_text}".strip()
 
                     # 🖼️ 提取多媒体
                     media_urls = []
