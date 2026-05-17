@@ -19,6 +19,7 @@ const lightbox = ref({
   title: '',
   isVideo: false
 });
+const lightboxLoading = ref(true);
 
 const openLightbox = (item: any) => {
   if (!item.media_urls || item.media_urls.length === 0) return;
