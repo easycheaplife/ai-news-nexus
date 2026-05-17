@@ -13,7 +13,12 @@ class YouTubeScraper(BaseScraper):
             "UCv83tO5cePwHMt1952IVBgA": "Two Minute Papers",
             "UCl59L8xY7h-pI5x58v9_L1Q": "Andrej Karpathy",
             "UCOjD18EJYcsBog4IozkF_7w": "DeepLearning.AI",
-            "UCfzlCWGWYyIQ0aLC5GQIIyw": "Yannic Kilcher"
+            "UCfzlCWGWYyIQ0aLC5GQIIyw": "Yannic Kilcher",
+            "UCX84O3K-Z9E8N9B9-6uN1pA": "Wes Roth",
+            "UCZ9th96L0XNToUv84_f-8A": "Matthew Berman",
+            "UCvYpB3Z6-uX7X0f0S1V0-Lg": "Lex Fridman (AI Focus)",
+            "UC8uT9cgJdzSGeG67Sfcv7pA": "The AI Grid",
+            "UCRixvX07y3D-fXo575R-tDw": "ColdTake AI"
         }
         self.rss_base = "https://www.youtube.com/feeds/videos.xml?channel_id="
 

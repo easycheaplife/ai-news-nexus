@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS `news_items` (
     `media_urls` JSON COMMENT '多媒体链接列表 (图片、视频)',
     `takeaways` JSON COMMENT 'AI 提炼的核心要点 (列表)',
     `cluster_id` VARCHAR(100) COMMENT '聚合簇ID，用于关联相似资讯',
+    `mentioned_users` JSON COMMENT '内容中提到的高价值用户列表',
+    `trending_keywords` JSON COMMENT '内容涉及的技术热词列表',
     
     -- 唯一性约束与索引
     UNIQUE KEY `uk_platform_external` (`platform`, `external_id`), -- 防止同一平台重复抓取
