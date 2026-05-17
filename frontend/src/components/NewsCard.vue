@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, ChevronRight, Layers, MessageSquare } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -71,16 +71,25 @@ const decodeUrl = (url: string) => {
   return txt.value;
 };
 
+// 🔗 智能路径拼接
+const getFullUrl = (url: string) => {
+  if (!url) return '';
+  const decoded = decodeUrl(url);
+  // 如果是相对路径 (/f/ 打头)，自动拼接后端地址
+  if (decoded.startsWith('/f/')) {
+    const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+    // 如果 apiUrl 是 /api (Netlify 代理模式)，则保持相对路径，让浏览器处理
+    if (!apiUrl.startsWith('http')) return decoded;
+    return `${apiUrl}${decoded}`;
+  }
+  return decoded;
+};
+
 const isVideo = (url: string) => {
   if (!url) return false;
   const decoded = url.toLowerCase();
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
   return videoExtensions.some(ext => decoded.includes(ext));
-};
-
-const getPoster = (mediaUrls?: string[]) => {
-  if (!mediaUrls || mediaUrls.length < 2) return undefined;
-  return isVideo(mediaUrls[0]) ? decodeUrl(mediaUrls[1]) : undefined;
 };
 </script>
 
@@ -104,15 +113,15 @@ const getPoster = (mediaUrls?: string[]) => {
         <div class="relative aspect-video rounded-xl overflow-hidden bg-black/40 border border-white/5 shadow-xl">
           <video 
             v-if="isVideo(item.media_urls[0])"
-            :src="decodeUrl(item.media_urls[0])" 
-            :poster="getPoster(item.media_urls)"
+            :src="getFullUrl(item.media_urls[0])" 
+            :poster="getFullUrl(item.media_urls[1])"
             class="w-full h-full object-cover rendering-sharp"
             autoplay muted loop playsinline preload="auto"
             referrerpolicy="no-referrer"
           ></video>
           <img 
             v-else
-            :src="decodeUrl(item.media_urls[0])" 
+            :src="getFullUrl(item.media_urls[0])" 
             class="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-110 rendering-sharp"
             alt="Thumbnail"
             loading="lazy"
