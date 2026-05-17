@@ -94,14 +94,14 @@ const getPoster = (mediaUrls?: string[]) => {
     <!-- ⚡️ Featured Accent -->
     <div v-if="isFeatured" class="absolute top-0 left-0 w-1.5 h-full bg-primary shadow-[0_0_15px_rgba(37,99,235,0.5)]"></div>
 
-    <div class="flex flex-col md:flex-row items-stretch gap-0 md:gap-6 p-3 md:p-4">
-      <!-- 1. Media Preview (Compact) -->
+    <div class="flex flex-col md:flex-row items-center gap-0 md:gap-8 p-3 md:p-5">
+      <!-- 1. Media Preview (Compact & Fixed) -->
       <div 
         v-if="item.media_urls && item.media_urls.length > 0" 
-        class="w-full md:w-[220px] lg:w-[320px] shrink-0 cursor-zoom-in group/media"
+        class="w-full md:w-[280px] lg:w-[380px] shrink-0 cursor-zoom-in group/media"
         @click="emit('expand-media', item)"
       >
-        <div class="relative aspect-video rounded-lg overflow-hidden bg-black/20 border border-white/5 h-full">
+        <div class="relative aspect-video rounded-xl overflow-hidden bg-black/40 border border-white/5 shadow-xl">
           <video 
             v-if="isVideo(item.media_urls[0])"
             :src="decodeUrl(item.media_urls[0])" 
