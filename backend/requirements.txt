@@ -7,6 +7,7 @@ pymysql
 cryptography
 python-dotenv
 requests
+google-genai
 ntscraper
 feedparser
 twikit

@@ -74,9 +74,11 @@ class DiscoveryEngine:
         }}
         """
         try:
-            # 这里的 evaluator 需要支持通用的 generate_json 逻辑，或者复用现有逻辑
-            # 我们先假设 evaluator 已经就绪
-            response = evaluator.model.generate_content(prompt)
+            # 使用 evaluator 的通用生成方法，支持多模型降级
+            response = evaluator.generate_content(prompt)
+            if not response:
+                return False, "AI 服务暂时不可用"
+                
             text = response.text.strip()
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0].strip()

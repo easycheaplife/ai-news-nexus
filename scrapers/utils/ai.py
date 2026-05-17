@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from typing import Dict, Any, Tuple, Optional, List
-import google.generativeai as genai
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -19,15 +19,21 @@ class GeminiEvaluator:
             self.logger.warning("⚠️ GEMINI_API_KEY not found in environment. AI evaluation will be skipped.")
             self.enabled = False
         else:
-            genai.configure(api_key=self.api_key)
-            self.enabled = True
+            try:
+                self.client = genai.Client(api_key=self.api_key)
+                self.enabled = True
+            except Exception as e:
+                self.logger.error(f"❌ Failed to initialize Gemini client: {e}")
+                self.enabled = False
 
     def _generate_content_with_fallback(self, prompt: str):
-        """核心生成逻辑：支持模型自动降级"""
+        """核心生成逻辑：支持模型自动降级 (使用新版 google-genai SDK)"""
         for model_name in self.model_names:
             try:
-                model = genai.GenerativeModel(model_name)
-                response = model.generate_content(prompt)
+                response = self.client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
                 return response
             except Exception as e:
                 error_msg = str(e)
@@ -40,6 +46,12 @@ class GeminiEvaluator:
         
         self.logger.error("🚫 All Gemini fallback models failed.")
         return None
+
+    def generate_content(self, prompt: str):
+        """通用生成方法，支持模型自动降级"""
+        if not self.enabled:
+            return None
+        return self._generate_content_with_fallback(prompt)
 
     def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
         """
