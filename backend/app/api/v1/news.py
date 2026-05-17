@@ -17,13 +17,14 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
     ).first()
     
     if db_item:
-        # 如果已存在，直接返回，不再打印成功日志
+        # 如果已存在，直接返回
         return db_item
         
-    # 2. 备选查重：URL
-    db_item_url = db.query(NewsItem).filter(NewsItem.url == item.url).first()
-    if db_item_url:
-        return db_item_url
+    # 2. 备选查重：URL (针对 github 等允许每日上榜的平台，放宽限制)
+    if item.platform != 'github':
+        db_item_url = db.query(NewsItem).filter(NewsItem.url == item.url).first()
+        if db_item_url:
+            return db_item_url
 
     # 3. 只有不存在时才执行插入
     try:

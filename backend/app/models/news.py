@@ -12,7 +12,7 @@ class NewsItem(Base):
     external_id = Column(String(255), index=True)
     title = Column(String(500))
     content = Column(Text)
-    url = Column(String(768), unique=True, index=True)
+    url = Column(String(768), index=True)
     published_at = Column(DateTime, index=True)
     scraped_at = Column(DateTime, default=datetime.utcnow)
     metadata_json = Column(JSON)

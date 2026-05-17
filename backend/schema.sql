@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS `news_items` (
     
     -- 唯一性约束与索引
     UNIQUE KEY `uk_platform_external` (`platform`, `external_id`), -- 防止同一平台重复抓取
-    UNIQUE KEY `uk_url` (`url`),                                   -- 确保链接全局唯一
+    INDEX `idx_url` (`url`),                                       -- 加速链接搜索
     INDEX `idx_platform` (`platform`),                             -- 加速按平台筛选
     INDEX `idx_published` (`published_at`),                         -- 加速按时间排序和范围搜索
     FULLTEXT INDEX `idx_search` (`title`, `content`)               -- 支持全文检索关键字
