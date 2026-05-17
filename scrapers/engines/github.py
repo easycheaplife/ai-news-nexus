@@ -93,7 +93,7 @@ class GitHubScraper(BaseScraper):
                         media_urls.append(img_match.group(1))
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"GitHub Repository: {title}", full_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"GitHub Repository: {title}", full_content)
 
                     item = {
                         "platform": "github",
@@ -106,6 +106,8 @@ class GitHubScraper(BaseScraper):
                         "reason": reason,
                         "takeaways": takeaways,
                         "cluster_id": cluster_id,
+                            "mentioned_users": mentioned_users,
+                            "trending_keywords": trending_keywords,
                         "metadata_json": {
                             "author": title.split('/')[0],
                             "stars": stars

@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Text, UniqueConstraint, Date
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Text, UniqueConstraint, Date, Enum, Boolean
+import enum
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
 
@@ -21,6 +22,8 @@ class NewsItem(Base):
     media_urls = Column(JSON)
     takeaways = Column(JSON)
     cluster_id = Column(String(100), index=True)
+    mentioned_users = Column(JSON)
+    trending_keywords = Column(JSON)
 
     __table_args__ = (
         UniqueConstraint('platform', 'external_id', name='_platform_external_id_uc'),
@@ -35,3 +38,42 @@ class DailyInsight(Base):
     hot_topics = Column(JSON)
     stats_json = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class DiscoveryType(enum.Enum):
+    user = "user"
+    keyword = "keyword"
+
+class DiscoveryStatus(enum.Enum):
+    pending = "pending"
+    vetted = "vetted"
+    rejected = "rejected"
+
+class DiscoveryPool(Base):
+    __tablename__ = "discovery_pool"
+
+    id = Column(Integer, primary_key=True, index=True)
+    type = Column(Enum(DiscoveryType), nullable=False)
+    value = Column(String(255), nullable=False)
+    status = Column(Enum(DiscoveryStatus), default=DiscoveryStatus.pending, index=True)
+    source_id = Column(Integer)
+    discovery_reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('type', 'value', name='_type_value_uc'),
+    )
+
+class ScrapingTarget(Base):
+    __tablename__ = "scraping_targets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    platform = Column(String(50), nullable=False)
+    handle = Column(String(255), nullable=False)
+    name = Column(String(255))
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    added_at = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint('platform', 'handle', name='_platform_handle_uc'),
+    )

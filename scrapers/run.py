@@ -12,6 +12,7 @@ from scrapers.engines.ph import ProductHuntScraper
 from scrapers.engines.github import GitHubScraper
 from scrapers.engines.arxiv import ArxivScraper
 from scrapers.engines.youtube import YouTubeScraper
+from scrapers.engines.trend_hunter import TrendHunterScraper
 
 # 加载 .env 文件
 load_dotenv()

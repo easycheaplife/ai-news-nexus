@@ -107,7 +107,7 @@ class RedditScraper(BaseScraper):
                             media_urls.append(p_data['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id = evaluator.evaluate(p_data['title'], full_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(p_data['title'], full_content)
 
                     item = {
                         "platform": "reddit",
@@ -120,6 +120,8 @@ class RedditScraper(BaseScraper):
                         "reason": reason,
                         "takeaways": takeaways,
                             "cluster_id": cluster_id,
+                            "mentioned_users": mentioned_users,
+                            "trending_keywords": trending_keywords,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "subreddit": sub,

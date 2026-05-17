@@ -40,3 +40,28 @@ CREATE TABLE IF NOT EXISTS `daily_insights` (
     UNIQUE KEY `uk_date` (`date`),
     INDEX `idx_date` (`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 发现池表：存储待验证的新账号和热词
+CREATE TABLE IF NOT EXISTS `discovery_pool` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `type` ENUM('user', 'keyword') NOT NULL COMMENT '发现类型：账号或关键词',
+    `value` VARCHAR(255) NOT NULL COMMENT '账号名(handle)或关键词',
+    `status` ENUM('pending', 'vetted', 'rejected') DEFAULT 'pending' COMMENT '状态',
+    `source_id` INT COMMENT '发现该信号的原始资讯ID',
+    `discovery_reason` TEXT COMMENT 'AI 推荐关注/搜索的理由',
+    `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_type_value` (`type`, `value`),
+    INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 采集目标表：存储活跃的抓取账号（如 Twitter handle）
+CREATE TABLE IF NOT EXISTS `scraping_targets` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `platform` VARCHAR(50) NOT NULL,
+    `handle` VARCHAR(255) NOT NULL,
+    `name` VARCHAR(255),
+    `description` TEXT,
+    `is_active` BOOLEAN DEFAULT TRUE,
+    `added_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `uk_platform_handle` (`platform`, `handle`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -73,12 +73,54 @@ class BaseScraper:
             if response.status_code == 200:
                 self.logger.info(f"✅ Successfully pushed: {item['title'][:50]}...")
                 self.seen_ids.add(item_key)
+                
+                # 3. 处理发现信号 (如果是 90+ 高分内容，提取信号)
+                if item.get('score', 0) >= 80:
+                    self._push_discovery_signals(item)
+
             elif response.status_code == 409: # 已存在
                 self.seen_ids.add(item_key)
             else:
                 self.logger.error(f"❌ Failed to push: {response.text}")
         except Exception as e:
             self.logger.error(f"Error pushing to backend: {e}")
+
+    def _push_discovery_signals(self, item: dict):
+        """将内容中提取到的新账号和热词存入发现池"""
+        users = item.get('mentioned_users') or []
+        keywords = item.get('trending_keywords') or []
+        
+        # 过滤掉已有的白名单账号 (简化处理，只针对 Twitter)
+        # TODO: 更好的过滤逻辑
+        
+        for user in users:
+            # 简单的清理逻辑
+            clean_user = user.strip('@').split(' ')[0]
+            if not clean_user: continue
+            
+            payload = {
+                "type": "user",
+                "value": clean_user,
+                "source_id": 0, # 这里暂时填 0，后端如果没查到 ID 允许为空
+                "discovery_reason": f"From high-score content: {item['title'][:30]}"
+            }
+            try:
+                # 使用一个专用的发现接口，或者复用 insights 接口 (这里建议新建接口)
+                # 为保持进度，假设我们已经有了 /discovery/ 接口
+                requests.post(f"{self.api_url}/discovery/", json=payload)
+            except: pass
+
+        for kw in keywords:
+            if not kw: continue
+            payload = {
+                "type": "keyword",
+                "value": kw,
+                "source_id": 0,
+                "discovery_reason": f"Trending in: {item['title'][:30]}"
+            }
+            try:
+                requests.post(f"{self.api_url}/discovery/", json=payload)
+            except: pass
 
     def scrape(self):
         raise NotImplementedError("Subclasses must implement scrape()")

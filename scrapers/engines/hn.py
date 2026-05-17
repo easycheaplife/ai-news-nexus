@@ -75,7 +75,7 @@ class HNScraper(BaseScraper):
                         full_content = f"{text}\n\n{link_context}\n\n{comments_text}".strip()
 
                         # 🤖 AI 评分与理由
-                        score, reason, takeaways, cluster_id = evaluator.evaluate(title, full_content)
+                        score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(title, full_content)
 
                         item = {
                             "platform": "hn",
@@ -88,6 +88,8 @@ class HNScraper(BaseScraper):
                             "reason": reason,
                             "takeaways": takeaways,
                             "cluster_id": cluster_id,
+                            "mentioned_users": mentioned_users,
+                            "trending_keywords": trending_keywords,
                             "metadata_json": {
                                 "hn_score": story.get("score"),
                                 "by": story.get("by"),

@@ -10,14 +10,21 @@ from ..utils.link_scraper import scrape_link_content
 class TwitterScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("twitter", api_url)
-        self.ai_accounts = [
-            "OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy",
-            "AnthropicAI", "sama", "gdb", "demishassabis", "perplexity_ai", "Cohere",
-            "NVIDIAAI", "MetaAI", "AndrewYNg", "ArowLau", "DrJimFan", "fchollet",
-            "bindureddy", "emostaque", "swyx", "RowanChevalier", "levelsio", "AravSrinivas",
-            "shaneleg", "ilyasut", "gdb", "woj_zaremba", "reidhoffman", "p_george"
-        ]
+        self.ai_accounts = self._load_targets()
         self.headers = {
+...
+    def _load_targets(self) -> list:
+        """从后端获取活跃的抓取账号"""
+        default_list = ["OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy"]
+        try:
+            response = requests.get(f"{self.api_url}/targets/?platform=twitter&is_active=true", timeout=10)
+            if response.status_code == 200:
+                targets = response.json()
+                if targets:
+                    return [t['handle'] for t in targets]
+        except Exception as e:
+            self.logger.warning(f"Failed to load targets from backend, using defaults: {e}")
+        return default_list
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
@@ -158,7 +165,7 @@ class TwitterScraper(BaseScraper):
                     full_content = "\n\n---\n\n".join(full_text_list)
                     
                     # 🤖 AI 评估
-                    score, reason, takeaways, cluster_id = evaluator.evaluate(f"Tweet from @{username}", full_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
 
                     # 日期处理
                     raw_date = main_tweet.get('created_at')
@@ -182,6 +189,8 @@ class TwitterScraper(BaseScraper):
                         "reason": reason,
                         "takeaways": takeaways,
                         "cluster_id": cluster_id,
+                            "mentioned_users": mentioned_users,
+                            "trending_keywords": trending_keywords,
                         "media_urls": list(dict.fromkeys(all_media)), # 去重保持顺序
                         "metadata_json": {
                             "author": username,

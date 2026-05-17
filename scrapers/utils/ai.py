@@ -21,13 +21,13 @@ class GeminiEvaluator:
             self.model = genai.GenerativeModel(self.model_name)
             self.enabled = True
 
-    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str]]:
+    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
         """
-        使用 Gemini 对内容进行评分、理由提炼、核心要点总结及语义聚类
-        返回: (分数, 理由, 核心要点列表, 语义聚类ID)
+        使用 Gemini 对内容进行多维分析：评分、摘要、要点、语义聚类、新账号发现及热词提取
+        返回: (分数, 理由, 核心要点列表, 语义聚类ID, 提到用户列表, 趋势关键词列表)
         """
         if not self.enabled:
-            return 0, None, None, None
+            return 0, None, None, None, None, None
 
         prompt = f"""
         你是一个资深的 AI 行业分析师。请对以下新闻/动态进行评估，如果内容包含“热门评论”或“社区讨论”，请务必提炼出社区的核心观点：
@@ -40,7 +40,9 @@ class GeminiEvaluator:
             "score": 评分值(数字 0-100),
             "reason": "一句话推荐理由 (50字以内)",
             "takeaways": ["核心要点1", "核心要点2", "核心要点3"],
-            "cluster_id": "用2-4个词概括其核心语义主题，作为聚类ID (例如: 'OpenAI Sora', 'DeepSeek V3', 'Apple Intelligence')"
+            "cluster_id": "核心语义主题 (2-4个词)",
+            "mentioned_users": ["提取内容中提到的其他高价值 AI 相关用户名/Handle，没有则为空列表"],
+            "trending_keywords": ["提取该资讯涉及的 2-3 个核心技术热词"]
         }}
         """
 
@@ -58,11 +60,13 @@ class GeminiEvaluator:
                 data.get("score", 0), 
                 data.get("reason"), 
                 data.get("takeaways"),
-                data.get("cluster_id")
+                data.get("cluster_id"),
+                data.get("mentioned_users"),
+                data.get("trending_keywords")
             )
         except Exception as e:
             self.logger.error(f"❌ Gemini evaluation failed: {e}")
-            return 0, None, None, None
+            return 0, None, None, None, None, None
 
     def summarize_clusters(self, clusters_data: List[Dict[str, Any]]) -> str:
         """
