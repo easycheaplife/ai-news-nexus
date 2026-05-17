@@ -24,7 +24,7 @@ class TwitterScraper(BaseScraper):
         }
 
     def _process_tweet_media(self, tweet: dict) -> list:
-        """提取推文的多媒体内容"""
+        """提取推文的多媒体内容 (强制高清)"""
         media_urls = []
         ext_entities = tweet.get('extended_entities', {})
         for m in ext_entities.get('media', []):
@@ -34,12 +34,23 @@ class TwitterScraper(BaseScraper):
                 if mp4_variants:
                     best_video = max(mp4_variants, key=lambda x: x.get('bitrate', 0))
                     media_urls.append(best_video['url'])
-            if m.get('media_url_https') not in media_urls:
-                media_urls.append(m.get('media_url_https'))
+            
+            # 🖼️ 获取原始大图
+            orig_img = m.get('media_url_https', '')
+            if orig_img:
+                if '?' in orig_img:
+                    orig_img = orig_img.split('?')[0] + "?name=orig"
+                else:
+                    orig_img += "?name=orig"
+                if orig_img not in media_urls:
+                    media_urls.append(orig_img)
         
         if not media_urls:
             for m in tweet.get('entities', {}).get('media', []):
-                media_urls.append(m.get('media_url_https'))
+                img_url = m.get('media_url_https', '')
+                if img_url:
+                    img_url = img_url.split('?')[0] + "?name=orig"
+                    media_urls.append(img_url)
         return media_urls
 
     def scrape(self):

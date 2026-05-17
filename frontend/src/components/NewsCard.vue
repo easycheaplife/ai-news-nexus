@@ -106,14 +106,14 @@ const getPoster = (mediaUrls?: string[]) => {
             v-if="isVideo(item.media_urls[0])"
             :src="decodeUrl(item.media_urls[0])" 
             :poster="getPoster(item.media_urls)"
-            class="w-full h-full object-cover"
+            class="w-full h-full object-cover rendering-sharp"
             autoplay muted loop playsinline preload="auto"
             referrerpolicy="no-referrer"
           ></video>
           <img 
             v-else
             :src="decodeUrl(item.media_urls[0])" 
-            class="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-110"
+            class="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-110 rendering-sharp"
             alt="Thumbnail"
             loading="lazy"
             referrerpolicy="no-referrer"
@@ -214,3 +214,10 @@ const getPoster = (mediaUrls?: string[]) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.rendering-sharp {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+</style>

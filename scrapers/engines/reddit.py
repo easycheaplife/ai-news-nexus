@@ -77,21 +77,31 @@ class RedditScraper(BaseScraper):
                     
                     full_content = f"{p_data['selftext'] or ''}\n\n{link_context}\n\n{comments_text}".strip()
 
-                    # 🖼️ 提取多媒体
+                    # 🖼️ 提取多媒体 (强制高清)
                     media_urls = []
                     
-                    # 优先提取 Reddit 视频
+                    # 1. 优先提取 Reddit 视频
                     if p_data.get('is_video') and p_data.get('media', {}).get('reddit_video'):
                         video_url = p_data['media']['reddit_video'].get('fallback_url')
                         if video_url:
-                            # 移除可能存在的 URL 参数以便播放器识别
                             clean_video_url = video_url.split('?')[0]
                             media_urls.append(clean_video_url)
                     
-                    # 备选提取缩略图或直接图
-                    if p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
-                        if p_data['thumbnail'] not in media_urls:
-                            media_urls.append(p_data['thumbnail'])
+                    # 2. 尝试提取高清预览图
+                    # Reddit 的 preview 节点包含原始高清地址，避免使用 140px 的 thumbnail
+                    if p_data.get('preview', {}).get('images'):
+                        try:
+                            import html
+                            source_img = p_data['preview']['images'][0]['source']['url']
+                            # Reddit API 返回的 URL 经常带 &amp; 需要转义回去
+                            high_res_url = html.unescape(source_img)
+                            media_urls.append(high_res_url)
+                        except: pass
+                    
+                    # 3. 备选提取缩略图或直接图
+                    if not media_urls and p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
+                        media_urls.append(p_data['thumbnail'])
+                    
                     if p_data.get('url') and any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
                         if p_data['url'] not in media_urls:
                             media_urls.append(p_data['url'])

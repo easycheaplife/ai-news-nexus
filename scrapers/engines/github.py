@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 from .base import BaseScraper
 from datetime import datetime
 import time
+import re
 from ..utils.ai import evaluator
 
 class GitHubScraper(BaseScraper):
@@ -82,6 +83,14 @@ class GitHubScraper(BaseScraper):
                     # 🤖 获取 README 深度内容
                     readme_content = self._get_readme(repo_path)
                     full_content = (description + "\n\n" + readme_content).strip()
+
+                    # 🖼️ 提取封面图 (从 README 中找第一张大图)
+                    media_urls = []
+                    # 匹配 Markdown 图片格式 ![alt](url) 或 HTML 格式 <img src="url">
+                    img_match = re.search(r'!\[.*?\]\((https?://.*?\.(?:png|jpg|jpeg|gif|webp).*?)\)', readme_content) or \
+                                re.search(r'<img.*?src=["\'](https?://.*?\.(?:png|jpg|jpeg|gif|webp).*?)["\']', readme_content)
+                    if img_match:
+                        media_urls.append(img_match.group(1))
 
                     # 🤖 AI 评分与理由
                     score, reason, takeaways, cluster_id = evaluator.evaluate(f"GitHub Repository: {title}", full_content)
