@@ -3,12 +3,15 @@ from datetime import datetime
 import logging
 import json
 import os
+from ..utils.media_mirror import MediaMirror
 
 class BaseScraper:
     def __init__(self, platform: str, api_url: str = "http://localhost:8000"):
         self.platform = platform
         self.api_url = api_url
         self.logger = logging.getLogger(f"scraper.{platform}")
+        # 初始化媒体转存工具
+        self.mirror = MediaMirror(api_url)
         # 本地去重缓存（仅限本次运行）
         self.seen_ids = set()
         
@@ -67,8 +70,13 @@ class BaseScraper:
         if item_key in self.seen_ids:
             return
         
+        # 2. 媒体转存 (Mirroring) —— 核心：将外部链接转化为本站链接
+        if item.get('media_urls'):
+            self.logger.info(f"📸 Mirroring {len(item['media_urls'])} media items...")
+            item['media_urls'] = self.mirror.mirror_all(item['media_urls'])
+
         try:
-            # 2. 推送到后端
+            # 3. 推送到后端
             response = requests.post(f"{self.api_url}/news/", json=item)
             if response.status_code == 200:
                 self.logger.info(f"✅ Successfully pushed: {item['title'][:50]}...")

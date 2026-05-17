@@ -25,6 +25,10 @@ app.include_router(news_router, prefix="/news", tags=["news"])
 app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(discovery_router, prefix="/discovery", tags=["discovery"])
 app.include_router(targets_router, prefix="/targets", tags=["targets"])
+app.include_router(media_router, prefix="/media", tags=["media"])
+
+# 挂载静态文件分发目录 (/f 开头)
+app.mount("/f", StaticFiles(directory="data/media"), name="media")
 
 @app.get("/")
 def root():
