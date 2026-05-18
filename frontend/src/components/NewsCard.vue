@@ -91,6 +91,8 @@ const isVideo = (url: string) => {
   const videoExtensions = ['.mp4', '.webm', '.ogg', '.m3u8', 'video', 'ext_tw_video', 'amplify_video'];
   return videoExtensions.some(ext => decoded.includes(ext));
 };
+
+const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
 </script>
 
 <template>
@@ -166,6 +168,15 @@ const isVideo = (url: string) => {
             {{ item.title }}
           </h3>
         </a>
+
+        <!-- 📄 原始正文 (Scraped Body Content) -->
+        <div 
+          v-if="contentParts.postBody" 
+          class="mb-4 text-sm text-slate-300 leading-relaxed opacity-90 break-words whitespace-pre-wrap"
+          :style="{ display: '-webkit-box', WebkitLineClamp: contentLines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }"
+        >
+          {{ contentParts.postBody }}
+        </div>
 
         <!-- 🧩 核心观点 (Takeaways) - 直接显示 (仅当有 AI 数据时) -->
         <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-4 space-y-1.5">
