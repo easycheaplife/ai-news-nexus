@@ -157,17 +157,17 @@ const groupedNews = computed(() => {
     // 🛡️ 质量过滤逻辑
     const score = item.score || 0;
     const scrapedAt = item.scraped_at ? new Date(item.scraped_at) : new Date();
-    const isRecentlyScraped = (now.getTime() - scrapedAt.getTime()) < 3600000; // 1小时内
+    // 宽松的时间检查：24小时内抓取的 0 分内容都视为“实时处理中”，确保可见性
+    const isRecentlyScraped = Math.abs(now.getTime() - scrapedAt.getTime()) < 86400000;
     
-    // 💡 特殊逻辑：如果用户主动选择了 Twitter 筛选，或者该项是最近抓取的，放宽限制。
-    // 否则按照 60 分标准过滤旧内容。
+    // 如果是 Twitter 筛选，或者是 24 小时内抓取的，或者是高分内容，则显示
     const isTwitterFilter = filters.value.platform === 'twitter';
     if (score < 60 && !isRecentlyScraped && !isTwitterFilter) return;
 
     let dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     
-    // 如果评分是0且是刚抓取的，或者在 Twitter 筛选下且分数为 0，强制归类到“处理中”
-    if (score === 0 && (isRecentlyScraped || isTwitterFilter)) {
+    // 只要分数为 0，统一归类到“处理中”，无论是否刚抓取
+    if (score === 0) {
       dateKey = 'PENDING';
     }
 
@@ -494,18 +494,7 @@ const renderMarkdown = (text: string) => {
     </section>
 
     <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-10 md:py-16">
-      <!-- Welcome Message / Empty State -->
-      <div v-if="!groupedNews.length && !loading" class="text-center py-20 animate-fade-in">
-        <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
-          <Calendar class="w-12 h-12 text-text-muted opacity-20" />
-        </div>
-        <h2 class="text-2xl font-bold text-white mb-2">未发现相关内容</h2>
-        <p class="text-text-muted max-w-xs mx-auto">
-          {{ news.length ? '当前抓取的资讯尚未达到优质评分标准。' : '请尝试调整筛选条件或搜索关键词，查看更多资讯。' }}
-        </p>
-      </div>
-
-      <!-- Loading State -->
+      <!-- 1. Loading State (Initial) -->
       <div v-if="loading && !news.length" class="space-y-12 animate-pulse">
         <div v-for="i in 2" :key="i">
           <div class="h-6 w-48 bg-white/5 rounded-lg mb-8"></div>
@@ -515,7 +504,18 @@ const renderMarkdown = (text: string) => {
         </div>
       </div>
 
-      <!-- News Feed (Date Grouped) -->
+      <!-- 2. Empty State -->
+      <div v-else-if="!groupedNews.length" class="text-center py-20 animate-fade-in">
+        <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
+          <Calendar class="w-12 h-12 text-text-muted opacity-20" />
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-2">未发现相关内容</h2>
+        <p class="text-text-muted max-w-xs mx-auto">
+          {{ news.length ? '当前抓取的资讯尚未达到优质评分标准。' : '请尝试调整筛选条件或搜索关键词，查看更多资讯。' }}
+        </p>
+      </div>
+
+      <!-- 3. News Feed (Date Grouped) -->
       <div v-else class="space-y-20">
         <section v-for="[date, items] in groupedNews" :key="date" class="relative">
           <!-- Date Header -->
