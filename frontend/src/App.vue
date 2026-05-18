@@ -78,9 +78,7 @@ const filters = ref({
   platform: '',
   query: '',
   limit: 100,
-  skip: 0,
-  minScore: parseInt(import.meta.env.VITE_MIN_SCORE || '60'),
-  includePending: true
+  skip: 0
 });
 
 const platforms = [
@@ -111,9 +109,7 @@ const fetchNews = async (isLoadMore = false) => {
       platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
       limit: filters.value.limit,
-      skip: filters.value.skip,
-      min_score: filters.value.minScore,
-      include_pending: filters.value.includePending
+      skip: filters.value.skip
     };
     const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
     
@@ -157,28 +153,15 @@ const groupedNews = computed(() => {
   const groups: Record<string, any[]> = {};
   
   news.value.forEach(item => {
-    // 🛡️ 质量过滤：后端 MySQL 已完成分值过滤，前端仅保留 PENDING 逻辑
-    const score = item.score || 0;
-    let dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
-    
-    // 只要分数为 0，统一归类到“处理中”
-    if (score === 0) {
-      dateKey = 'PENDING';
-    }
-
+    const dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     if (!groups[dateKey]) groups[dateKey] = [];
     groups[dateKey].push(item);
   });
   
-  return Object.entries(groups).sort((a, b) => {
-    if (a[0] === 'PENDING') return -1;
-    if (b[0] === 'PENDING') return 1;
-    return b[0].localeCompare(a[0]);
-  });
+  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
 });
 
 const formatDateHeader = (dateStr: string) => {
-  if (dateStr === 'PENDING') return '⚡️ 实时捕获 · Processing';
   const date = new Date(dateStr);
   if (isToday(date)) return '今天 · Today';
   if (isYesterday(date)) return '昨天 · Yesterday';
