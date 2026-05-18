@@ -18,6 +18,7 @@ class ProductHuntScraper(BaseScraper):
             
             newest_timestamp = None
             for entry in feed.entries:
+                self.logger.info(f"🔗 Processing Item ID: {entry.id}")
                 # 获取时间戳字符串用于比较
                 published_ts = str(int(datetime(*entry.published_parsed[:6]).timestamp()))
                 

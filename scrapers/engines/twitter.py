@@ -116,6 +116,7 @@ class TwitterScraper(BaseScraper):
 
                 for tweet in valid_tweets:
                     tid = tweet['id_str']
+                    self.logger.info(f"🔗 Processing Item ID: {tid}")
                     if tid in processed_ids: continue
 
                     is_reply_to_self = (
