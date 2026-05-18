@@ -78,7 +78,9 @@ const filters = ref({
   platform: '',
   query: '',
   limit: 100,
-  skip: 0
+  skip: 0,
+  minScore: 60,
+  includePending: true
 });
 
 const platforms = [
@@ -109,7 +111,9 @@ const fetchNews = async (isLoadMore = false) => {
       platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
       limit: filters.value.limit,
-      skip: filters.value.skip
+      skip: filters.value.skip,
+      min_score: filters.value.minScore,
+      include_pending: filters.value.includePending
     };
     const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
     
@@ -151,22 +155,13 @@ const loadMore = () => {
 // 按日期分组
 const groupedNews = computed(() => {
   const groups: Record<string, any[]> = {};
-  const now = new Date();
   
   news.value.forEach(item => {
-    // 🛡️ 质量过滤逻辑
+    // 🛡️ 质量过滤：后端 MySQL 已完成分值过滤，前端仅保留 PENDING 逻辑
     const score = item.score || 0;
-    const scrapedAt = item.scraped_at ? new Date(item.scraped_at) : new Date();
-    // 宽松的时间检查：24小时内抓取的 0 分内容都视为“实时处理中”，确保可见性
-    const isRecentlyScraped = Math.abs(now.getTime() - scrapedAt.getTime()) < 86400000;
-    
-    // 如果是 Twitter 筛选，或者是 24 小时内抓取的，或者是高分内容，则显示
-    const isTwitterFilter = filters.value.platform === 'twitter';
-    if (score < 60 && !isRecentlyScraped && !isTwitterFilter) return;
-
     let dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     
-    // 只要分数为 0，统一归类到“处理中”，无论是否刚抓取
+    // 只要分数为 0，统一归类到“处理中”
     if (score === 0) {
       dateKey = 'PENDING';
     }

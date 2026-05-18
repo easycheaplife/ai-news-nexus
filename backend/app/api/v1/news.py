@@ -47,6 +47,8 @@ def read_news(
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     query: Optional[str] = None,
+    min_score: Optional[int] = Query(None, description="Minimum AI score to include"),
+    include_pending: bool = Query(True, description="Whether to include items with score 0 (pending analysis)"),
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db)
@@ -59,6 +61,18 @@ def read_news(
         db_query = db_query.filter(NewsItem.published_at >= start_date)
     if end_date:
         db_query = db_query.filter(NewsItem.published_at <= end_date)
+    
+    # 评分过滤逻辑
+    if min_score is not None:
+        if include_pending:
+            # 包含 0 分 (待处理) 或者 达到最小分数的内容
+            db_query = db_query.filter((NewsItem.score >= min_score) | (NewsItem.score == 0))
+        else:
+            db_query = db_query.filter(NewsItem.score >= min_score)
+    elif not include_pending:
+        # 如果没有指定最小分数但要求不包含待处理，则过滤掉 0 分
+        db_query = db_query.filter(NewsItem.score > 0)
+
     if query:
         db_query = db_query.filter(
             (NewsItem.title.ilike(f"%{query}%")) | 
