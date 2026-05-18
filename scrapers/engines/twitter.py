@@ -157,10 +157,7 @@ class TwitterScraper(BaseScraper):
 
                     full_content = "\n\n---\n\n".join(full_text_list)
                     
-                    # 🤖 AI 评估
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
-
-                    # 日期处理
+                    # 日期处理与时间窗口过滤 (前置到 AI 评估之前，节省 API 额度)
                     raw_date = thread_tweets[0].get('created_at')
                     published_at = datetime.utcnow().isoformat()
                     dt_obj = None
@@ -174,6 +171,9 @@ class TwitterScraper(BaseScraper):
                     if dt_obj and not self.is_within_window(dt_obj):
                         self.logger.info(f"⏩ Skipping old tweet from {dt_obj} (outside {self.scrape_window_hours}h window)")
                         continue
+
+                    # 🤖 AI 评估 (仅对时间窗口内的有效内容进行评估)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
 
                     display_title = thread_tweets[0].get('full_text', thread_tweets[0].get('text', ''))[:100].replace('\n', ' ')
                     
