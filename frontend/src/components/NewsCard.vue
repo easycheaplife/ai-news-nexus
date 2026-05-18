@@ -30,16 +30,34 @@ const contentParts = computed(() => {
   // 识别不同的评论分隔符
   const separators = ['--- Reddit Community Insights ---', '--- HN Top Discussions ---', '--- 热门评论 ---'];
   
+  let postBody = content;
+  let comments: string[] = [];
+
   for (const sep of separators) {
     if (content.includes(sep)) {
       const parts = content.split(sep);
-      const postBody = parts[0].trim();
+      postBody = parts[0].trim();
       // 提取前 2 条评论
-      const comments = parts[1].trim().split('\n\n').filter(c => c.trim()).slice(0, 2);
-      return { postBody, comments };
+      comments = parts[1].trim().split('\n\n').filter(c => c.trim()).slice(0, 2);
+      break;
     }
   }
-  return { postBody: content, comments: [] };
+
+  // 清理包含 HTML 的抓取内容（如 Product Hunt 返回的带标签内容）
+  if (/<(p|div|a\s+href|br|strong|b|em|i|span|ul|li)[^>]*>/i.test(postBody)) {
+    postBody = postBody
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|h[1-6]|ul|li)>/gi, '\n')
+      .replace(/<[^>]+>/g, '') // 移除其余所有标签
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\n\s*\n/g, '\n') // 合并多余空行
+      .trim();
+  }
+
+  return { postBody, comments };
 });
 
 const platformIcons: Record<string, any> = {
