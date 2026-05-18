@@ -163,11 +163,17 @@ class TwitterScraper(BaseScraper):
                     # 日期处理
                     raw_date = thread_tweets[0].get('created_at')
                     published_at = datetime.utcnow().isoformat()
+                    dt_obj = None
                     if raw_date:
                         try:
-                            dt = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
-                            published_at = dt.isoformat()
+                            dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
+                            published_at = dt_obj.isoformat()
                         except: pass
+
+                    # 🕒 时间窗口过滤：如果开启了窗口限制，且推文超出时间范围，则跳过
+                    if dt_obj and not self.is_within_window(dt_obj):
+                        self.logger.info(f"⏩ Skipping old tweet from {dt_obj} (outside {self.scrape_window_hours}h window)")
+                        continue
 
                     display_title = thread_tweets[0].get('full_text', thread_tweets[0].get('text', ''))[:100].replace('\n', ' ')
                     

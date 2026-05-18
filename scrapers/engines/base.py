@@ -10,6 +10,8 @@ class BaseScraper:
         self.platform = platform
         self.api_url = api_url
         self.logger = logging.getLogger(f"scraper.{platform}")
+        # 抓取时间窗口 (默认 72 小时)
+        self.scrape_window_hours = int(os.getenv("SCRAPE_WINDOW_HOURS", 72))
         # 初始化媒体转存工具
         self.mirror = MediaMirror(api_url)
         # 本地去重缓存（仅限本次运行）
@@ -63,6 +65,13 @@ class BaseScraper:
         if is_newer:
             self.state[self.platform][sub_key] = current_id
             self._save_state()
+
+    def is_within_window(self, dt: datetime) -> bool:
+        """检查给定的时间是否在抓取窗口内"""
+        if not dt:
+            return False
+        delta = datetime.utcnow() - dt
+        return delta.total_seconds() <= (self.scrape_window_hours * 3600)
 
     def push_to_backend(self, item: dict):
         # 1. 采集端本地去重
