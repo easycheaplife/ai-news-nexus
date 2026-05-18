@@ -201,13 +201,19 @@ const hotTopics = computed(() => {
 
 // 📊 计算各平台分布 (优先使用存档数据)
 const platformStats = computed(() => {
-  if (latestInsight.value?.stats_json) {
-    return latestInsight.value.stats_json;
-  }
   const stats: Record<string, number> = {};
   const platforms_list = ['twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph'];
+  
+  // 1. 初始化所有平台，确保不会缺失
   platforms_list.forEach(p => stats[p] = 0);
   
+  // 2. 如果有后端归档数据，合并进去
+  if (latestInsight.value?.stats_json) {
+    Object.assign(stats, latestInsight.value.stats_json);
+    return stats;
+  }
+  
+  // 3. 否则根据当前页面的 news 列表实时计算
   news.value.forEach(item => {
     if (stats[item.platform] !== undefined) {
       stats[item.platform]++;
@@ -456,8 +462,8 @@ const renderMarkdown = (text: string) => {
                 >
                   <div 
                     class="w-full relative rounded-t-md transition-all duration-700 hover:brightness-125"
-                    :class="[platformBarColors[platform] || 'bg-primary/20', count === 0 ? 'opacity-10' : 'opacity-60']"
-                    :style="{ height: `${(count / (Math.max(...(Object.values(platformStats) as number[])) || 1)) * 100}%` }"
+                    :class="[platformBarColors[platform] || 'bg-primary/20', count === 0 ? 'opacity-20' : 'opacity-80']"
+                    :style="{ height: `${Math.max((count / (Math.max(...(Object.values(platformStats) as number[])) || 1)) * 100, 4)}%`, minHeight: '4px' }"
                   >
                     <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-white opacity-0 group-hover/bar:opacity-100 transition-opacity">
                       {{ count }}
