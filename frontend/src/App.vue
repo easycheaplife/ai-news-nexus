@@ -156,16 +156,18 @@ const groupedNews = computed(() => {
   news.value.forEach(item => {
     // 🛡️ 质量过滤逻辑
     const score = item.score || 0;
-    const isRecentlyScraped = (now.getTime() - new Date(item.scraped_at).getTime()) < 3600000; // 1小时内
+    const scrapedAt = item.scraped_at ? new Date(item.scraped_at) : new Date();
+    const isRecentlyScraped = (now.getTime() - scrapedAt.getTime()) < 3600000; // 1小时内
     
-    // 如果评分足够高，或者是最近1小时内抓取的“新鲜”内容（哪怕评分还没出来或是0），都允许显示
-    // 这样可以避免爬虫刚跑完时首页一片空白
-    if (score < 60 && !isRecentlyScraped) return;
+    // 💡 特殊逻辑：如果用户主动选择了 Twitter 筛选，或者该项是最近抓取的，放宽限制。
+    // 否则按照 60 分标准过滤旧内容。
+    const isTwitterFilter = filters.value.platform === 'twitter';
+    if (score < 60 && !isRecentlyScraped && !isTwitterFilter) return;
 
     let dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     
-    // 如果评分是0且是刚抓取的，强制归类到“处理中”
-    if (score === 0 && isRecentlyScraped) {
+    // 如果评分是0且是刚抓取的，或者在 Twitter 筛选下且分数为 0，强制归类到“处理中”
+    if (score === 0 && (isRecentlyScraped || isTwitterFilter)) {
       dateKey = 'PENDING';
     }
 
