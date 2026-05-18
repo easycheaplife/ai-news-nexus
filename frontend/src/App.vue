@@ -151,18 +151,37 @@ const loadMore = () => {
 // 按日期分组
 const groupedNews = computed(() => {
   const groups: Record<string, any[]> = {};
+  const now = new Date();
+  
   news.value.forEach(item => {
-    // 🛡️ 质量过滤：仅显示评分 >= 60 的优质资讯
-    if (!item.score || item.score < 60) return;
+    // 🛡️ 质量过滤逻辑
+    const score = item.score || 0;
+    const isRecentlyScraped = (now.getTime() - new Date(item.scraped_at).getTime()) < 3600000; // 1小时内
+    
+    // 如果评分足够高，或者是最近1小时内抓取的“新鲜”内容（哪怕评分还没出来或是0），都允许显示
+    // 这样可以避免爬虫刚跑完时首页一片空白
+    if (score < 60 && !isRecentlyScraped) return;
 
-    const dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
+    let dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
+    
+    // 如果评分是0且是刚抓取的，强制归类到“处理中”
+    if (score === 0 && isRecentlyScraped) {
+      dateKey = 'PENDING';
+    }
+
     if (!groups[dateKey]) groups[dateKey] = [];
     groups[dateKey].push(item);
   });
-  return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]));
+  
+  return Object.entries(groups).sort((a, b) => {
+    if (a[0] === 'PENDING') return -1;
+    if (b[0] === 'PENDING') return 1;
+    return b[0].localeCompare(a[0]);
+  });
 });
 
 const formatDateHeader = (dateStr: string) => {
+  if (dateStr === 'PENDING') return '⚡️ 实时捕获 · Processing';
   const date = new Date(dateStr);
   if (isToday(date)) return '今天 · Today';
   if (isYesterday(date)) return '昨天 · Yesterday';
@@ -473,13 +492,15 @@ const renderMarkdown = (text: string) => {
     </section>
 
     <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-10 md:py-16">
-      <!-- Welcome Message -->
-      <div v-if="!news.length && !loading" class="text-center py-20 animate-fade-in">
+      <!-- Welcome Message / Empty State -->
+      <div v-if="!groupedNews.length && !loading" class="text-center py-20 animate-fade-in">
         <div class="inline-block p-6 rounded-full bg-white/5 mb-6 border border-white/5">
           <Calendar class="w-12 h-12 text-text-muted opacity-20" />
         </div>
         <h2 class="text-2xl font-bold text-white mb-2">未发现相关内容</h2>
-        <p class="text-text-muted max-w-xs mx-auto">请尝试调整筛选条件或搜索关键词，查看更多资讯。</p>
+        <p class="text-text-muted max-w-xs mx-auto">
+          {{ news.length ? '当前抓取的资讯尚未达到优质评分标准。' : '请尝试调整筛选条件或搜索关键词，查看更多资讯。' }}
+        </p>
       </div>
 
       <!-- Loading State -->
