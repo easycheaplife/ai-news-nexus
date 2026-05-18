@@ -167,7 +167,7 @@ const isVideo = (url: string) => {
           </h3>
         </a>
 
-        <!-- 🧩 核心观点 (Takeaways) - 直接显示 -->
+        <!-- 🧩 核心观点 (Takeaways) - 直接显示 (仅当有 AI 数据时) -->
         <div v-if="item.takeaways && item.takeaways.length > 0" class="mb-4 space-y-1.5">
           <div v-for="point in item.takeaways" :key="point" class="flex items-start gap-2">
             <CheckCircle2 class="w-3 h-3 text-primary mt-1 shrink-0" />
@@ -193,6 +193,14 @@ const isVideo = (url: string) => {
             AI 分析: "{{ item.reason }}"
           </p>
         </div>
+        
+        <!-- Pending State Fallback Message -->
+        <div v-if="!item.reason && item.score === 0" class="flex items-start gap-2 mb-4 p-2 rounded-lg bg-white/5 border border-white/10 border-dashed">
+           <span class="mt-1 w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0 animate-pulse"></span>
+           <p class="text-[10px] text-slate-400 italic">
+             未捕获 AI 洞察（可能由于频率限制或正在处理中），这是原始未经处理的数据。
+           </p>
+        </div>
 
         <!-- Takeaways & Meta Footer -->
         <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
@@ -215,10 +223,15 @@ const isVideo = (url: string) => {
       </div>
 
       <!-- 3. Score (Prominent Right Side) -->
-      <div class="hidden md:flex flex-col items-center justify-center w-20 border-l border-white/5 px-4 bg-white/[0.02]">
+      <div v-if="item.score && item.score > 0" class="hidden md:flex flex-col items-center justify-center w-20 border-l border-white/5 px-4 bg-white/[0.02]">
         <Star class="w-4 h-4 text-yellow-500 fill-yellow-500 mb-1" />
-        <span class="text-xl font-black text-white leading-none">{{ item.score || 0 }}</span>
+        <span class="text-xl font-black text-white leading-none">{{ item.score }}</span>
         <span class="text-[8px] text-text-muted font-bold uppercase mt-1 tracking-tighter">Score</span>
+      </div>
+      <div v-else class="hidden md:flex flex-col items-center justify-center w-20 border-l border-white/5 px-4 bg-white/[0.02] opacity-50">
+        <div class="w-4 h-4 rounded-full border-2 border-slate-500 border-t-transparent animate-spin mb-1"></div>
+        <span class="text-[10px] font-black text-slate-400 leading-none mt-2">RAW</span>
+        <span class="text-[7px] text-slate-500 font-bold uppercase mt-1 tracking-tighter">Pending</span>
       </div>
     </div>
   </div>
