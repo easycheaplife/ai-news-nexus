@@ -53,6 +53,7 @@ const contentParts = computed(() => {
       .replace(/&amp;/g, '&')
       .replace(/&lt;/g, '<')
       .replace(/&gt;/g, '>')
+      .replace(/\s*Discussion\s*\|\s*Link\s*/gi, '') // 移除 Product Hunt 的底部固定无用文本
       .replace(/\n\s*\n/g, '\n') // 合并多余空行
       .trim();
   }
