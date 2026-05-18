@@ -65,4 +65,4 @@ def read_news(
             (NewsItem.content.ilike(f"%{query}%"))
         )
     
-    return db_query.order_by(NewsItem.scraped_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
+    return db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()

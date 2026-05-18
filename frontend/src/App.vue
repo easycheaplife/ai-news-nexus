@@ -77,7 +77,7 @@ const loadingMore = ref(false);
 const filters = ref({
   platform: '',
   query: '',
-  limit: 50,
+  limit: 100,
   skip: 0
 });
 
@@ -147,8 +147,8 @@ const loadMore = () => {
 const groupedNews = computed(() => {
   const groups: Record<string, any[]> = {};
   news.value.forEach(item => {
-    // 🛡️ 质量过滤：仅显示评分 >= 60 的优质资讯
-    if (!item.score || item.score < 60) return;
+    // 🛡️ 质量过滤：降低门槛确保首页有内容 (评分 < 30 的极低质量内容除外)
+    if (item.score !== undefined && item.score !== null && item.score < 30) return;
 
     const dateKey = format(new Date(item.published_at), 'yyyy-MM-dd');
     if (!groups[dateKey]) groups[dateKey] = [];
