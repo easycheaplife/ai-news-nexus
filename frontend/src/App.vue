@@ -226,6 +226,16 @@ const platformFullNames: Record<string, string> = {
   ph: 'ProductHunt'
 };
 
+const platformAbbreviations: Record<string, string> = {
+  twitter: 'X',
+  github: 'GH',
+  arxiv: 'AX',
+  youtube: 'YT',
+  reddit: 'RD',
+  hn: 'HN',
+  ph: 'PH'
+};
+
 const platformBarColors: Record<string, string> = {
   twitter: 'bg-sky-500',
   github: 'bg-slate-200',
@@ -453,8 +463,11 @@ const renderMarkdown = (text: string) => {
                       {{ count }}
                     </div>
                   </div>
-                  <span class="text-[8px] font-black uppercase text-text-muted mt-3 opacity-50 rotate-[-45deg] origin-top-left whitespace-nowrap">
-                    {{ platformFullNames[platform] || platform }}
+                  <span 
+                    class="text-[9px] font-black uppercase text-text-muted mt-3 opacity-60 hover:text-white transition-colors cursor-help"
+                    :title="platformFullNames[platform] || platform"
+                  >
+                    {{ platformAbbreviations[platform] || platform }}
                   </span>
                 </div>
               </div>
