@@ -50,7 +50,8 @@ class HNScraper(BaseScraper):
 
             # 遍历前 50 条
             for story_id in top_stories[:50]:
-                self.logger.info(f"🔗 Processing Item ID: {story_id}")
+                date_str = "N/A"
+                self.logger.info(f"🔗 Processing Item ID: {story_id} | Date: {date_str}")
                 if last_id and int(story_id) <= int(last_id):
                     self.logger.info("⏱️ Reached last seen HN story, stopping.")
                     break

@@ -56,7 +56,8 @@ class RedditScraper(BaseScraper):
                 
                 for post in data['data']['children']:
                     p_data = post['data']
-                    self.logger.info(f"🔗 Processing Item ID: {p_data['id']}")
+                    date_str = str(p_data.get('created_utc', 'N/A'))
+                    self.logger.info(f"🔗 Processing Item ID: {p_data['id']} | Date: {date_str}")
                     created_utc = str(int(p_data['created_utc']))
                     
                     # 增量判断

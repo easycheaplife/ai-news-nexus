@@ -57,7 +57,8 @@ class GitHubScraper(BaseScraper):
                     if not h2: continue
                     
                     repo_path = h2['href'].strip('/')
-                    self.logger.info(f"🔗 Processing Item ID: {repo_path}")
+                    date_str = "N/A"
+                    self.logger.info(f"🔗 Processing Item ID: {repo_path} | Date: {date_str}")
                     title = repo_path
                     full_url = f"https://github.com/{repo_path}"
                     

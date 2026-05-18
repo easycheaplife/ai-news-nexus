@@ -38,7 +38,8 @@ class TrendHunterScraper(BaseScraper):
                 # 针对每个搜索结果，我们只取前 3 条最高质量的
                 for entry in feed.entries[:3]:
                     link = entry.link
-                    self.logger.info(f"🔗 Processing Item ID: {link}")
+                    date_str = entry.get('published', 'N/A')
+                    self.logger.info(f"🔗 Processing Item ID: {link} | Date: {date_str}")
                     # 避免重复抓取主站
                     if any(domain in link for domain in ['twitter.com', 'reddit.com', 'github.com']):
                         continue

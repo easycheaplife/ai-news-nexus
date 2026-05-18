@@ -57,7 +57,8 @@ class YouTubeScraper(BaseScraper):
                 newest_timestamp = None
                 
                 for entry in feed.entries:
-                    self.logger.info(f"🔗 Processing Item ID: {entry.yt_videoid}")
+                    date_str = entry.get('published', 'N/A')
+                    self.logger.info(f"🔗 Processing Item ID: {entry.yt_videoid} | Date: {date_str}")
                     # 获取发布时间戳
                     published_ts = str(int(datetime(*entry.published_parsed[:6]).timestamp()))
                     

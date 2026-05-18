@@ -21,7 +21,8 @@ class ArxivScraper(BaseScraper):
             for entry in feed.entries:
                 # ArXiv ID 通常类似于 http://arxiv.org/abs/2605.12345v1
                 paper_id = entry.id.split('/abs/')[-1]
-                self.logger.info(f"🔗 Processing Item ID: {paper_id}")
+                date_str = entry.get('published', 'N/A')
+                self.logger.info(f"🔗 Processing Item ID: {paper_id} | Date: {date_str}")
                 
                 # 增量判断 (ArXiv ID 大多是时间递增的，可以按字符串比较)
                 if last_id and paper_id <= last_id:
