@@ -79,7 +79,7 @@ const filters = ref({
   query: '',
   limit: 100,
   skip: 0,
-  minScore: 60,
+  minScore: parseInt(import.meta.env.VITE_MIN_SCORE || '60'),
   includePending: true
 });
 
