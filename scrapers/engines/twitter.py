@@ -142,7 +142,22 @@ class TwitterScraper(BaseScraper):
                         else:
                             break
                     
-                    # 3. 组装内容
+                    # 3. 日期处理与时间窗口过滤 (最早执行，避免无效网络请求)
+                    raw_date = thread_tweets[0].get('created_at')
+                    published_at = datetime.utcnow().isoformat()
+                    dt_obj = None
+                    if raw_date:
+                        try:
+                            dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
+                            published_at = dt_obj.isoformat()
+                        except: pass
+
+                    # 🕒 时间窗口过滤：如果开启了窗口限制，且推文超出时间范围，则跳过
+                    if dt_obj and not self.is_within_window(dt_obj):
+                        self.logger.info(f"⏩ Skipping old tweet from {dt_obj} (outside {self.scrape_window_hours}h window)")
+                        continue
+
+                    # 4. 组装内容与多媒体/外链抓取
                     full_text_list = []
                     all_media = []
                     
@@ -159,21 +174,6 @@ class TwitterScraper(BaseScraper):
 
                     full_content = "\n\n---\n\n".join(full_text_list)
                     
-                    # 日期处理与时间窗口过滤 (前置到 AI 评估之前，节省 API 额度)
-                    raw_date = thread_tweets[0].get('created_at')
-                    published_at = datetime.utcnow().isoformat()
-                    dt_obj = None
-                    if raw_date:
-                        try:
-                            dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
-                            published_at = dt_obj.isoformat()
-                        except: pass
-
-                    # 🕒 时间窗口过滤：如果开启了窗口限制，且推文超出时间范围，则跳过
-                    if dt_obj and not self.is_within_window(dt_obj):
-                        self.logger.info(f"⏩ Skipping old tweet from {dt_obj} (outside {self.scrape_window_hours}h window)")
-                        continue
-
                     # 🤖 AI 评估 (仅对时间窗口内的有效内容进行评估)
                     score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
 

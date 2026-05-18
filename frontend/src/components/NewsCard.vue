@@ -204,14 +204,6 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
             AI 分析: "{{ item.reason }}"
           </p>
         </div>
-        
-        <!-- Pending State Fallback Message -->
-        <div v-if="!item.reason && item.score === 0" class="flex items-start gap-2 mb-4 p-2 rounded-lg bg-white/5 border border-white/10 border-dashed">
-           <span class="mt-1 w-1.5 h-1.5 rounded-full bg-slate-500 shrink-0 animate-pulse"></span>
-           <p class="text-[10px] text-slate-400 italic">
-             未捕获 AI 洞察（可能由于频率限制或正在处理中），这是原始未经处理的数据。
-           </p>
-        </div>
 
         <!-- Takeaways & Meta Footer -->
         <div class="flex items-center justify-between mt-auto pt-2 border-t border-white/5">
