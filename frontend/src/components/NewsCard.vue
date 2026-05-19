@@ -191,7 +191,7 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
         <!-- 📄 原始正文 (Scraped Body Content) -->
         <div 
           v-if="contentParts.postBody" 
-          class="mb-4 text-sm text-slate-300 leading-relaxed opacity-90 break-words whitespace-pre-wrap"
+          class="mb-4 text-sm text-slate-300 leading-relaxed opacity-90 break-all whitespace-pre-wrap"
           :style="{ display: '-webkit-box', WebkitLineClamp: contentLines, WebkitBoxOrient: 'vertical', overflow: 'hidden' }"
         >
           {{ contentParts.postBody }}
@@ -211,7 +211,7 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
             <MessageSquare class="w-2.5 h-2.5" />
             <span class="text-[9px] font-black uppercase tracking-widest">社区精华讨论</span>
           </div>
-          <div v-for="(comment, idx) in contentParts.comments" :key="idx" class="text-[11px] text-slate-400 italic leading-relaxed border-l border-white/10 pl-3 py-0.5 line-clamp-2">
+          <div v-for="(comment, idx) in contentParts.comments" :key="idx" class="text-[11px] text-slate-400 italic leading-relaxed border-l border-white/10 pl-3 py-0.5 line-clamp-2 break-all">
             {{ comment }}
           </div>
         </div>
