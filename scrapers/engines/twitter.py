@@ -69,8 +69,8 @@ class TwitterScraper(BaseScraper):
         
         for username in self.ai_accounts:
             try:
-                # 💡 增加随机延迟防止 429
-                wait_time = random.uniform(2, 5)
+                # 💡 增加随机延迟防止 429 (将原本的 2-5 秒拉长至 15-30 秒)
+                wait_time = random.uniform(15, 30)
                 time.sleep(wait_time)
                 
                 self.logger.info(f"👤 Scraping: @{username}")
