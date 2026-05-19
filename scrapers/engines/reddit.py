@@ -1,5 +1,6 @@
 import requests
 import time
+import concurrent.futures
 from .base import BaseScraper
 from datetime import datetime
 from ..utils.ai import evaluator
@@ -54,6 +55,7 @@ class RedditScraper(BaseScraper):
                 
                 newest_timestamp = None
                 
+                tasks = []
                 for post in data['data']['children']:
                     p_data = post['data']
                     date_str = str(p_data.get('created_utc', 'N/A'))
@@ -67,7 +69,23 @@ class RedditScraper(BaseScraper):
                     
                     if newest_timestamp is None:
                         newest_timestamp = created_utc
+
+                    # 🛡️ 前置过滤：跳过明显无价值的低质量水帖
+                    ups = p_data.get('ups', 0)
+                    num_comments = p_data.get('num_comments', 0)
+                    title_lower = p_data.get('title', '').lower()
+                    selftext_len = len(p_data.get('selftext', ''))
                     
+                    # 规则：点赞 < 2 且评论 < 2，并且（正文很短或包含典型的新手提问词汇，且没有外链）
+                    is_link_post = p_data.get('url') and 'reddit.com' not in p_data['url']
+                    if ups < 2 and num_comments < 2 and not is_link_post:
+                        if selftext_len < 100 or any(q in title_lower for q in ["how do i", "help", "question", "noob", "beginner", "error"]):
+                            self.logger.info(f"⏭️ Skipping low-value post: {p_data['title'][:30]}...")
+                            continue
+                            
+                    tasks.append((p_data, sub))
+
+                def process_post(p_data, sub):
                     # 🧵 获取热门评论增强内容
                     comments_text = self._get_top_comments(p_data['permalink'])
                     
@@ -77,7 +95,11 @@ class RedditScraper(BaseScraper):
                         # 排除掉图片链接，只抓取文章类链接
                         link_context = scrape_link_content(p_data['url'])
                     
-                    full_content = f"{p_data['selftext'] or ''}\n\n{link_context}\n\n{comments_text}".strip()
+                    full_content = f"{p_data.get('selftext', '')}\n\n{link_context}\n\n{comments_text}".strip()
+                    
+                    # 再次防呆：如果合并后的内容几乎为空，不调 Gemini
+                    if len(full_content) < 20:
+                        return None
 
                     # 🖼️ 提取多媒体 (强制高清)
                     media_urls = []
@@ -90,26 +112,28 @@ class RedditScraper(BaseScraper):
                             media_urls.append(clean_video_url)
                     
                     # 2. 尝试提取高清预览图
-                    # Reddit 的 preview 节点包含原始高清地址，避免使用 140px 的 thumbnail
                     if p_data.get('preview', {}).get('images'):
                         try:
                             import html
                             source_img = p_data['preview']['images'][0]['source']['url']
-                            # Reddit API 返回的 URL 经常带 &amp; 需要转义回去
                             high_res_url = html.unescape(source_img)
                             media_urls.append(high_res_url)
                         except: pass
                     
                     # 3. 备选提取缩略图或直接图
-                    if not media_urls and p_data.get('thumbnail') and p_data['thumbnail'].startswith('http'):
+                    if not media_urls and p_data.get('thumbnail') and str(p_data.get('thumbnail')).startswith('http'):
                         media_urls.append(p_data['thumbnail'])
                     
-                    if p_data.get('url') and any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
+                    if p_data.get('url') and any(str(p_data.get('url')).endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
                         if p_data['url'] not in media_urls:
                             media_urls.append(p_data['url'])
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(p_data['title'], full_content)
+                    try:
+                        score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(p_data['title'], full_content)
+                    except Exception as e:
+                        self.logger.error(f"Error evaluating Reddit post {p_data['id']}: {e}")
+                        return None
 
                     item = {
                         "platform": "reddit",
@@ -121,18 +145,27 @@ class RedditScraper(BaseScraper):
                         "score": score,
                         "reason": reason,
                         "takeaways": takeaways,
-                            "cluster_id": cluster_id,
-                            "mentioned_users": mentioned_users,
-                            "trending_keywords": trending_keywords,
+                        "cluster_id": cluster_id,
+                        "mentioned_users": mentioned_users,
+                        "trending_keywords": trending_keywords,
                         "media_urls": media_urls,
                         "metadata_json": {
                             "subreddit": sub,
-                            "ups": p_data['ups'],
-                            "num_comments": p_data['num_comments'],
-                            "author": p_data['author']
+                            "ups": p_data.get('ups', 0),
+                            "num_comments": p_data.get('num_comments', 0),
+                            "author": p_data.get('author', 'Unknown')
                         }
                     }
-                    self.push_to_backend(item)
+                    return item
+
+                if tasks:
+                    self.logger.info(f"⚡ Processing {len(tasks)} valid posts concurrently in r/{sub}...")
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+                        future_to_post = {executor.submit(process_post, p_data, sub): p_data for p_data, sub in tasks}
+                        for future in concurrent.futures.as_completed(future_to_post):
+                            item = future.result()
+                            if item:
+                                self.push_to_backend(item)
                 
                 # 更新游标
                 if newest_timestamp:

@@ -79,8 +79,8 @@ class TwitterScraper(BaseScraper):
                 
                 response = requests.get(url, headers=self.headers, timeout=15)
                 if response.status_code == 429:
-                    self.logger.error(f"❌ Rate limit exceeded (429) for @{username}. Skipping for now.")
-                    continue
+                    self.logger.error(f"❌ Rate limit exceeded (429) for @{username}. Aborting Twitter scraping entirely.")
+                    break
                 elif response.status_code != 200:
                     self.logger.error(f"❌ Failed to fetch timeline for @{username}: HTTP {response.status_code}")
                     continue
