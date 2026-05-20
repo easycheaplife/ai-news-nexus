@@ -12,6 +12,9 @@ class TwitterScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("twitter", api_url)
         self.ai_accounts = self._load_targets()
+        import os
+        self.max_429_errors = int(os.getenv("TWITTER_MAX_429_ERRORS", 10))
+        self.current_429_count = 0
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -67,10 +70,23 @@ class TwitterScraper(BaseScraper):
     def scrape(self):
         self.logger.info("🚀 Starting Twitter scraping with Thread stitching...")
         
+        # 基础等待时间
+        base_wait_min = 15
+        base_wait_max = 30
+        
         for username in self.ai_accounts:
+            if self.current_429_count >= self.max_429_errors:
+                self.logger.error(f"🚨 Maximum 429 limit reached ({self.max_429_errors}). Aborting Twitter scraping entirely.")
+                break
+                
             try:
-                # 💡 增加随机延迟防止 429 (将原本的 2-5 秒拉长至 15-30 秒)
-                wait_time = random.uniform(15, 30)
+                # 💡 增加随机延迟防止 429，如果之前被 429 过，等待时间呈指数级增加
+                multiplier = 2 ** self.current_429_count
+                wait_time = random.uniform(base_wait_min * multiplier, base_wait_max * multiplier)
+                
+                if self.current_429_count > 0:
+                    self.logger.warning(f"⏳ Cooling down for {int(wait_time)} seconds due to previous 429 errors...")
+                    
                 time.sleep(wait_time)
                 
                 self.logger.info(f"👤 Scraping: @{username}")
@@ -79,11 +95,18 @@ class TwitterScraper(BaseScraper):
                 
                 response = requests.get(url, headers=self.headers, timeout=15)
                 if response.status_code == 429:
-                    self.logger.error(f"❌ Rate limit exceeded (429) for @{username}. Aborting Twitter scraping entirely.")
-                    break
+                    self.current_429_count += 1
+                    self.logger.error(f"❌ Rate limit exceeded (429) for @{username}. Current count: {self.current_429_count}/{self.max_429_errors}")
+                    # 继续下一次循环，自动触发指数冷却退避
+                    continue
                 elif response.status_code != 200:
                     self.logger.error(f"❌ Failed to fetch timeline for @{username}: HTTP {response.status_code}")
                     continue
+                
+                # 如果成功，重置 429 计数器，恢复正常抓取速度
+                if self.current_429_count > 0:
+                    self.logger.info("✅ Connection recovered. Resetting 429 error counter.")
+                    self.current_429_count = 0
 
                 soup = BeautifulSoup(response.text, 'html.parser')
                 script_tag = soup.find('script', id='__NEXT_DATA__')
