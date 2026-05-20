@@ -89,24 +89,25 @@ class DiscoveryEngine:
             return False, ""
 
     def _promote_to_target(self, platform: str, handle: str, description: str):
-        """将验证通过的账号正式加入采集表"""
+        """将验证通过的账号正式加入采集表，初始状态设为 probation"""
         payload = {
             "platform": platform,
             "handle": handle,
             "name": handle,
             "description": description,
-            "is_active": True
+            "is_active": True,
+            "status": "probation" # 新发现的账号先进入试用期
         }
         try:
             requests.post(f"{self.api_url}/targets/", json=payload)
         except: pass
 
     def _update_discovery_status(self, discovery_id: int, status: str):
-        """更新发现池中的状态（由于目前没有 PATCH 接口，我们简单通过 POST 逻辑模拟或记录）
-        实际生产中这里应该有对应的状态更新 API。
-        """
-        # TODO: 实现后端 PATCH /discovery/{id} 接口
-        pass
+        """更新发现池中的状态"""
+        try:
+            requests.patch(f"{self.api_url}/discovery/{discovery_id}", json={"status": status})
+        except Exception as e:
+            logger.error(f"Failed to update discovery status for {discovery_id}: {e}")
 
 if __name__ == "__main__":
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")

@@ -1,9 +1,11 @@
 import logging
 import argparse
 import os
+import time
 from dotenv import load_dotenv
 from datetime import datetime
 import requests
+
 from scrapers.utils.ai import evaluator
 from scrapers.engines.hn import HNScraper
 from scrapers.engines.reddit import RedditScraper
@@ -13,6 +15,8 @@ from scrapers.engines.github import GitHubScraper
 from scrapers.engines.arxiv import ArxivScraper
 from scrapers.engines.youtube import YouTubeScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
+from scrapers.discovery_run import DiscoveryEngine
+from scrapers.curation_run import SourceCurator
 
 # 加载 .env 文件
 load_dotenv()
@@ -81,11 +85,6 @@ def generate_daily_insights(api_url: str):
     except Exception as e:
         logging.error(f"Error during insight generation: {e}")
 
-from scrapers.discovery_run import DiscoveryEngine
-from scrapers.curation_run import SourceCurator
-
-# ... (existing imports)
-
 def run_scrapers(target_platform: str = None):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
@@ -106,7 +105,14 @@ def run_scrapers(target_platform: str = None):
         YouTubeScraper(api_url=api_url)
     ]
     
-    # ... (filtering engines)
+    # 如果指定了平台，则进行过滤
+    if target_platform:
+        engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
+        if not engines:
+            logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
+            return
+    else:
+        engines = all_engines
     
     for engine in engines:
         logging.info(f"🚀 Starting {engine.platform} engine...")
@@ -129,6 +135,15 @@ def run_scrapers(target_platform: str = None):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
+    parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
+    parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
     args = parser.parse_args()
     
-    run_scrapers(args.platform)
+    if args.loop:
+        logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
+        while True:
+            run_scrapers(args.platform)
+            logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
+            time.sleep(args.interval)
+    else:
+        run_scrapers(args.platform)

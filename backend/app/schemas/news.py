@@ -64,6 +64,10 @@ class DiscoveryPoolBase(BaseModel):
 class DiscoveryPoolCreate(DiscoveryPoolBase):
     pass
 
+class DiscoveryPoolUpdate(BaseModel):
+    status: Optional[DiscoveryStatus] = None
+    discovery_reason: Optional[str] = None
+
 class DiscoveryPool(DiscoveryPoolBase):
     id: int
     created_at: datetime
