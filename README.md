@@ -63,24 +63,35 @@ ai-news-nexus/
 
 | 参数 | 缩写 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
-| `--scrape` | `-s` | `False` | **核心开关**。是否开启各平台（Twitter, Reddit 等）的账号内容采集。默认关闭，仅执行维护任务。 |
-| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`, `hn`）。指定后会自动开启该平台的采集。 |
-| `--loop` | `-l` | `False` | 开启循环模式，程序将常驻运行。 |
-| `--interval` | `-i` | `3600` | 循环模式下的等待间隔（秒）。 |
+| `--discovery` | - | `True` | 是否运行信源发现引擎（挖掘新大佬）。 |
+| `--scrape` | `-s` | `True` | 是否运行各平台内容采集引擎。 |
+| `--curation` | - | `True` | 是否运行信源质量评价与汰换引擎。 |
+| `--insights` | - | `True` | 是否运行每日 AI 深度简报生成。 |
+| `--no-discovery` | - | - | 禁用发现引擎。 |
+| `--no-scrape` | - | - | 禁用内容采集。 |
+| `--no-curation` | - | - | 禁用信源汰换。 |
+| `--no-insights` | - | - | 禁用简报生成。 |
+| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`）。 |
+| `--loop` | `-l` | `False` | 开启循环模式。 |
+| `--interval` | `-i` | `3600` | 循环间隔（秒）。 |
 
 ### 常见运行场景
 
-- **仅执行维护任务** (发现新账号 + 汰换低质信源 + 生成简报)：
+- **全量闭环运行** (默认行为，包含发现、采集、汰换、简报)：
   ```bash
   python3 scrapers/run.py
   ```
-- **全量闭环运行** (维护任务 + 全平台采集)：
+- **仅执行采集任务** (跳过发现和汰换)：
   ```bash
-  python3 scrapers/run.py --scrape
+  python3 scrapers/run.py --no-discovery --no-curation --no-insights
   ```
-- **调试特定平台**：
+- **仅生成今日简报** (不抓取新数据)：
   ```bash
-  python3 scrapers/run.py -p twitter
+  python3 scrapers/run.py --no-discovery --no-scrape --no-curation
+  ```
+- **全自动常驻运行**：
+  ```bash
+  python3 scrapers/run.py --loop
   ```
 
 3. **接口参考**：请参阅 [docs/api.md](./docs/api.md)。

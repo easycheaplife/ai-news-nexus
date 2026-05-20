@@ -85,17 +85,23 @@ def generate_daily_insights(api_url: str):
     except Exception as e:
         logging.error(f"Error during insight generation: {e}")
 
-def run_scrapers(target_platform: str = None, do_scrape: bool = False):
+def run_scrapers(target_platform: str = None, 
+                 do_discovery: bool = True,
+                 do_scrape: bool = True,
+                 do_curation: bool = True,
+                 do_insights: bool = True):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
     # 1. 运行信源自动发现与扩张 (Expansion)
-    if not target_platform:
+    if do_discovery and not target_platform:
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
+    else:
+        logging.info("⏩ Skipping discovery phase")
 
-    # 2. 运行可用采集引擎 (仅当指定平台或明确开启 --scrape 时)
-    if target_platform or do_scrape:
+    # 2. 运行可用采集引擎
+    if do_scrape:
         all_engines = [
             HNScraper(api_url=api_url),
             RedditScraper(api_url=api_url),
@@ -121,32 +127,52 @@ def run_scrapers(target_platform: str = None, do_scrape: bool = False):
             except Exception as e:
                 logging.error(f"❌ Error in {engine.platform} engine: {e}")
     else:
-        logging.info("⏩ Skipping account scraping (use --scrape or -p to enable)")
+        logging.info("⏩ Skipping account scraping phase")
             
     # 3. 运行信源质量评价与汰换 (Curation)
-    if not target_platform:
+    if do_curation and not target_platform:
         curator = SourceCurator(api_url)
         curator.run_curation()
+    else:
+        logging.info("⏩ Skipping curation phase")
         
     # 4. 抓取结束后自动生成今日 AI 深度洞察
-    if not target_platform:
+    if do_insights and not target_platform:
         generate_daily_insights(api_url)
+    else:
+        logging.info("⏩ Skipping insights generation phase")
 
-    logging.info("🏁 All tasks finished successfully.")
+    logging.info("🏁 All requested tasks finished successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
+    
+    # 功能开关 (默认全部 True)
+    parser.add_argument("--discovery", action="store_true", default=True, help="Run discovery engine (default: True)")
+    parser.add_argument("--scrape", action="store_true", default=True, help="Run scraping engines (default: True)")
+    parser.add_argument("--curation", action="store_true", default=True, help="Run curation engine (default: True)")
+    parser.add_argument("--insights", action="store_true", default=True, help="Run insights generation (default: True)")
+    
+    # 禁用特定功能的便捷开关
+    parser.add_argument("--no-discovery", action="store_false", dest="discovery", help="Disable discovery engine")
+    parser.add_argument("--no-scrape", action="store_false", dest="scrape", help="Disable scraping engines")
+    parser.add_argument("--no-curation", action="store_false", dest="curation", help="Disable curation engine")
+    parser.add_argument("--no-insights", action="store_false", dest="insights", help="Disable insights generation")
+
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
-    parser.add_argument("--scrape", "-s", action="store_true", help="Enable account scraping (default: disabled)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
+    
     args = parser.parse_args()
     
+    # 如果用户显式指定了任何 --do-X 参数，而没有指定其他的，Argparse 会处理默认值。
+    # 这里的逻辑是：默认全部开启。
+    
     if args.loop:
-        logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s, Scraping: {args.scrape or args.platform is not None})")
+        logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, args.scrape)
+            run_scrapers(args.platform, args.discovery, args.scrape, args.curation, args.insights)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, args.scrape)
+        run_scrapers(args.platform, args.discovery, args.scrape, args.curation, args.insights)
