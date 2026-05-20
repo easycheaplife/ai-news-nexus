@@ -71,19 +71,44 @@ class DiscoveryPool(DiscoveryPoolBase):
     class Config:
         from_attributes = True
 
+class TargetStatus(str, Enum):
+    active = "active"
+    probation = "probation"
+    deactivated = "deactivated"
+    blacklisted = "blacklisted"
+
 class ScrapingTargetBase(BaseModel):
     platform: str
     handle: str
     name: Optional[str] = None
     description: Optional[str] = None
     is_active: bool = True
+    status: TargetStatus = TargetStatus.active
 
 class ScrapingTargetCreate(ScrapingTargetBase):
     pass
 
+class ScrapingTargetUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    is_active: Optional[bool] = None
+    status: Optional[TargetStatus] = None
+    avg_score: Optional[int] = None
+    total_posts: Optional[int] = None
+    high_value_posts: Optional[int] = None
+    failure_count: Optional[int] = None
+    last_scraped_at: Optional[datetime] = None
+    last_high_score_at: Optional[datetime] = None
+
 class ScrapingTarget(ScrapingTargetBase):
     id: int
     added_at: datetime
+    avg_score: int
+    total_posts: int
+    high_value_posts: int
+    failure_count: int
+    last_scraped_at: Optional[datetime] = None
+    last_high_score_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

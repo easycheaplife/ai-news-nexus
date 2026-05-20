@@ -63,6 +63,12 @@ class DiscoveryPool(Base):
         UniqueConstraint('type', 'value', name='_type_value_uc'),
     )
 
+class TargetStatus(enum.Enum):
+    active = "active"
+    probation = "probation"
+    deactivated = "deactivated"
+    blacklisted = "blacklisted"
+
 class ScrapingTarget(Base):
     __tablename__ = "scraping_targets"
 
@@ -73,6 +79,15 @@ class ScrapingTarget(Base):
     description = Column(Text)
     is_active = Column(Boolean, default=True)
     added_at = Column(DateTime, default=datetime.utcnow)
+    
+    # 质量评价维度
+    avg_score = Column(Integer, default=50)
+    total_posts = Column(Integer, default=0)
+    high_value_posts = Column(Integer, default=0) # 评分 > 80 的数量
+    status = Column(Enum(TargetStatus), default=TargetStatus.active)
+    last_scraped_at = Column(DateTime)
+    last_high_score_at = Column(DateTime)
+    failure_count = Column(Integer, default=0) # 连续低分或抓取失败计数
 
     __table_args__ = (
         UniqueConstraint('platform', 'handle', name='_platform_handle_uc'),

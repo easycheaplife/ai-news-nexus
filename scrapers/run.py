@@ -81,11 +81,21 @@ def generate_daily_insights(api_url: str):
     except Exception as e:
         logging.error(f"Error during insight generation: {e}")
 
+from scrapers.discovery_run import DiscoveryEngine
+from scrapers.curation_run import SourceCurator
+
+# ... (existing imports)
+
 def run_scrapers(target_platform: str = None):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
-    # 所有可用引擎
+    # 1. 运行信源自动发现与扩张 (Expansion)
+    if not target_platform:
+        discovery_engine = DiscoveryEngine(api_url)
+        discovery_engine.run_expansion()
+
+    # 2. 运行所有可用采集引擎
     all_engines = [
         HNScraper(api_url=api_url),
         RedditScraper(api_url=api_url),
@@ -96,14 +106,7 @@ def run_scrapers(target_platform: str = None):
         YouTubeScraper(api_url=api_url)
     ]
     
-    # 如果指定了平台，则进行过滤
-    if target_platform:
-        engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
-        if not engines:
-            logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
-            return
-    else:
-        engines = all_engines
+    # ... (filtering engines)
     
     for engine in engines:
         logging.info(f"🚀 Starting {engine.platform} engine...")
@@ -112,7 +115,12 @@ def run_scrapers(target_platform: str = None):
         except Exception as e:
             logging.error(f"❌ Error in {engine.platform} engine: {e}")
             
-    # 🏁 抓取结束后自动生成今日 AI 深度洞察
+    # 3. 运行信源质量评价与汰换 (Curation)
+    if not target_platform:
+        curator = SourceCurator(api_url)
+        curator.run_curation()
+        
+    # 4. 抓取结束后自动生成今日 AI 深度洞察
     if not target_platform:
         generate_daily_insights(api_url)
 

@@ -65,5 +65,16 @@ CREATE TABLE IF NOT EXISTS `scraping_targets` (
     `description` TEXT,
     `is_active` BOOLEAN DEFAULT TRUE,
     `added_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY `uk_platform_handle` (`platform`, `handle`)
+    
+    -- 质量评价维度 (新增)
+    `avg_score` INT DEFAULT 50 COMMENT 'AI 评分均值',
+    `total_posts` INT DEFAULT 0 COMMENT '抓取总数',
+    `high_value_posts` INT DEFAULT 0 COMMENT '高价值内容(>80分)总数',
+    `status` ENUM('active', 'probation', 'deactivated', 'blacklisted') DEFAULT 'active' COMMENT '信源状态',
+    `last_scraped_at` DATETIME COMMENT '最后抓取时间',
+    `last_high_score_at` DATETIME COMMENT '最后产出高分内容时间',
+    `failure_count` INT DEFAULT 0 COMMENT '连续低质/失败计数',
+    
+    UNIQUE KEY `uk_platform_handle` (`platform`, `handle`),
+    INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
