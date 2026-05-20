@@ -54,10 +54,35 @@ ai-news-nexus/
 
 1. **基础部署**：请参阅 [DEPLOY.md](./DEPLOY.md)。
 2. **全自动运行 (推荐)**：
-   运行以下命令开启“无人值守”模式，系统将每小时自动执行一次“发现、抓取、淘汰、生成简报”的完整闭环：
+   运行以下命令开启“无人值守”模式，系统将每小时自动执行一次完整的闭环流程：
    ```bash
-   python3 scrapers/run.py --loop --interval 3600
+   python3 scrapers/run.py --loop --scrape --interval 3600
    ```
+
+### 命令行参数说明
+
+| 参数 | 缩写 | 默认值 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `--scrape` | `-s` | `False` | **核心开关**。是否开启各平台（Twitter, Reddit 等）的账号内容采集。默认关闭，仅执行维护任务。 |
+| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`, `hn`）。指定后会自动开启该平台的采集。 |
+| `--loop` | `-l` | `False` | 开启循环模式，程序将常驻运行。 |
+| `--interval` | `-i` | `3600` | 循环模式下的等待间隔（秒）。 |
+
+### 常见运行场景
+
+- **仅执行维护任务** (发现新账号 + 汰换低质信源 + 生成简报)：
+  ```bash
+  python3 scrapers/run.py
+  ```
+- **全量闭环运行** (维护任务 + 全平台采集)：
+  ```bash
+  python3 scrapers/run.py --scrape
+  ```
+- **调试特定平台**：
+  ```bash
+  python3 scrapers/run.py -p twitter
+  ```
+
 3. **接口参考**：请参阅 [docs/api.md](./docs/api.md)。
 3. 设计细节：请参阅 [docs/specs/](./docs/specs/) 目录下的详细方案。
 
