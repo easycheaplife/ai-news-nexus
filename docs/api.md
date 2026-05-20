@@ -63,11 +63,28 @@
 
 ## 4. 采集目标管理 (Targets API)
 
-### 4.1 获取活跃采集白名单
+### 4.1 获取采集白名单
 - **Endpoint**: `GET /targets/`
-- **说明**: 采集引擎启动时调用，获取当前所有标记为 `is_active=true` 的账号名单。
+- **说明**: 获取当前账号名单，支持质量指标筛选。
+- **Query 参数**:
+  - `platform`: 指定平台。
+  - `is_active`: (Optional) 是否活跃。
+  - `status`: (Optional) 过滤状态 (active, probation, deactivated, blacklisted)。
 
-### 4.2 注册新采集账号
+### 4.2 更新采集目标状态
+- **Endpoint**: `PATCH /targets/{id}`
+- **说明**: 质量评价引擎提交评分、更新状态或下架低质信源。
+- **Payload 示例**:
+  ```json
+  {
+    "avg_score": 75,
+    "total_posts": 45,
+    "status": "active",
+    "is_active": true
+  }
+  ```
+
+### 4.3 注册新采集账号
 - **Endpoint**: `POST /targets/`
 - **说明**: 发现引擎验证（Vetting）通过后，将新牛人账号正式录入采集列表。
 

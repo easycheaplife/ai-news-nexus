@@ -59,5 +59,26 @@ GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 | `gemini-3.1-pro-preview` | 强推理能力，分析更深刻 | 深度内容分析 |
 | `gemini-3.1-flash-image-preview` | 支持图像分析的 3.1 预览版 | 包含图片的推文分析 |
 
-## 5. 异常恢复
+## 5. Twitter 高可用方案 (Nitter Fallback)
+为了应对 Twitter 极其严格的反爬政策，采集引擎实现了双引擎切换机制：
+
+- **方案 A (Syndication)**: 优先使用官方嵌入式接口，速度快且数据格式规范。
+- **方案 B (Nitter RSS)**: 一旦触发 429 限制，系统会自动在一组公共 Nitter 实例之间进行轮询，通过 RSS 接口补齐数据。
+- **自动冷却**: 触发 429 后，系统会自动增加指数级退避时间。
+
+## 6. 信源动态管理 (Dynamic Curation)
+系统会自动监控每个采集目标（Target）的表现，并执行“优胜劣汰”。
+
+### 评价维度
+- **平均分 (avg_score)**: 账号产出内容的 AI 评分均值。
+- **高价值比 (high_value_posts)**: 评分 > 80 的内容占比。
+- **失败计数 (failure_count)**: 连续低分或抓取无果的次数。
+
+### 状态流转
+- **active**: 正常抓取。
+- **probation (试用期)**: 发现引擎新加入的账号，需通过前 5-10 条内容的质量验证。
+- **deactivated**: 由于质量持续走低或账号注销而被自动下架。
+- **blacklisted**: 禁止再次加入发现池。
+
+## 7. 异常恢复
 如果 `state.json` 丢失，采集器将回退到全量抓取模式（后端会自动去重），并在完成后重新生成状态文件。
