@@ -27,32 +27,40 @@ class SourceCurator:
                 logger.info("No active targets found to curate.")
                 return
 
-            # 2. 深度聚合：一次性获取更多近期内容，建立作者映射表
-            # 扫描深度增加到 500 条，以覆盖更多冷门账号
-            news_res = requests.get(f"{self.api_url}/news/", params={"limit": 500}, timeout=10)
-            if news_res.status_code != 200:
-                logger.error("Failed to fetch news for curation analysis.")
-                return
-            
-            all_news = news_res.json()
-            author_data_map = defaultdict(list)
-            
-            for n in all_news:
-                # 尝试从 metadata 或 title 中识别作者
-                author = n.get('metadata_json', {}).get('author')
-                if not author:
-                    # 尝试从 title 解析 (@username:)
-                    if n['title'].startswith('@') and ':' in n['title']:
+            # 2. 第一阶段：高效批处理 (扫描最近 1000 条内容)
+            logger.info(f"🧐 Phase 1: Batch scanning {len(targets)} targets against 1000 recent items...")
+            news_res = requests.get(f"{self.api_url}/news/", params={"limit": 1000}, timeout=15)
+            if news_res.status_code == 200:
+                all_news = news_res.json()
+                author_data_map = defaultdict(list)
+                for n in all_news:
+                    author = n.get('metadata_json', {}).get('author')
+                    if not author and n['title'].startswith('@') and ':' in n['title']:
                         author = n['title'].split(':')[0].strip('@')
-                
-                if author:
-                    author_data_map[author.lower()].append(n)
+                    if author:
+                        author_data_map[author.lower()].append(n)
+            else:
+                author_data_map = {}
 
-            # 3. 对每个账号执行性能评估
-            logger.info(f"🧐 Evaluating {len(targets)} targets against {len(all_news)} recent items...")
-            
+            # 3. 第二阶段：针对性核查
+            processed_count = 0
             for target in targets:
-                self._evaluate_target_performance(target, author_data_map.get(target['handle'].lower(), []))
+                handle = target['handle']
+                recent_news = author_data_map.get(handle.lower(), [])
+                
+                # 如果第一阶段没找到，执行专项核查 (确保冷门账号不被误伤)
+                if not recent_news:
+                    logger.info(f"🔎 Phase 2: Targeted check for @{handle}...")
+                    try:
+                        # 请求后端：获取该作者最新的 10 条数据
+                        spec_res = requests.get(f"{self.api_url}/news/", params={"author": handle, "limit": 10}, timeout=10)
+                        if spec_res.status_code == 200:
+                            recent_news = spec_res.json()
+                    except Exception as e:
+                        logger.warning(f"Targeted check failed for @{handle}: {e}")
+
+                self._evaluate_target_performance(target, recent_news)
+                processed_count += 1
 
         except Exception as e:
             logger.error(f"Error in curation phase: {e}")
@@ -63,23 +71,27 @@ class SourceCurator:
         target_id = target['id']
         
         if not recent_news:
-            # 长期沉默检查
-            added_at = datetime.fromisoformat(target['added_at'].replace('Z', '+00:00'))
+            # 只有在专项核查后依然没内容，且加入时间超过 21 天，才增加失败计数
+            added_at_str = target['added_at'].replace('Z', '+00:00')
+            try:
+                added_at = datetime.fromisoformat(added_at_str)
+            except:
+                added_at = datetime.utcnow() # fallback
+
             days_since_added = (datetime.utcnow().replace(tzinfo=None) - added_at.replace(tzinfo=None)).days
             
-            # 如果加入超过 14 天且最近 500 条都没有内容，增加失败计数
-            if days_since_added > 14:
+            if days_since_added > 21: # 给冷门账号更多耐心 (3周)
                 current_fail = target.get('failure_count', 0)
-                logger.info(f"⏳ @{handle} has no recent content. Increasing failure count ({current_fail + 1})")
+                logger.info(f"⏳ @{handle} has ZERO content in history. Increasing failure count ({current_fail + 1})")
                 requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": current_fail + 1}, timeout=5)
             else:
-                logger.info(f"💤 @{handle} is silent (no recent posts), skipping.")
+                logger.info(f"💤 @{handle} is silent but new ({days_since_added} days), skipping.")
             return
 
         # 计算质量指标
         scores = [n['score'] for n in recent_news if n.get('score') is not None]
         if not scores: 
-            logger.info(f"⏩ @{handle} has posts but no AI scores yet. Skipping.")
+            logger.info(f"⏩ @{handle} has posts but no AI scores yet.")
             return
         
         avg_score = sum(scores) / len(scores)
@@ -98,20 +110,19 @@ class SourceCurator:
         
         if high_value_count > 0:
             update_payload["last_high_score_at"] = datetime.utcnow().isoformat()
-            update_payload["failure_count"] = 0
+            update_payload["failure_count"] = 0 # 哪怕只有一条高质量内容，也重置失败计数
         else:
             current_fail = target.get('failure_count', 0)
             update_payload["failure_count"] = current_fail + 1
 
         # 执行自动下架
-        if avg_score < 40 and total_posts >= 5:
-            logger.warning(f"🚨 Deactivating @{handle}: Low average score ({avg_score:.1f})")
+        if avg_score < 30 and total_posts >= 5: # 调低阈值到 30，避免误伤
+            logger.warning(f"🚨 Deactivating @{handle}: Extremely low average score ({avg_score:.1f})")
             update_payload["is_active"] = False
             update_payload["status"] = "deactivated"
-            update_payload["description"] = (target.get('description') or "") + " [Auto-deactivated due to low quality]"
         
-        elif update_payload["failure_count"] >= 10: # 沉默或低质容忍度设为 10
-            logger.warning(f"🚨 Deactivating @{handle}: Consistent lack of value or active content")
+        elif update_payload["failure_count"] >= 15: # 增加容忍度到 15 次循环
+            logger.warning(f"🚨 Deactivating @{handle}: Long-term silence or zero value")
             update_payload["is_active"] = False
             update_payload["status"] = "deactivated"
 

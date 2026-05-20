@@ -45,6 +45,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=List[NewsSchema])
 def read_news(
     platform: Optional[str] = None,
+    author: Optional[str] = None,
     start_date: Optional[datetime] = None,
     end_date: Optional[datetime] = None,
     query: Optional[str] = None,
@@ -58,6 +59,12 @@ def read_news(
     
     if platform:
         db_query = db_query.filter(NewsItem.platform == platform)
+    
+    if author:
+        # 在 metadata_json JSON 字段中搜索作者名 (兼容 MySQL JSON 处理)
+        from sqlalchemy import func
+        db_query = db_query.filter(func.json_extract(NewsItem.metadata_json, "$.author") == author)
+
     if start_date:
         db_query = db_query.filter(NewsItem.published_at >= start_date)
     if end_date:
