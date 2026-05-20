@@ -88,17 +88,25 @@ class SourceCurator:
                 logger.info(f"💤 @{handle} is silent but new ({days_since_added} days), skipping.")
             return
 
-        # 计算质量指标
-        scores = [n['score'] for n in recent_news if n.get('score') is not None]
-        if not scores: 
-            logger.info(f"⏩ @{handle} has posts but no AI scores yet.")
+        # 计算质量指标：剔除 0 分内容（0分通常代表 AI 额度超限或解析失败，不代表内容差）
+        valid_scores = [n['score'] for n in recent_news if n.get('score') and n['score'] > 0]
+        unscored_count = len([n for n in recent_news if not n.get('score') or n['score'] == 0])
+        
+        if not valid_scores:
+            # 如果有内容但全都没评分，不应该降级账号，但需要记录
+            logger.info(f"⏩ @{handle} has {unscored_count} posts but none are AI-scored yet. skipping quality update.")
+            # 仅更新最后抓取时间，重置失败计数（因为确实有产出）
+            requests.patch(f"{self.api_url}/targets/{target_id}", json={
+                "last_scraped_at": datetime.utcnow().isoformat(),
+                "failure_count": 0 
+            }, timeout=5)
             return
         
-        avg_score = sum(scores) / len(scores)
-        high_value_count = len([s for s in scores if s >= 80])
-        total_posts = len(scores)
+        avg_score = sum(valid_scores) / len(valid_scores)
+        high_value_count = len([s for s in valid_scores if s >= 80])
+        total_posts = len(recent_news) # 总数包含未评分的，用于观察活跃度
         
-        logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f}, HighValue={high_value_count}/{total_posts}")
+        logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f} (based on {len(valid_scores)} items), Unscored={unscored_count}, HighValue={high_value_count}")
 
         # 决策逻辑
         update_payload = {
