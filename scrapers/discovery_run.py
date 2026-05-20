@@ -17,43 +17,50 @@ class DiscoveryEngine:
     def run_expansion(self):
         """执行信源自动扩张逻辑 (方案 A)"""
         logger.info("🚀 Starting Network Expansion phase...")
-        
+
         # 1. 获取待验证的用户
         try:
+            # 获取最大验证数量限制，防止单次消耗过多 AI 额度
+            max_vetting = int(os.getenv("DISCOVERY_MAX_VETTING", 100))
+
             response = requests.get(f"{self.api_url}/discovery/?status=pending", timeout=10)
             if response.status_code != 200:
                 return
-            
+
             pending_items = response.json()
             users_to_vet = [item for item in pending_items if item['type'] == 'user']
-            
+
             if not users_to_vet:
                 logger.info("No pending users to vet.")
                 return
 
+            # 限制本次运行的处理数量
+            vetted_count = 0
             for item in users_to_vet:
+                if vetted_count >= max_vetting:
+                    logger.info(f"🛑 Reached max vetting limit ({max_vetting}) for this run.")
+                    break
+
                 username = item['value']
-                logger.info(f"🔍 Vetting user: @{username}")
-                
+                logger.info(f"🔍 Vetting user: @{username} ({vetted_count + 1}/{max_vetting})")
+
                 # 2. 调用 AI 进行身份画像 (Vetting)
-                # 这里的逻辑可以更复杂，比如先抓取该用户的简介。
-                # 目前为了闭环，我们直接让 AI 根据上下文和 handle 进行判断。
                 is_worthy, reason = self._vet_user(username, item['discovery_reason'])
-                
+
                 if is_worthy:
                     logger.info(f"✅ User @{username} vetted! Adding to active targets.")
-                    # 加入活跃目标
                     self._promote_to_target("twitter", username, reason)
-                    # 更新发现池状态
                     self._update_discovery_status(item['id'], "vetted")
                 else:
                     logger.info(f"❌ User @{username} rejected.")
                     self._update_discovery_status(item['id'], "rejected")
-                
+
+                vetted_count += 1
                 time.sleep(1) # 避免 API 请求过快
 
         except Exception as e:
             logger.error(f"Error in discovery phase: {e}")
+
 
     def _vet_user(self, username: str, context: str) -> tuple:
         """调用 Gemini 评估该账号是否值得长期追踪"""
