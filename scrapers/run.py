@@ -147,17 +147,17 @@ def run_scrapers(target_platform: str = None,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
     
-    # 功能开关 (默认全部 True)
-    parser.add_argument("--discovery", action="store_true", default=True, help="Run discovery engine (default: True)")
-    parser.add_argument("--scrape", action="store_true", default=True, help="Run scraping engines (default: True)")
-    parser.add_argument("--curation", action="store_true", default=True, help="Run curation engine (default: True)")
-    parser.add_argument("--insights", action="store_true", default=True, help="Run insights generation (default: True)")
+    # 功能开关 (默认不设置，通过后续逻辑判断)
+    parser.add_argument("--discovery", action="store_true", help="Run discovery engine")
+    parser.add_argument("--scrape", "-s", action="store_true", help="Run scraping engines")
+    parser.add_argument("--curation", action="store_true", help="Run curation engine")
+    parser.add_argument("--insights", action="store_true", help="Run insights generation")
     
     # 禁用特定功能的便捷开关
-    parser.add_argument("--no-discovery", action="store_false", dest="discovery", help="Disable discovery engine")
-    parser.add_argument("--no-scrape", action="store_false", dest="scrape", help="Disable scraping engines")
-    parser.add_argument("--no-curation", action="store_false", dest="curation", help="Disable curation engine")
-    parser.add_argument("--no-insights", action="store_false", dest="insights", help="Disable insights generation")
+    parser.add_argument("--no-discovery", action="store_true", help="Explicitly disable discovery engine")
+    parser.add_argument("--no-scrape", action="store_true", help="Explicitly disable scraping engines")
+    parser.add_argument("--no-curation", action="store_true", help="Explicitly disable curation engine")
+    parser.add_argument("--no-insights", action="store_true", help="Explicitly disable insights generation")
 
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
@@ -165,14 +165,25 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # 如果用户显式指定了任何 --do-X 参数，而没有指定其他的，Argparse 会处理默认值。
-    # 这里的逻辑是：默认全部开启。
+    # 逻辑判断：如果用户显式指定了任何正向功能参数，则只运行指定的。否则，默认全部开启。
+    any_positive_flag_set = args.discovery or args.scrape or args.curation or args.insights
     
+    do_discovery = args.discovery if any_positive_flag_set else True
+    do_scrape = args.scrape if any_positive_flag_set else True
+    do_curation = args.curation if any_positive_flag_set else True
+    do_insights = args.insights if any_positive_flag_set else True
+
+    # 显式禁用的优先级最高
+    if args.no_discovery: do_discovery = False
+    if args.no_scrape: do_scrape = False
+    if args.no_curation: do_curation = False
+    if args.no_insights: do_insights = False
+
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, args.discovery, args.scrape, args.curation, args.insights)
+            run_scrapers(args.platform, do_discovery, do_scrape, do_curation, do_insights)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, args.discovery, args.scrape, args.curation, args.insights)
+        run_scrapers(args.platform, do_discovery, do_scrape, do_curation, do_insights)
