@@ -59,6 +59,16 @@
 - **Endpoint**: `POST /discovery/`
 - **说明**: 采集引擎将内容中提取到的 Mentions 或 Keywords 实时存入发现池。
 
+### 3.3 更新发现池状态
+- **Endpoint**: `PATCH /discovery/{id}`
+- **说明**: 发现引擎验证通过后，更新其状态为 `vetted` 或 `rejected`。
+- **Payload 示例**:
+  ```json
+  {
+    "status": "vetted"
+  }
+  ```
+
 ---
 
 ## 4. 采集目标管理 (Targets API)
