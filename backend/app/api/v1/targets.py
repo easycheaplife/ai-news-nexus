@@ -54,3 +54,17 @@ def update_scraping_target(target_id: int, target_update: ScrapingTargetUpdate, 
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{target_id}")
+def delete_scraping_target(target_id: int, db: Session = Depends(get_db)):
+    db_target = db.query(ScrapingTarget).filter(ScrapingTarget.id == target_id).first()
+    if not db_target:
+        raise HTTPException(status_code=404, detail="Target not found")
+    
+    try:
+        db.delete(db_target)
+        db.commit()
+        return {"message": "Target deleted successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

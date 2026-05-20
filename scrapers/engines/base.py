@@ -3,6 +3,7 @@ from datetime import datetime
 import logging
 import json
 import os
+import re
 from ..utils.media_mirror import MediaMirror
 
 class BaseScraper:
@@ -20,6 +21,23 @@ class BaseScraper:
         # 状态持久化文件路径 (放在 scrapers 根目录)
         self.state_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "state.json")
         self.state = self._load_state()
+
+    def _is_valid_twitter_handle(self, handle: str) -> bool:
+        """验证是否为合法的 Twitter Handle"""
+        # 1. 长度校验 (1-15位)
+        if not (1 <= len(handle) <= 15):
+            return False
+        
+        # 2. 字符校验 (仅允许字母、数字、下划线)
+        if not re.match(r"^[A-Za-z0-9_]+$", handle):
+            return False
+        
+        # 3. 关键词黑名单 (排除一些容易被 AI 误认的词)
+        blacklist = ["twitter", "x", "status", "web", "iphone", "android", "ai", "news", "nexus", "scrapers"]
+        if handle.lower() in blacklist:
+            return False
+            
+        return True
 
     def _load_state(self):
         if os.path.exists(self.state_file):
@@ -107,23 +125,23 @@ class BaseScraper:
         users = item.get('mentioned_users') or []
         keywords = item.get('trending_keywords') or []
         
-        # 过滤掉已有的白名单账号 (简化处理，只针对 Twitter)
-        # TODO: 更好的过滤逻辑
-        
         for user in users:
-            # 简单的清理逻辑
-            clean_user = user.strip('@').split(' ')[0]
-            if not clean_user: continue
+            # 1. 基础清理：移除 @，截断空格、斜杠和点号 (防止 scrapers/debug.py 这种)
+            clean_user = user.strip('@').split(' ')[0].split('/')[0].split('.')[0]
+            
+            # 2. 严格合法性校验
+            if not self._is_valid_twitter_handle(clean_user):
+                if clean_user: # 仅对非空字符串记录调试日志
+                    self.logger.debug(f"⏩ Dropping invalid handle: {clean_user}")
+                continue
             
             payload = {
                 "type": "user",
                 "value": clean_user,
-                "source_id": 0, # 这里暂时填 0，后端如果没查到 ID 允许为空
+                "source_id": 0,
                 "discovery_reason": f"From high-score content: {item['title'][:30]}"
             }
             try:
-                # 使用一个专用的发现接口，或者复用 insights 接口 (这里建议新建接口)
-                # 为保持进度，假设我们已经有了 /discovery/ 接口
                 requests.post(f"{self.api_url}/discovery/", json=payload)
             except: pass
 
