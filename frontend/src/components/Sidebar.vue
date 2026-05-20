@@ -43,13 +43,21 @@ const fetchSidebarData = async () => {
   }
 };
 
-const deleteTarget = async (id: number) => {
-  if (!confirm('确定要移除该信源吗？')) return;
+const blacklistTarget = async (target: any) => {
+  const confirmMsg = `确定要屏蔽 @${target.handle} 吗？\n\n屏蔽后：\n1. 立即停止采集该账号\n2. 发现引擎将不再自动收录此人`;
+  if (!confirm(confirmMsg)) return;
+  
   try {
-    await axios.delete(`${props.apiUrl}/targets/${id}`);
-    targets.value = targets.value.filter(t => t.id !== id);
+    await axios.patch(`${props.apiUrl}/targets/${target.id}`, {
+      is_active: false,
+      status: 'blacklisted',
+      description: (target.description || '') + ' [Manual Blacklisted]'
+    });
+    // 从左侧列表移除
+    targets.value = targets.value.filter(t => t.id !== target.id);
   } catch (err) {
-    alert('删除失败');
+    console.error('Failed to blacklist target', err);
+    alert('屏蔽失败');
   }
 };
 
@@ -126,8 +134,9 @@ const getStatusColor = (status: string) => {
           <div class="flex items-center gap-1">
             <Flame v-if="target.avg_score >= 90" class="w-3 h-3 text-orange-500" />
             <button 
-              @click.stop="deleteTarget(target.id)"
+              @click.stop="blacklistTarget(target)"
               class="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 hover:text-red-500 rounded-lg transition-all"
+              title="拉黑此账号"
             >
               <Trash2 class="w-3 h-3" />
             </button>

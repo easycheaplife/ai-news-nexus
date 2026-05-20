@@ -17,14 +17,17 @@ class DiscoveryEngine:
     def run_expansion(self):
         """执行信源自动扩张逻辑 (方案 A)"""
         logger.info("🚀 Starting Network Expansion phase...")
-
+        
         try:
-            # 1. 获取全局最大活跃账号限制
+            # 1. 获取全局限制和当前状态
             max_active_targets = int(os.getenv("MAX_ACTIVE_TARGETS", 100))
             
-            # 获取当前已激活的账号总数
-            active_res = requests.get(f"{self.api_url}/targets/", params={"is_active": True}, timeout=10)
-            current_active_count = len(active_res.json()) if active_res.status_code == 200 else 0
+            # 获取所有账号（包括黑名单），用于排查
+            all_targets_res = requests.get(f"{self.api_url}/targets/", params={"is_active": None}, timeout=10)
+            all_targets = all_targets_res.json() if all_targets_res.status_code == 200 else []
+            
+            current_active_count = len([t for t in all_targets if t['is_active']])
+            blacklisted_handles = {t['handle'].lower() for t in all_targets if t['status'] == 'blacklisted'}
             
             if current_active_count >= max_active_targets:
                 logger.warning(f"⚠️ Total active targets limit reached ({current_active_count}/{max_active_targets}). Skipping expansion.")
@@ -32,14 +35,12 @@ class DiscoveryEngine:
 
             # 2. 获取待验证的用户
             max_vetting = int(os.getenv("DISCOVERY_MAX_VETTING", 100))
-
             response = requests.get(f"{self.api_url}/discovery/?status=pending", timeout=10)
-            if response.status_code != 200:
-                return
-
+            if response.status_code != 200: return
+            
             pending_items = response.json()
             users_to_vet = [item for item in pending_items if item['type'] == 'user']
-
+            
             if not users_to_vet:
                 logger.info("No pending users to vet.")
                 return
@@ -47,32 +48,36 @@ class DiscoveryEngine:
             # 3. 限制本次运行的处理数量
             vetted_count = 0
             for item in users_to_vet:
-                # 再次检查，防止在循环中超出总数
+                username = item['value']
+                
+                # 🛑 黑名单与重复校验
+                if username.lower() in blacklisted_handles:
+                    logger.info(f"🚫 Skipping blacklisted user: @{username}")
+                    self._update_discovery_status(item['id'], "rejected")
+                    continue
+
                 if current_active_count >= max_active_targets:
                     logger.info(f"🛑 Reached global active targets limit ({max_active_targets}). Stopping vetting.")
                     break
-                    
                 if vetted_count >= max_vetting:
-                    logger.info(f"🛑 Reached max vetting limit ({max_vetting}) for this run.")
                     break
-
-                username = item['value']
+                    
                 logger.info(f"🔍 Vetting user: @{username} ({vetted_count + 1}/{max_vetting})")
-
-                # 4. 调用 AI 进行身份画像 (Vetting)
+                
+                # 4. 调用 AI 进行面试
                 is_worthy, reason = self._vet_user(username, item['discovery_reason'])
-
+                
                 if is_worthy:
-                    logger.info(f"✅ User @{username} vetted! Adding to active targets.")
+                    logger.info(f"✅ User @{username} vetted! Adding to probation.")
                     if self._promote_to_target("twitter", username, reason):
-                        current_active_count += 1 # 成功晋升后更新本地计数
+                        current_active_count += 1
                     self._update_discovery_status(item['id'], "vetted")
                 else:
                     logger.info(f"❌ User @{username} rejected.")
                     self._update_discovery_status(item['id'], "rejected")
-
+                
                 vetted_count += 1
-                time.sleep(1) # 避免 API 请求过快
+                time.sleep(1)
 
         except Exception as e:
             logger.error(f"Error in discovery phase: {e}")
