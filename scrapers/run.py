@@ -85,7 +85,7 @@ def generate_daily_insights(api_url: str):
     except Exception as e:
         logging.error(f"Error during insight generation: {e}")
 
-def run_scrapers(target_platform: str = None):
+def run_scrapers(target_platform: str = None, do_scrape: bool = False):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
@@ -94,32 +94,34 @@ def run_scrapers(target_platform: str = None):
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
 
-    # 2. 运行所有可用采集引擎
-    all_engines = [
-        HNScraper(api_url=api_url),
-        RedditScraper(api_url=api_url),
-        TwitterScraper(api_url=api_url),
-        ProductHuntScraper(api_url=api_url),
-        GitHubScraper(api_url=api_url),
-        ArxivScraper(api_url=api_url),
-        YouTubeScraper(api_url=api_url)
-    ]
-    
-    # 如果指定了平台，则进行过滤
-    if target_platform:
-        engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
-        if not engines:
-            logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
-            return
+    # 2. 运行可用采集引擎 (仅当指定平台或明确开启 --scrape 时)
+    if target_platform or do_scrape:
+        all_engines = [
+            HNScraper(api_url=api_url),
+            RedditScraper(api_url=api_url),
+            TwitterScraper(api_url=api_url),
+            ProductHuntScraper(api_url=api_url),
+            GitHubScraper(api_url=api_url),
+            ArxivScraper(api_url=api_url),
+            YouTubeScraper(api_url=api_url)
+        ]
+        
+        if target_platform:
+            engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
+            if not engines:
+                logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
+                return
+        else:
+            engines = all_engines
+        
+        for engine in engines:
+            logging.info(f"🚀 Starting {engine.platform} engine...")
+            try:
+                engine.scrape()
+            except Exception as e:
+                logging.error(f"❌ Error in {engine.platform} engine: {e}")
     else:
-        engines = all_engines
-    
-    for engine in engines:
-        logging.info(f"🚀 Starting {engine.platform} engine...")
-        try:
-            engine.scrape()
-        except Exception as e:
-            logging.error(f"❌ Error in {engine.platform} engine: {e}")
+        logging.info("⏩ Skipping account scraping (use --scrape or -p to enable)")
             
     # 3. 运行信源质量评价与汰换 (Curation)
     if not target_platform:
@@ -130,20 +132,21 @@ def run_scrapers(target_platform: str = None):
     if not target_platform:
         generate_daily_insights(api_url)
 
-    logging.info("🏁 All scrapers finished successfully.")
+    logging.info("🏁 All tasks finished successfully.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
+    parser.add_argument("--scrape", "-s", action="store_true", help="Enable account scraping (default: disabled)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
     args = parser.parse_args()
     
     if args.loop:
-        logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
+        logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s, Scraping: {args.scrape or args.platform is not None})")
         while True:
-            run_scrapers(args.platform)
+            run_scrapers(args.platform, args.scrape)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform)
+        run_scrapers(args.platform, args.scrape)
