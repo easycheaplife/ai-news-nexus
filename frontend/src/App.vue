@@ -3,8 +3,11 @@ import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
 import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
+import Sidebar from './components/Sidebar.vue';
 import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
+
+const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 const news = ref<any[]>([]);
 const latestInsight = ref<any>(null);
@@ -37,7 +40,6 @@ const openLightbox = (item: any) => {
     const decoded = decodeUrl(url);
     // 如果是相对路径 (/f/ 打头)，自动拼接后端地址
     if (decoded.startsWith('/f/')) {
-      const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
       // 如果 apiUrl 是 /api (Netlify 代理模式)，则保持相对路径，让浏览器处理
       if (!apiUrl.startsWith('http')) return decoded;
       return `${apiUrl}${decoded}`;
@@ -111,7 +113,6 @@ const fetchNews = async (isLoadMore = false) => {
       limit: filters.value.limit,
       skip: filters.value.skip
     };
-    const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
     
     if (isLoadMore) {
       // 仅抓取更多资讯
@@ -146,6 +147,18 @@ const fetchNews = async (isLoadMore = false) => {
 const loadMore = () => {
   filters.value.skip += filters.value.limit;
   fetchNews(true);
+};
+
+// 🎯 处理侧边栏过滤
+const handleFilterAuthor = (author: string) => {
+  filters.value.platform = ''; // 清除平台过滤，因为 KOL 跨平台
+  filters.value.query = `@${author}`;
+  fetchNews(false);
+};
+
+const handleFilterKeyword = (keyword: string) => {
+  filters.value.query = keyword;
+  fetchNews(false);
 };
 
 // 按日期分组
@@ -319,7 +332,7 @@ const renderMarkdown = (text: string) => {
 
     <!-- Header / Navigation -->
     <header class="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
-      <div class="max-w-[1200px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-6">
+      <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-6">
         <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
           <div class="relative">
             <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
@@ -376,8 +389,18 @@ const renderMarkdown = (text: string) => {
       </div>
     </header>
 
-    <!-- Briefing Center (Top Dashboard) -->
-    <section class="max-w-[1400px] mx-auto px-4 md:px-8 pt-8">
+    <div class="flex max-w-[1800px] mx-auto">
+      <!-- 📡 Sidebar -->
+      <Sidebar 
+        :apiUrl="apiUrl" 
+        @filter-author="handleFilterAuthor"
+        @filter-keyword="handleFilterKeyword"
+      />
+
+      <!-- 🌌 Main Content -->
+      <div class="flex-1 min-w-0">
+        <!-- Briefing Center (Top Dashboard) -->
+    <section class="px-4 md:px-8 pt-8">
       <div class="glass-card rounded-[2.5rem] border border-white/5 bg-[#131316]/50 overflow-hidden shadow-2xl shadow-primary/5">
         <!-- Toggle Header -->
         <button 
@@ -490,7 +513,7 @@ const renderMarkdown = (text: string) => {
       </div>
     </section>
 
-    <main class="max-w-[1400px] mx-auto px-4 md:px-8 py-10 md:py-16">
+        <main class="px-4 md:px-8 py-10 md:py-16">
       <!-- 1. Loading State (Initial) -->
       <div v-if="loading && !news.length" class="space-y-12 animate-pulse">
         <div v-for="i in 2" :key="i">
@@ -553,6 +576,8 @@ const renderMarkdown = (text: string) => {
         </div>
       </div>
     </main>
+      </div>
+    </div>
 
     <!-- Background Decoration -->
     <div class="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
