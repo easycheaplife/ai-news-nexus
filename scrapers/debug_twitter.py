@@ -1,26 +1,58 @@
 import requests
 import json
+import random
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+import os
 
-url = "https://syndication.twitter.com/srv/timeline-profile/screen-name/OpenAI"
+load_dotenv()
+
+username = "OpenAI"
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-response = requests.get(url, headers=headers)
-print(f"Status Code: {response.status_code}")
+nitter_instances = [
+    "https://nitter.net",
+    "https://nitter.cz",
+    "https://nitter.privacydev.net",
+    "https://nitter.it",
+    "https://nitter.sethforprivacy.com"
+]
 
-soup = BeautifulSoup(response.text, 'html.parser')
-script_tag = soup.find('script', id='__NEXT_DATA__')
+def test_syndication():
+    print("--- Testing Syndication ---")
+    url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        print(f"Status Code: {response.status_code}")
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'html.parser')
+            script_tag = soup.find('script', id='__NEXT_DATA__')
+            if script_tag:
+                print("✅ Found __NEXT_DATA__")
+            else:
+                print("❌ Script tag not found.")
+    except Exception as e:
+        print(f"Error: {e}")
 
-if script_tag:
-    data = json.loads(script_tag.string)
-    timeline = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
-    print(f"Found {len(timeline)} entries in timeline.")
-    if len(timeline) > 0:
-        first_tweet = timeline[0].get('content', {}).get('tweet', {})
-        print(f"First tweet ID: {first_tweet.get('id_str')}")
-        print(f"First tweet text: {first_tweet.get('full_text')[:50]}...")
-else:
-    print("Could not find __NEXT_DATA__ script tag.")
-    print("Response snippet:", response.text[:500])
+def test_nitter():
+    print("\n--- Testing Nitter ---")
+    instance = random.choice(nitter_instances)
+    url = f"{instance}/{username}/rss"
+    print(f"Trying instance: {instance}")
+    try:
+        response = requests.get(url, headers=headers, timeout=15)
+        print(f"Status Code: {response.status_code}")
+        if response.status_code == 200:
+            soup = BeautifulSoup(response.text, 'xml')
+            items = soup.find_all('item')
+            print(f"✅ Found {len(items)} items in RSS.")
+            if items:
+                print(f"Latest title: {items[0].title.text if items[0].title else 'No title'}")
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    test_syndication()
+    test_nitter()

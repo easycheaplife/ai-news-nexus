@@ -20,6 +20,14 @@ class TwitterScraper(BaseScraper):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
+        # 增加 Nitter 实例列表作为备份
+        self.nitter_instances = [
+            "https://nitter.net",
+            "https://nitter.cz",
+            "https://nitter.privacydev.net",
+            "https://nitter.it",
+            "https://nitter.sethforprivacy.com"
+        ]
 
     def _load_targets(self) -> list:
         """从后端获取活跃的抓取账号"""
@@ -37,8 +45,57 @@ class TwitterScraper(BaseScraper):
             self.logger.warning(f"Failed to load targets from backend, using defaults: {e}")
         return default_list
 
+    def _fetch_from_nitter(self, username: str) -> list:
+        """从 Nitter 实例尝试获取推文 (作为 429 后的备份)"""
+        random.shuffle(self.nitter_instances)
+        for instance in self.nitter_instances:
+            try:
+                self.logger.info(f"Trying Nitter instance: {instance} for @{username}")
+                # 使用 RSS 格式通常更稳定且易于解析
+                url = f"{instance}/{username}/rss"
+                response = requests.get(url, headers=self.headers, timeout=15)
+                if response.status_code == 200:
+                    return self._parse_nitter_rss(response.text, username)
+                else:
+                    self.logger.warning(f"Nitter instance {instance} returned {response.status_code}")
+            except Exception as e:
+                self.logger.warning(f"Failed to fetch from Nitter {instance}: {e}")
+        return []
+
+    def _parse_nitter_rss(self, rss_content: str, username: str) -> list:
+        """解析 Nitter RSS 内容"""
+        soup = BeautifulSoup(rss_content, 'xml')
+        items = soup.find_all('item')
+        tweets = []
+        for item in items:
+            title = item.title.text if item.title else ""
+            link = item.link.text if item.link else ""
+            description = item.description.text if item.description else ""
+            pub_date = item.pubDate.text if item.pubDate else ""
+            
+            # 提取 ID
+            tid = link.split('/')[-1].split('#')[0]
+            
+            # 简单封装成类似 Twitter API 的结构
+            tweet = {
+                'id_str': tid,
+                'full_text': description, # Nitter RSS 的 description 通常包含推文正文
+                'created_at': pub_date,
+                'user': {'screen_name': username},
+                'is_nitter': True,
+                'url': link
+            }
+            tweets.append(tweet)
+        return tweets
+
     def _process_tweet_media(self, tweet: dict) -> list:
         """提取推文的多媒体内容 (强制高清)"""
+        if tweet.get('is_nitter'):
+            # Nitter 的媒体提取逻辑不同，RSS 中通常在 description 的 <img> 标签里
+            description = tweet.get('full_text', '')
+            soup = BeautifulSoup(description, 'html.parser')
+            return [img['src'] for img in soup.find_all('img') if img.get('src')]
+
         media_urls = []
         ext_entities = tweet.get('extended_entities', {})
         for m in ext_entities.get('media', []):
@@ -68,162 +125,103 @@ class TwitterScraper(BaseScraper):
         return media_urls
 
     def scrape(self):
-        self.logger.info("🚀 Starting Twitter scraping with Thread stitching...")
+        self.logger.info("🚀 Starting Twitter scraping (Syndication + Nitter Fallback)...")
         
-        # 基础等待时间
-        base_wait_min = 15
-        base_wait_max = 30
+        base_wait_min = 10
+        base_wait_max = 20
         
         for username in self.ai_accounts:
-            if self.current_429_count >= self.max_429_errors:
-                self.logger.error(f"🚨 Maximum 429 limit reached ({self.max_429_errors}). Aborting Twitter scraping entirely.")
-                break
-                
             try:
-                # 💡 增加随机延迟防止 429，如果之前被 429 过，等待时间呈指数级增加
                 multiplier = 2 ** self.current_429_count
                 wait_time = random.uniform(base_wait_min * multiplier, base_wait_max * multiplier)
-                
-                if self.current_429_count > 0:
-                    self.logger.warning(f"⏳ Cooling down for {int(wait_time)} seconds due to previous 429 errors...")
-                    
                 time.sleep(wait_time)
                 
                 self.logger.info(f"👤 Scraping: @{username}")
                 last_id = self.get_last_id(username)
+                
+                # 尝试 A 方案: Syndication
                 url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
-                
                 response = requests.get(url, headers=self.headers, timeout=15)
-                if response.status_code == 429:
-                    self.current_429_count += 1
-                    self.logger.error(f"❌ Rate limit exceeded (429) for @{username}. Current count: {self.current_429_count}/{self.max_429_errors}")
-                    # 继续下一次循环，自动触发指数冷却退避
-                    continue
-                elif response.status_code != 200:
-                    self.logger.error(f"❌ Failed to fetch timeline for @{username}: HTTP {response.status_code}")
-                    continue
                 
-                # 如果成功，重置 429 计数器，恢复正常抓取速度
-                if self.current_429_count > 0:
-                    self.logger.info("✅ Connection recovered. Resetting 429 error counter.")
-                    self.current_429_count = 0
-
-                soup = BeautifulSoup(response.text, 'html.parser')
-                script_tag = soup.find('script', id='__NEXT_DATA__')
-                if not script_tag: continue
-
-                data = json.loads(script_tag.string)
-                timeline = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
-                
-                # 1. 预处理：收集所有未读推文
                 valid_tweets = []
                 newest_id = None
-                for entry in timeline:
-                    tweet = entry.get('content', {}).get('tweet')
-                    if not tweet: continue
+
+                if response.status_code == 200:
+                    soup = BeautifulSoup(response.text, 'html.parser')
+                    script_tag = soup.find('script', id='__NEXT_DATA__')
+                    if script_tag:
+                        data = json.loads(script_tag.string)
+                        timeline = data.get('props', {}).get('pageProps', {}).get('timeline', {}).get('entries', [])
+                        
+                        for entry in timeline:
+                            tweet = entry.get('content', {}).get('tweet')
+                            if not tweet: continue
+                            tid = tweet['id_str']
+                            if newest_id is None: newest_id = tid
+                            if last_id and int(tid) <= int(last_id): break
+                            valid_tweets.append(tweet)
+                        
+                        if self.current_429_count > 0:
+                            self.logger.info("✅ Connection recovered. Resetting 429 error counter.")
+                            self.current_429_count = 0
+                
+                # 尝试 B 方案: Nitter (如果 A 方案触发 429 或没抓到新东西)
+                if response.status_code == 429 or not valid_tweets:
+                    if response.status_code == 429:
+                        self.logger.warning(f"⚠️ Syndication 429 for @{username}. Switching to Nitter...")
+                        self.current_429_count = min(self.current_429_count + 1, self.max_429_errors)
                     
-                    tid = tweet['id_str']
-                    if newest_id is None: newest_id = tid
-                    
-                    if last_id and int(tid) <= int(last_id):
-                        break
-                    valid_tweets.append(tweet)
+                    nitter_tweets = self._fetch_from_nitter(username)
+                    for nt in nitter_tweets:
+                        tid = nt['id_str']
+                        if last_id and int(tid) <= int(last_id): break
+                        if newest_id is None: newest_id = tid
+                        valid_tweets.append(nt)
 
                 if not valid_tweets:
                     continue
 
-                # 2. Thread 拼接逻辑
-                tweet_map = {t['id_str']: t for t in valid_tweets}
+                # 后续处理逻辑
                 processed_ids = set()
-                valid_tweets.reverse() # 按时间正序
-
                 for tweet in valid_tweets:
                     tid = tweet['id_str']
-                    date_str = tweet.get('created_at', 'N/A')
-                    self.logger.info(f"🔗 Processing Item ID: {tid} | Date: {date_str}")
                     if tid in processed_ids: continue
-
-                    is_reply_to_self = (
-                        tweet.get('in_reply_to_screen_name') == username or 
-                        tweet.get('in_reply_to_user_id_str') == tweet.get('user', {}).get('id_str')
-                    )
-                    parent_id = tweet.get('in_reply_to_status_id_str')
-                    
-                    if is_reply_to_self and parent_id in tweet_map:
-                        continue
-                    
-                    thread_tweets = [tweet]
                     processed_ids.add(tid)
-                    
-                    current_parent_id = tid
-                    while True:
-                        child = next((t for t in valid_tweets if t.get('in_reply_to_status_id_str') == current_parent_id and t['id_str'] not in processed_ids), None)
-                        if child:
-                            thread_tweets.append(child)
-                            processed_ids.add(child['id_str'])
-                            current_parent_id = child['id_str']
-                        else:
-                            break
-                    
-                    # 3. 日期处理与时间窗口过滤 (最早执行，避免无效网络请求)
-                    raw_date = thread_tweets[0].get('created_at')
-                    published_at = datetime.utcnow().isoformat()
+
+                    full_content = tweet.get('full_text', '')
+                    if tweet.get('is_nitter'):
+                        full_content = BeautifulSoup(full_content, 'html.parser').get_text()
+
+                    raw_date = tweet.get('created_at')
                     dt_obj = None
                     if raw_date:
                         try:
-                            dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
-                            published_at = dt_obj.isoformat()
+                            if tweet.get('is_nitter'):
+                                dt_obj = datetime.strptime(raw_date, '%a, %d %b %Y %H:%M:%S %Z')
+                            else:
+                                dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
                         except: pass
 
-                    # 🕒 时间窗口过滤：如果开启了窗口限制，且推文超出时间范围，则跳过
                     if dt_obj and not self.is_within_window(dt_obj):
-                        self.logger.info(f"⏩ Skipping old tweet from {dt_obj} (outside {self.scrape_window_hours}h window)")
                         continue
 
-                    # 4. 组装内容与多媒体/外链抓取
-                    full_text_list = []
-                    all_media = []
-                    
-                    for i, t in enumerate(thread_tweets):
-                        text = t.get('full_text', t.get('text', ''))
-                        link_context = ""
-                        urls = t.get('entities', {}).get('urls', [])
-                        if urls:
-                            link_context = scrape_link_content(urls[0].get('expanded_url'))
-                        
-                        prefix = f"[{i+1}/{len(thread_tweets)}] " if len(thread_tweets) > 1 else ""
-                        full_text_list.append(f"{prefix}{text}\n{link_context}".strip())
-                        all_media.extend(self._process_tweet_media(t))
-
-                    full_content = "\n\n---\n\n".join(full_text_list)
-                    
-                    # 🤖 AI 评估 (仅对时间窗口内的有效内容进行评估)
                     score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
-
-                    display_title = thread_tweets[0].get('full_text', thread_tweets[0].get('text', ''))[:100].replace('\n', ' ')
                     
                     item = {
                         "platform": "twitter",
-                        "external_id": thread_tweets[0]['id_str'],
-                        "title": f"@{username}: {display_title}",
+                        "external_id": tid,
+                        "title": f"@{username}: {full_content[:100].strip()}",
                         "content": full_content,
-                        "url": f"https://twitter.com/{username}/status/{thread_tweets[0]['id_str']}",
-                        "published_at": published_at,
+                        "url": tweet.get('url', f"https://twitter.com/{username}/status/{tid}"),
+                        "published_at": dt_obj.isoformat() if dt_obj else datetime.utcnow().isoformat(),
                         "score": score,
                         "reason": reason,
                         "takeaways": takeaways,
                         "cluster_id": cluster_id,
                         "mentioned_users": mentioned_users,
                         "trending_keywords": trending_keywords,
-                        "media_urls": list(dict.fromkeys(all_media)),
-                        "metadata_json": {
-                            "author": username,
-                            "thread_count": len(thread_tweets),
-                            "stats": {
-                                "likes": thread_tweets[0].get('favorite_count', 0),
-                                "retweets": thread_tweets[0].get('retweet_count', 0)
-                            }
-                        }
+                        "media_urls": self._process_tweet_media(tweet),
+                        "metadata_json": {"author": username, "source": "nitter" if tweet.get('is_nitter') else "syndication"}
                     }
                     self.push_to_backend(item)
 
