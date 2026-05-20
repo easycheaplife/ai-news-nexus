@@ -18,9 +18,19 @@ class DiscoveryEngine:
         """执行信源自动扩张逻辑 (方案 A)"""
         logger.info("🚀 Starting Network Expansion phase...")
 
-        # 1. 获取待验证的用户
         try:
-            # 获取最大验证数量限制，防止单次消耗过多 AI 额度
+            # 1. 获取全局最大活跃账号限制
+            max_active_targets = int(os.getenv("MAX_ACTIVE_TARGETS", 100))
+            
+            # 获取当前已激活的账号总数
+            active_res = requests.get(f"{self.api_url}/targets/", params={"is_active": True}, timeout=10)
+            current_active_count = len(active_res.json()) if active_res.status_code == 200 else 0
+            
+            if current_active_count >= max_active_targets:
+                logger.warning(f"⚠️ Total active targets limit reached ({current_active_count}/{max_active_targets}). Skipping expansion.")
+                return
+
+            # 2. 获取待验证的用户
             max_vetting = int(os.getenv("DISCOVERY_MAX_VETTING", 100))
 
             response = requests.get(f"{self.api_url}/discovery/?status=pending", timeout=10)
@@ -34,9 +44,14 @@ class DiscoveryEngine:
                 logger.info("No pending users to vet.")
                 return
 
-            # 限制本次运行的处理数量
+            # 3. 限制本次运行的处理数量
             vetted_count = 0
             for item in users_to_vet:
+                # 再次检查，防止在循环中超出总数
+                if current_active_count >= max_active_targets:
+                    logger.info(f"🛑 Reached global active targets limit ({max_active_targets}). Stopping vetting.")
+                    break
+                    
                 if vetted_count >= max_vetting:
                     logger.info(f"🛑 Reached max vetting limit ({max_vetting}) for this run.")
                     break
@@ -44,12 +59,13 @@ class DiscoveryEngine:
                 username = item['value']
                 logger.info(f"🔍 Vetting user: @{username} ({vetted_count + 1}/{max_vetting})")
 
-                # 2. 调用 AI 进行身份画像 (Vetting)
+                # 4. 调用 AI 进行身份画像 (Vetting)
                 is_worthy, reason = self._vet_user(username, item['discovery_reason'])
 
                 if is_worthy:
                     logger.info(f"✅ User @{username} vetted! Adding to active targets.")
-                    self._promote_to_target("twitter", username, reason)
+                    if self._promote_to_target("twitter", username, reason):
+                        current_active_count += 1 # 成功晋升后更新本地计数
                     self._update_discovery_status(item['id'], "vetted")
                 else:
                     logger.info(f"❌ User @{username} rejected.")
@@ -95,7 +111,7 @@ class DiscoveryEngine:
             logger.error(f"AI Vetting failed for {username}: {e}")
             return False, ""
 
-    def _promote_to_target(self, platform: str, handle: str, description: str):
+    def _promote_to_target(self, platform: str, handle: str, description: str) -> bool:
         """将验证通过的账号正式加入采集表，初始状态设为 probation"""
         payload = {
             "platform": platform,
@@ -106,8 +122,10 @@ class DiscoveryEngine:
             "status": "probation" # 新发现的账号先进入试用期
         }
         try:
-            requests.post(f"{self.api_url}/targets/", json=payload)
-        except: pass
+            res = requests.post(f"{self.api_url}/targets/", json=payload)
+            return res.status_code in [200, 201]
+        except: 
+            return False
 
     def _update_discovery_status(self, discovery_id: int, status: str):
         """更新发现池中的状态"""
