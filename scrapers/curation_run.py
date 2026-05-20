@@ -2,6 +2,7 @@ import logging
 import requests
 import os
 from datetime import datetime
+from collections import defaultdict
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("source_curator")
@@ -22,78 +23,100 @@ class SourceCurator:
                 return
             
             targets = response.json()
+            if not targets:
+                logger.info("No active targets found to curate.")
+                return
+
+            # 2. 深度聚合：一次性获取更多近期内容，建立作者映射表
+            # 扫描深度增加到 500 条，以覆盖更多冷门账号
+            news_res = requests.get(f"{self.api_url}/news/", params={"limit": 500}, timeout=10)
+            if news_res.status_code != 200:
+                logger.error("Failed to fetch news for curation analysis.")
+                return
+            
+            all_news = news_res.json()
+            author_data_map = defaultdict(list)
+            
+            for n in all_news:
+                # 尝试从 metadata 或 title 中识别作者
+                author = n.get('metadata_json', {}).get('author')
+                if not author:
+                    # 尝试从 title 解析 (@username:)
+                    if n['title'].startswith('@') and ':' in n['title']:
+                        author = n['title'].split(':')[0].strip('@')
+                
+                if author:
+                    author_data_map[author.lower()].append(n)
+
+            # 3. 对每个账号执行性能评估
+            logger.info(f"🧐 Evaluating {len(targets)} targets against {len(all_news)} recent items...")
+            
             for target in targets:
-                self._evaluate_target_performance(target)
+                self._evaluate_target_performance(target, author_data_map.get(target['handle'].lower(), []))
 
         except Exception as e:
             logger.error(f"Error in curation phase: {e}")
 
-    def _evaluate_target_performance(self, target: dict):
+    def _evaluate_target_performance(self, target: dict, recent_news: list):
         """评价单个账号的表现并决定是否汰换"""
         handle = target['handle']
-        platform = target['platform']
         target_id = target['id']
         
-        # 1. 获取该账号最近的内容表现
-        # 假设后端支持按作者/handle 过滤新闻 (目前需要后端支持，或者我们在采集端统计)
-        # 为了演示，我们通过搜索接口模拟
-        try:
-            # 实际生产中建议后端提供聚合统计接口
-            news_res = requests.get(f"{self.api_url}/news/", params={"limit": 50}, timeout=10)
-            if news_res.status_code != 200: return
+        if not recent_news:
+            # 长期沉默检查
+            added_at = datetime.fromisoformat(target['added_at'].replace('Z', '+00:00'))
+            days_since_added = (datetime.utcnow().replace(tzinfo=None) - added_at.replace(tzinfo=None)).days
             
-            all_news = news_res.json()
-            # 过滤出该作者的内容
-            author_news = [n for n in all_news if n.get('metadata_json', {}).get('author') == handle or f"@{handle}" in n['title']]
-            
-            if not author_news:
-                # 检查是否长期沉默 (例如 30 天没发新东西)
-                # 这里简单处理：如果 post 数量为 0 且加入时间很久，则增加 failure_count
-                return
-
-            # 2. 计算质量指标
-            scores = [n['score'] for n in author_news if n.get('score') is not None]
-            if not scores: return
-            
-            avg_score = sum(scores) / len(scores)
-            high_value_count = len([s for s in scores if s >= 80])
-            total_posts = len(scores)
-            
-            logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f}, HighValue={high_value_count}/{total_posts}")
-
-            # 3. 决策逻辑 (末位淘汰)
-            update_payload = {
-                "avg_score": int(avg_score),
-                "total_posts": total_posts,
-                "high_value_posts": high_value_count,
-                "last_scraped_at": datetime.utcnow().isoformat()
-            }
-            
-            if high_value_count > 0:
-                update_payload["last_high_score_at"] = datetime.utcnow().isoformat()
-                update_payload["failure_count"] = 0 # 重置失败计数
-            else:
-                # 如果没有高价值产出，增加失败计数
+            # 如果加入超过 14 天且最近 500 条都没有内容，增加失败计数
+            if days_since_added > 14:
                 current_fail = target.get('failure_count', 0)
-                update_payload["failure_count"] = current_fail + 1
+                logger.info(f"⏳ @{handle} has no recent content. Increasing failure count ({current_fail + 1})")
+                requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": current_fail + 1}, timeout=5)
+            else:
+                logger.info(f"💤 @{handle} is silent (no recent posts), skipping.")
+            return
 
-            # 4. 执行自动下架
-            if avg_score < 40 and total_posts >= 5:
-                logger.warning(f"🚨 Deactivating @{handle}: Low average score ({avg_score:.1f})")
-                update_payload["is_active"] = False
-                update_payload["status"] = "deactivated"
-                update_payload["description"] = (target.get('description') or "") + " [Auto-deactivated due to low quality]"
-            
-            elif update_payload["failure_count"] >= 5:
-                logger.warning(f"🚨 Deactivating @{handle}: Consistent lack of high-quality content")
-                update_payload["is_active"] = False
-                update_payload["status"] = "deactivated"
+        # 计算质量指标
+        scores = [n['score'] for n in recent_news if n.get('score') is not None]
+        if not scores: 
+            logger.info(f"⏩ @{handle} has posts but no AI scores yet. Skipping.")
+            return
+        
+        avg_score = sum(scores) / len(scores)
+        high_value_count = len([s for s in scores if s >= 80])
+        total_posts = len(scores)
+        
+        logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f}, HighValue={high_value_count}/{total_posts}")
 
-            # 5. 更新到后端
-            requests.patch(f"{self.api_url}/targets/{target_id}", json=update_payload, timeout=5)
+        # 决策逻辑
+        update_payload = {
+            "avg_score": int(avg_score),
+            "total_posts": total_posts,
+            "high_value_posts": high_value_count,
+            "last_scraped_at": datetime.utcnow().isoformat()
+        }
+        
+        if high_value_count > 0:
+            update_payload["last_high_score_at"] = datetime.utcnow().isoformat()
+            update_payload["failure_count"] = 0
+        else:
+            current_fail = target.get('failure_count', 0)
+            update_payload["failure_count"] = current_fail + 1
 
-        except Exception as e:
-            logger.error(f"Failed to evaluate @{handle}: {e}")
+        # 执行自动下架
+        if avg_score < 40 and total_posts >= 5:
+            logger.warning(f"🚨 Deactivating @{handle}: Low average score ({avg_score:.1f})")
+            update_payload["is_active"] = False
+            update_payload["status"] = "deactivated"
+            update_payload["description"] = (target.get('description') or "") + " [Auto-deactivated due to low quality]"
+        
+        elif update_payload["failure_count"] >= 10: # 沉默或低质容忍度设为 10
+            logger.warning(f"🚨 Deactivating @{handle}: Consistent lack of value or active content")
+            update_payload["is_active"] = False
+            update_payload["status"] = "deactivated"
+
+        # 更新到后端
+        requests.patch(f"{self.api_url}/targets/{target_id}", json=update_payload, timeout=5)
 
 if __name__ == "__main__":
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
