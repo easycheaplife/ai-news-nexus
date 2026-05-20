@@ -9,6 +9,7 @@
 - **说明**: 获取聚合后的资讯，按发现时间降序排列。
 - **Query 参数**:
   - `platform` (Optional): 指定平台 (twitter, reddit, github, arxiv, youtube, hn, ph, search)。
+  - `author` (Optional): 按作者（Handle）筛选。支持从 `metadata_json` 中高效检索。
   - `query` (Optional): 关键词搜索。
   - `skip` (Default: 0): 分页偏移。
   - `limit` (Default: 50): 每页数量。
