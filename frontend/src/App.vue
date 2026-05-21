@@ -4,12 +4,14 @@ import axios from 'axios';
 import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
 import Sidebar from './components/Sidebar.vue';
+import ResonanceCard from './components/ResonanceCard.vue';
 import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 const news = ref<any[]>([]);
+const trendingClusters = ref<any[]>([]);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -121,16 +123,19 @@ const fetchNews = async (isLoadMore = false) => {
       news.value = [...news.value, ...newItems];
       hasMore.value = newItems.length === filters.value.limit;
     } else {
-      // 并行抓取资讯和最新洞察
-      const [newsRes, insightRes] = await Promise.all([
+      // 并行抓取资讯、最新洞察和热门话题聚类
+      const [newsRes, insightRes, clustersRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
-        axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null }))
+        axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null })),
+        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] }))
       ]);
       
       news.value = newsRes.data;
       latestInsight.value = insightRes.data;
+      trendingClusters.value = clustersRes.data || [];
       hasMore.value = news.value.length === filters.value.limit;
       console.log('Briefing Data Received:', latestInsight.value);
+      console.log('Trending Clusters:', trendingClusters.value);
     }
     
     error.value = null;
@@ -514,6 +519,27 @@ const renderMarkdown = (text: string) => {
     </section>
 
         <main class="px-4 md:px-8 py-10 md:py-16">
+          
+      <!-- 🪐 Cross-Source Resonance Clusters -->
+      <div v-if="trendingClusters.length > 0 && !filters.query && !filters.platform" class="mb-16">
+        <div class="flex items-center gap-4 mb-8">
+          <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+            <span class="w-1.5 h-6 bg-orange-500 rounded-full"></span>
+            跨源互证 · Topic Resonance
+          </h2>
+          <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
+          <span class="text-xs font-medium text-text-muted italic">AI 自动聚合的多平台视角</span>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ResonanceCard 
+            v-for="cluster in trendingClusters" 
+            :key="cluster.id" 
+            :cluster="cluster" 
+          />
+        </div>
+      </div>
+
       <!-- 1. Loading State (Initial) -->
       <div v-if="loading && !news.length" class="space-y-12 animate-pulse">
         <div v-for="i in 2" :key="i">
