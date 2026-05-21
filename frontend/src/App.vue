@@ -171,8 +171,10 @@ const handleFilterAuthor = (author: string) => {
 };
 
 const handleFilterKeyword = (keyword: string) => {
+  filters.value.platform = '';
   filters.value.cluster_id = '';
   filters.value.query = keyword;
+  filters.value.skip = 0;
   fetchNews(false);
   closeMobileMenu();
 };
@@ -181,6 +183,7 @@ const handleFilterCluster = (clusterId: string) => {
   filters.value.platform = '';
   filters.value.query = '';
   filters.value.cluster_id = clusterId;
+  filters.value.skip = 0;
   fetchNews(false);
 };
 
@@ -546,13 +549,13 @@ const renderMarkdown = (text: string) => {
             <div class="xl:w-1/4 space-y-6">
               <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span class="w-1 h-1 bg-primary rounded-full"></span>
-                热门关键词 Trending
+                当前热点聚合 Trending Now
               </h4>
               <div class="flex flex-wrap gap-2">
                 <button 
                   v-for="topic in hotTopics" 
                   :key="topic"
-                  @click="filters.query = topic; handleSearch()"
+                  @click="handleFilterKeyword(topic)"
                   class="px-3 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[11px] font-bold transition-all text-slate-400 hover:text-primary active:scale-95"
                 >
                   # {{ topic }}

@@ -164,7 +164,7 @@ const getStatusColor = (status: string) => {
     <section>
       <div class="flex items-center gap-2 mb-4 px-2">
         <Search class="w-4 h-4 text-purple-400" />
-        <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">发现雷达 · Discovery</h3>
+        <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">新信号侦测 · Signal Discovery</h3>
       </div>
       
       <div class="space-y-3">
