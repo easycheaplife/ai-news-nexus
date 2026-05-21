@@ -342,7 +342,7 @@ const renderMarkdown = (text: string) => {
       <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
         <div class="w-full lg:w-auto flex justify-between items-center">
           <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
-            <div class="relative">
+            <div class="relative hidden sm:block">
               <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
               <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
                 <Zap class="w-6 h-6 text-white" />
@@ -355,17 +355,23 @@ const renderMarkdown = (text: string) => {
               <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
             </div>
           </div>
+          
+          <!-- Mobile Menu Button -->
+          <button @click="showMobileMenu = !showMobileMenu" class="lg:hidden p-2.5 text-white bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl transition-colors">
+            <Menu v-if="!showMobileMenu" class="w-5 h-5" />
+            <X v-else class="w-5 h-5" />
+          </button>
         </div>
 
-        <div class="flex flex-col sm:flex-row flex-1 max-w-3xl w-full items-center gap-3">
+        <div class="flex flex-col sm:flex-row w-full lg:flex-1 max-w-3xl items-center gap-3">
           <!-- Search Bar -->
-          <div class="relative flex-1 w-full min-w-[200px] group">
+          <div class="relative flex-1 w-full min-w-0 group">
             <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary transition-colors" />
             <input 
               v-model="filters.query"
               @input="handleSearch"
               type="text" 
-              placeholder="搜索全球 AI 资讯、论文、模型..." 
+              placeholder="搜索全球 AI 资讯..." 
               class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/40"
             >
             <button 
@@ -378,11 +384,11 @@ const renderMarkdown = (text: string) => {
           </div>
           
           <!-- Platform Filter -->
-          <div class="flex shrink-0 items-center gap-3">
-            <div class="relative">
+          <div class="flex w-full sm:w-auto shrink-0 items-center gap-2">
+            <div class="relative flex-1 sm:flex-none">
               <select 
                 v-model="filters.platform"
-                class="appearance-none bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
+                class="w-full sm:w-auto appearance-none bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
               >
                 <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
                   {{ p.label }}
@@ -393,10 +399,10 @@ const renderMarkdown = (text: string) => {
 
             <button 
               @click="() => fetchNews(false)"
-              class="p-3 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
+              class="p-3 shrink-0 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
               title="刷新数据"
             >
-              <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+              <RefreshCw class="w-5 h-5 sm:w-4 sm:h-4" :class="{ 'animate-spin': loading }" />
             </button>
           </div>
         </div>
@@ -413,7 +419,7 @@ const renderMarkdown = (text: string) => {
         ></div>
       </transition>
 
-      <!-- 📡 Sidebar (Responsive Bottom Sheet on Mobile / Sticky on Desktop) -->
+      <!-- 📡 Sidebar (Classic Left Drawer on Mobile / Sticky on Desktop) -->
       <Sidebar 
         :apiUrl="apiUrl" 
         :is-open="showMobileMenu"
@@ -421,16 +427,6 @@ const renderMarkdown = (text: string) => {
         @filter-keyword="handleFilterKeyword"
         @close="closeMobileMenu"
       />
-
-      <!-- Mobile Floating Action Button (FAB) -->
-      <button 
-        v-if="!showMobileMenu"
-        @click="showMobileMenu = true"
-        class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] bg-gradient-to-r from-primary to-blue-600 text-white px-6 py-3.5 rounded-full shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex items-center gap-2 font-bold text-sm border border-white/20 active:scale-95 transition-all animate-slide-up"
-      >
-        <Zap class="w-4 h-4" />
-        情报雷达
-      </button>
 
       <!-- 🌌 Main Content -->
       <div class="flex-1 min-w-0">

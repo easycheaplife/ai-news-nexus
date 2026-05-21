@@ -8,7 +8,9 @@ import {
   TrendingUp, 
   Star,
   ShieldAlert,
-  Flame
+  Flame,
+  Zap,
+  X
 } from 'lucide-vue-next';
 import axios from 'axios';
 
@@ -75,14 +77,19 @@ const getStatusColor = (status: string) => {
 
 <template>
   <aside 
-    class="flex flex-col overflow-y-auto no-scrollbar gap-8 fixed bottom-0 left-0 w-full max-h-[85vh] bg-[#1a1a20] z-[60] rounded-t-[2.5rem] p-6 pb-12 shadow-[0_-10px_50px_rgba(0,0,0,0.5)] border-t border-white/10 transition-transform duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] lg:relative lg:bottom-auto lg:left-auto lg:w-72 lg:max-h-none lg:h-[calc(100vh-88px)] lg:sticky lg:top-[88px] lg:bg-[#0a0a0c]/50 lg:backdrop-blur-xl lg:rounded-none lg:p-4 lg:pt-6 lg:border-t-0 lg:border-r lg:border-white/5 lg:shadow-none lg:z-auto"
-    :class="isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'"
+    class="flex flex-col overflow-y-auto no-scrollbar gap-6 fixed top-0 left-0 h-[100dvh] w-72 bg-[#1a1a20] z-[60] p-6 shadow-2xl border-r border-white/10 transition-transform duration-300 ease-in-out lg:relative lg:h-[calc(100vh-88px)] lg:sticky lg:top-[88px] lg:bg-[#0a0a0c]/50 lg:backdrop-blur-xl lg:p-4 lg:pt-6 lg:border-white/5 lg:shadow-none lg:z-auto"
+    :class="isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
   >
-    <!-- Mobile Drag Handle -->
-    <div 
-      class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-2 lg:hidden shrink-0 cursor-pointer hover:bg-white/40 transition-colors"
-      @click="emit('close')"
-    ></div>
+    <!-- Mobile Header & Close Button -->
+    <div class="flex items-center justify-between lg:hidden mb-2">
+      <div class="flex items-center gap-2">
+        <Zap class="w-4 h-4 text-primary" />
+        <span class="text-sm font-black text-white uppercase tracking-widest">情报雷达</span>
+      </div>
+      <button @click="emit('close')" class="p-2 text-text-muted hover:text-white bg-white/5 rounded-lg active:scale-95 transition-all">
+        <X class="w-4 h-4" />
+      </button>
+    </div>
     
     <!-- 1. System Pulse (Simplified for now) -->
     <section>
