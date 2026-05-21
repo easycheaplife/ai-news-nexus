@@ -81,14 +81,16 @@ def read_news(
     else:
         db_query = db_query.filter(NewsItem.score >= min_score)
 
-    if query:
+    if query and query.strip():
+        query = query.strip().lower()
         # If the user searches "@Handle", strip the "@" for the metadata search but keep it for title/content
         clean_query = query[1:] if query.startswith('@') and len(query) > 1 else query
         
-        db_query = db_query.filter(
-            (NewsItem.title.ilike(f"%{query}%")) | 
-            (NewsItem.content.ilike(f"%{query}%")) |
-            (cast(NewsItem.metadata_json, String).ilike(f"%{clean_query}%"))
-        )
+        from sqlalchemy import or_, func
+        db_query = db_query.filter(or_(
+            func.lower(NewsItem.title).like(f"%{query}%"),
+            (NewsItem.content.isnot(None)) & (func.lower(NewsItem.content).like(f"%{query}%")),
+            (NewsItem.metadata_json.isnot(None)) & (func.lower(cast(NewsItem.metadata_json, String)).like(f"%{clean_query}%"))
+        ))
     
     return db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()

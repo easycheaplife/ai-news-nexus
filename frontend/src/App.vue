@@ -171,15 +171,20 @@ const handleFilterAuthor = (author: string) => {
 };
 
 const handleFilterKeyword = (keyword: string) => {
+  const cleanKeyword = (keyword || '').trim();
+  if (!cleanKeyword) return;
+  
   filters.value.platform = '';
   filters.value.cluster_id = '';
-  filters.value.query = keyword;
+  filters.value.query = cleanKeyword;
   filters.value.skip = 0;
   fetchNews(false);
   closeMobileMenu();
 };
 
 const handleFilterCluster = (clusterId: string) => {
+  if (!clusterId) return;
+  
   filters.value.platform = '';
   filters.value.query = '';
   filters.value.cluster_id = clusterId;
