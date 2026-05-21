@@ -71,6 +71,8 @@ def create_clusters_batch(batch: ClusterBatchCreate, db: Session = Depends(get_d
                 resonance_score=score
             )
             db.add(new_cluster)
+            # Flush to ensure the cluster exists for FK constraints
+            db.flush()
             
             # 3. Create mappings
             actual_mapped_count = 0
