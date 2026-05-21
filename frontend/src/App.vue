@@ -677,9 +677,3 @@ const renderMarkdown = (text: string) => {
   border-radius: 4px;
 }
 </style>
-60a5fa;
-  background: rgba(37, 99, 235, 0.1);
-  padding: 0 4px;
-  border-radius: 4px;
-}
-</style>
