@@ -374,19 +374,17 @@ const renderMarkdown = (text: string) => {
           </div>
           
           <!-- Platform Filter -->
-          <div class="flex w-full sm:flex-1 min-w-0 items-center gap-3">
-            <div class="flex flex-1 bg-white/5 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar scroll-smooth">
-              <button 
-                v-for="p in platforms" 
-                :key="p.value"
-                @click="filters.platform = p.value"
-                :class="[
-                  'px-4 py-2 text-xs font-bold rounded-xl whitespace-nowrap transition-all duration-300',
-                  filters.platform === p.value ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-text-muted hover:text-white hover:bg-white/5'
-                ]"
+          <div class="flex shrink-0 items-center gap-3">
+            <div class="relative">
+              <select 
+                v-model="filters.platform"
+                class="appearance-none bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
               >
-                {{ p.label }}
-              </button>
+                <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
+                  {{ p.label }}
+                </option>
+              </select>
+              <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
             </div>
 
             <button 

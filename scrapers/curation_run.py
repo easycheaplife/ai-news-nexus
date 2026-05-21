@@ -137,7 +137,7 @@ class SourceCurator:
         # 更新到后端
         requests.patch(f"{self.api_url}/targets/{target_id}", json=update_payload, timeout=5)
 
-from utils.clustering import ClusteringEngine
+from scrapers.utils.clustering import ClusteringEngine
 
 if __name__ == "__main__":
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
