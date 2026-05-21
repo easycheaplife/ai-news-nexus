@@ -341,7 +341,7 @@ const renderMarkdown = (text: string) => {
     <header class="sticky top-0 z-50 bg-[#0a0a0c]/90 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
       <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
         <div class="w-full lg:w-auto flex justify-between items-center">
-          <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
+          <div class="flex items-center gap-4 group cursor-pointer" @click.stop="() => fetchNews(false)">
             <div class="relative hidden sm:block">
               <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
               <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
@@ -357,7 +357,7 @@ const renderMarkdown = (text: string) => {
           </div>
           
           <!-- Mobile Menu Button -->
-          <button @click="showMobileMenu = !showMobileMenu" class="lg:hidden p-2.5 text-white bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl transition-colors">
+          <button type="button" @click.stop="showMobileMenu = !showMobileMenu" class="lg:hidden p-2.5 text-white bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl transition-colors">
             <Menu v-if="!showMobileMenu" class="w-5 h-5" />
             <X v-else class="w-5 h-5" />
           </button>
@@ -376,7 +376,8 @@ const renderMarkdown = (text: string) => {
             >
             <button 
               v-if="filters.query"
-              @click="filters.query = ''; handleSearch()"
+              type="button"
+              @click.stop="filters.query = ''; handleSearch()"
               class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-white transition-colors"
             >
               <X class="w-4 h-4" />
@@ -398,7 +399,8 @@ const renderMarkdown = (text: string) => {
             </div>
 
             <button 
-              @click="() => fetchNews(false)"
+              type="button"
+              @click.stop="() => fetchNews(false)"
               class="p-3 shrink-0 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
               title="刷新数据"
             >
@@ -435,7 +437,8 @@ const renderMarkdown = (text: string) => {
       <div class="glass-card rounded-[2.5rem] border border-white/5 bg-[#131316]/50 overflow-hidden shadow-2xl shadow-primary/5">
         <!-- Toggle Header -->
         <button 
-          @click="showBriefing = !showBriefing"
+          type="button"
+          @click.stop="showBriefing = !showBriefing"
           class="w-full flex items-center justify-between px-8 py-5 hover:bg-white/5 transition-colors group"
         >
           <div class="flex items-center gap-3">
@@ -617,7 +620,8 @@ const renderMarkdown = (text: string) => {
         <!-- 🚀 Load More -->
         <div v-if="hasMore" class="flex justify-center pt-10 pb-20">
           <button 
-            @click="loadMore"
+            type="button"
+            @click.stop="loadMore"
             :disabled="loadingMore"
             class="flex items-center gap-3 px-10 py-4 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/30 rounded-2xl text-sm font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white transition-all active:scale-95 disabled:opacity-50 disabled:pointer-events-none group"
           >
