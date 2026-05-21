@@ -10,9 +10,10 @@
 - **Query 参数**:
   - `platform` (Optional): 指定平台 (twitter, reddit, github, arxiv, youtube, hn, ph, search)。
   - `author` (Optional): 按作者（Handle）筛选。支持从 `metadata_json` 中高效检索。
-  - `query` (Optional): 关键词搜索。
+  - `query` (Optional): 关键词搜索。支持通过 `@handle` 或作者名称进行精确匹配。
   - `skip` (Default: 0): 分页偏移。
   - `limit` (Default: 50): 每页数量。
+- **技术备注**: 搜索逻辑已优化，支持对 JSON 字段进行全量匹配，并解决了部分旧版 MySQL 数据库的兼容性问题。
 - **响应示例**:
   ```json
   [
@@ -36,7 +37,21 @@
 
 ---
 
-## 2. 深度简报接口 (Insights API)
+## 2. 话题聚类接口 (Clusters API)
+
+### 2.1 获取热门话题簇
+- **Endpoint**: `GET /clusters/trending`
+- **说明**: 获取当前最具影响力的跨平台话题簇。
+- **Query 参数**:
+  - `limit` (Default: 10): 返回话题数量。
+
+### 2.2 获取话题关联资讯
+- **Endpoint**: `GET /clusters/{id}/news`
+- **说明**: 获取属于特定话题簇的所有原始资讯项。
+
+---
+
+## 3. 深度简报接口 (Insights API)
 
 ### 2.1 获取最新战略简报
 - **Endpoint**: `GET /insights/latest`

@@ -7,7 +7,6 @@ import {
   Trash2, 
   TrendingUp, 
   Star,
-  ShieldAlert,
   Flame,
   Zap,
   X

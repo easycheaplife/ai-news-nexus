@@ -19,7 +19,14 @@
     ```
 2.  **初始化表结构**:
     ```bash
+    # 基础表结构
     mysql -u your_user -p ai_news < backend/schema.sql
+    
+    # 增量更新：话题聚类与共振功能 (2026-05-21)
+    mysql -u your_user -p ai_news < backend/migrations/cross_source_correlation_schema.sql
+    
+    # 增量更新：信源管理与黑名单优化 (2026-05-21)
+    mysql -u your_user -p ai_news < backend/migrations/update_targets_schema.sql
     ```
 3.  **配置后端环境**: 在 `backend/` 目录下创建 `.env` 文件：
     ```env
@@ -51,7 +58,7 @@ python3 -m uvicorn main:app --reload --port 8000
 
 ## 4. 采集引擎配置 (Scrapers)
 
-采集器是系统的“心脏”，负责抓取和 AI 分析。
+采集器是系统的“心脏”，负责抓取和 AI 分析。**注意：请务必在项目根目录下运行采集命令。**
 
 1.  **配置环境**: 在项目根目录下创建 `.env` 文件：
     ```env
@@ -61,6 +68,10 @@ python3 -m uvicorn main:app --reload --port 8000
     # Gemini AI 配置 (支持以逗号分隔的模型列表，按优先级自动降级)
     GEMINI_API_KEY=your_gemini_api_key_here
     GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
+
+    # 发现引擎限制
+    MAX_ACTIVE_TARGETS=100
+    DISCOVERY_MAX_VETTING=50
 
     # 网络代理 (国内环境访问 Twitter/Google 通常需要)
     # HTTP_PROXY=http://127.0.0.1:7890
@@ -72,25 +83,28 @@ python3 -m uvicorn main:app --reload --port 8000
     python3 -m scrapers.seed_targets
     ```
 
-3.  **手动运行抓取**:
+3.  **执行核心流程**:
     ```bash
-    # 全量抓取并自动生成今日简报 (推荐)
-    python3 -m scrapers.run
+    # 1. 运行全量抓取与分析 (推荐使用 -m 模式运行，避免包引入错误)
+    python3 -m scrapers.run --scrape --insights
 
-    # 指定平台抓取 (不触发简报总结)
-    python3 -m scrapers.run -p twitter
-    python3 -m scrapers.run -p github
-    ```
+    # 2. 运行信源自动扩张 (发现新大咖)
+    python3 -m scrapers.run --discovery
 
-4.  **运行发现引擎 (信源扩张)**:
-    ```bash
-    # 定期运行以自动面试并加入新发现的 KOL
-    python3 -m scrapers.discovery_run
+    # 3. 运行跨源话题聚类 (生成“共振”卡片)
+    python3 -m scrapers.utils.clustering
     ```
 
 ---
 
-## 5. 前端部署 (Vue 3)
+## 5. 跨源互证 (Resonance) 展示条件
+
+要让前端首页显示“跨源互证”卡片，必须同时满足：
+1.  **后端有数据**：已成功运行过 `python3 -m scrapers.utils.clustering`。
+2.  **语义重合**：AI 识别出至少两个不同平台的资讯在讨论同一话题。
+3.  **前端状态**：
+    -   搜索框为空 (`filters.query == ''`)。
+    -   平台筛选为“全部来源”。
 
 ### 5.1 本地开发
 ```bash

@@ -61,17 +61,37 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps({
-  cluster: {
-    type: Object,
-    required: true
-  }
-});
+interface NewsItem {
+  id: number;
+  title: string;
+  url: string;
+  reason?: string;
+  content?: string;
+}
+
+interface ClusterNewsMapping {
+  id: number;
+  news_id: number;
+  platform_role: string;
+  news?: NewsItem;
+}
+
+interface TopicCluster {
+  id: string;
+  title: string;
+  summary: string;
+  resonance_score: number;
+  news_items: ClusterNewsMapping[];
+}
+
+const props = defineProps<{
+  cluster: TopicCluster
+}>();
 
 // Extract unique platforms for badges
-const uniquePlatforms = computed(() => {
+const uniquePlatforms = computed<string[]>(() => {
   if (!props.cluster.news_items) return [];
-  const platforms = props.cluster.news_items.map((item: any) => item.platform_role).filter(Boolean);
+  const platforms = props.cluster.news_items.map(item => item.platform_role).filter(Boolean);
   return [...new Set(platforms)].slice(0, 3); // Max 3 unique icons
 });
 
