@@ -355,20 +355,27 @@ const renderMarkdown = (text: string) => {
 
         <div class="flex flex-col sm:flex-row flex-1 max-w-3xl w-full items-center gap-3">
           <!-- Search Bar -->
-          <div class="relative flex-1 w-full group">
+          <div class="relative flex-1 w-full min-w-[200px] group">
             <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary transition-colors" />
             <input 
               v-model="filters.query"
               @input="handleSearch"
               type="text" 
               placeholder="搜索全球 AI 资讯、论文、模型..." 
-              class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/40"
+              class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/40"
             >
+            <button 
+              v-if="filters.query"
+              @click="filters.query = ''; handleSearch()"
+              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-white transition-colors"
+            >
+              <X class="w-4 h-4" />
+            </button>
           </div>
           
           <!-- Platform Filter -->
-          <div class="flex w-full sm:w-auto items-center gap-3">
-            <div class="flex bg-white/5 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar scroll-smooth">
+          <div class="flex w-full sm:flex-1 min-w-0 items-center gap-3">
+            <div class="flex flex-1 bg-white/5 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar scroll-smooth">
               <button 
                 v-for="p in platforms" 
                 :key="p.value"
