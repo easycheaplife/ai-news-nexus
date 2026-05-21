@@ -86,8 +86,8 @@ const getStatusColor = (status: string) => {
         <Zap class="w-4 h-4 text-primary" />
         <span class="text-sm font-black text-white uppercase tracking-widest">情报雷达</span>
       </div>
-      <button type="button" @click.stop="$emit('close')" class="p-2 text-text-muted hover:text-white bg-white/5 rounded-lg active:scale-95 transition-all">
-        <X class="w-4 h-4" />
+      <button type="button" @click.stop="emit('close')" class="p-2 text-text-muted hover:text-white bg-white/5 rounded-lg active:scale-95 transition-all">
+        <X class="w-5 h-5 pointer-events-none" />
       </button>
     </div>
     

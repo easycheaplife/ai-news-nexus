@@ -17,6 +17,11 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const showBriefing = ref(true);
 
+const showMobileMenu = ref(false);
+const closeMobileMenu = () => {
+  showMobileMenu.value = false;
+};
+
 // 🔍 灯箱 (Lightbox) 状态
 const lightbox = ref({
   isOpen: false,
@@ -348,10 +353,10 @@ const renderMarkdown = (text: string) => {
             <button 
               type="button" 
               @click.stop="showMobileMenu = true" 
-              class="lg:hidden p-2 -ml-2 text-text-muted hover:text-white active:scale-95 transition-all flex items-center gap-2"
+              class="lg:hidden p-3 -ml-3 text-text-muted hover:text-white active:scale-95 transition-all flex items-center gap-2"
               title="打开侧边栏"
             >
-              <Menu class="w-6 h-6" />
+              <Menu class="w-7 h-7 pointer-events-none" />
             </button>
             
             <div class="flex items-center gap-3 group cursor-pointer" @click.stop="() => fetchNews(false)">
