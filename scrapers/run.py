@@ -14,6 +14,7 @@ from scrapers.engines.ph import ProductHuntScraper
 from scrapers.engines.github import GitHubScraper
 from scrapers.engines.arxiv import ArxivScraper
 from scrapers.engines.youtube import YouTubeScraper
+from scrapers.engines.labs import LabsScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
@@ -109,7 +110,8 @@ def run_scrapers(target_platform: str = None,
             ProductHuntScraper(api_url=api_url),
             GitHubScraper(api_url=api_url),
             ArxivScraper(api_url=api_url),
-            YouTubeScraper(api_url=api_url)
+            YouTubeScraper(api_url=api_url),
+            LabsScraper(api_url=api_url)
         ]
         
         if target_platform:

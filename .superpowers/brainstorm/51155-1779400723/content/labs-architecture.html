@@ -1,0 +1,35 @@
+<h2>LabsScraper 架构设计</h2>
+<p class="subtitle">采用配置驱动的通用 RSS 引擎，确保极高的可扩展性。</p>
+
+<div class="mockup">
+  <div class="mockup-header">核心逻辑架构</div>
+  <div class="mockup-body">
+    <pre>
+class LabsScraper(BaseScraper):
+    def __init__(self):
+        # 配置表：实验室名称 -> RSS 地址
+        self.feeds = {
+            "OpenAI": "https://openai.com/news/rss.xml",
+            "Anthropic": "https://www.anthropic.com/news/rss.xml",
+            "DeepMind": "https://deepmind.google/blog/rss.xml",
+            ...
+        }
+
+    def scrape(self):
+        for lab_name, url in self.feeds.items():
+            # 1. 抓取 Feed
+            # 2. 增量判断 (使用 state.json 中的 last_id)
+            # 3. AI 评分与分类
+            # 4. 推送到后端
+    </pre>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键技术细节</h3>
+  <ul>
+    <li><strong>统一状态管理</strong>：利用现有的 <code>state.json</code>，按 <code>lab_name</code> 记录每个源的最后更新时间或文章 ID。</li>
+    <li><strong>智能字段映射</strong>：适配不同厂商 RSS 字段差异（有的叫 <code>summary</code>，有的叫 <code>content:encoded</code>）。</li>
+    <li><strong>AI 深度分析</strong>：复用 <code>evaluator</code>，提取技术要点（Takeaways）和语义聚类。</li>
+  </ul>
+</div>

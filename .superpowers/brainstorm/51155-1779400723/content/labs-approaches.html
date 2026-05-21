@@ -1,0 +1,39 @@
+<h2>实验室抓取方案对比</h2>
+<p class="subtitle">针对官方实验室，我们有三种不同深度的实现方式。</p>
+
+<div class="options">
+  <div class="option" data-choice="rss" onclick="toggleSelect(this)">
+    <div class="letter">1</div>
+    <div class="content">
+      <h3>通用 RSS 聚合 (推荐)</h3>
+      <p>统一使用 feedparser 库处理各大厂的 RSS/Atom 源。</p>
+      <p class="label">适用：OpenAI, Anthropic, DeepMind, Mistral</p>
+      <div class="pros-cons">
+        <div class="pros"><ul><li>极速上线</li><li>维护成本近乎为零</li></ul></div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="option" data-choice="adapter" onclick="toggleSelect(this)">
+    <div class="letter">2</div>
+    <div class="content">
+      <h3>专用适配器 (深度)</h3>
+      <p>为 Meta AI, Google News 等没有 RSS 的源编写定制逻辑。</p>
+      <p class="label">适用：Meta, Google, 字节跳动</p>
+      <div class="pros-cons">
+        <div class="pros"><ul><li>数据最全</li><li>支持特殊交互</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="letter">3</div>
+    <div class="content">
+      <h3>混合模式 (稳健)</h3>
+      <p>RSS 发现新帖 + 通用 HTML 抓取器获取正文。</p>
+      <div class="pros-cons">
+        <div class="pros"><ul><li>信息量最大</li><li>可获取论文原文</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

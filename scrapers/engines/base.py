@@ -24,6 +24,9 @@ class BaseScraper:
 
     def _is_valid_twitter_handle(self, handle: str) -> bool:
         """验证是否为合法的 Twitter Handle"""
+        if not handle or not isinstance(handle, str):
+            return False
+            
         # 1. 长度校验 (1-15位)
         if not (1 <= len(handle) <= 15):
             return False
@@ -32,8 +35,12 @@ class BaseScraper:
         if not re.match(r"^[A-Za-z0-9_]+$", handle):
             return False
         
-        # 3. 关键词黑名单 (排除一些容易被 AI 误认的词)
-        blacklist = ["twitter", "x", "status", "web", "iphone", "android", "ai", "news", "nexus", "scrapers"]
+        # 3. 关键词黑名单 (排除一些容易被 AI 误认的词或系统路径)
+        blacklist = {
+            "twitter", "x", "status", "web", "iphone", "android", "ai", "news", 
+            "nexus", "scrapers", "frontend", "backend", "src", "index", "home",
+            "api", "v1", "discovery", "targets", "clusters", "insights", "media"
+        }
         if handle.lower() in blacklist:
             return False
             

@@ -15,6 +15,8 @@ class TwitterScraper(BaseScraper):
         import os
         self.max_429_errors = int(os.getenv("TWITTER_MAX_429_ERRORS", 10))
         self.current_429_count = 0
+        self.consecutive_nitter_failures = 0
+        self.max_nitter_failures = 5 # 连续 5 个账号抓取完全失败则跳过 Twitter
         self.headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
@@ -26,7 +28,9 @@ class TwitterScraper(BaseScraper):
             "https://nitter.cz",
             "https://nitter.privacydev.net",
             "https://nitter.it",
-            "https://nitter.sethforprivacy.com"
+            "https://nitter.sethforprivacy.com",
+            "https://nitter.moomoo.me",
+            "https://nitter.mint.lgbt"
         ]
 
     def _load_targets(self) -> list:
@@ -40,7 +44,8 @@ class TwitterScraper(BaseScraper):
             if response.status_code == 200:
                 targets = response.json()
                 if targets:
-                    return [t['handle'] for t in targets]
+                    # 过滤掉非法的 Twitter Handle (如路径、过长字符等)
+                    return [t['handle'] for t in targets if self._is_valid_twitter_handle(t['handle'])]
         except Exception as e:
             self.logger.warning(f"Failed to load targets from backend, using defaults: {e}")
         return default_list
@@ -48,6 +53,8 @@ class TwitterScraper(BaseScraper):
     def _fetch_from_nitter(self, username: str) -> list:
         """从 Nitter 实例尝试获取推文 (作为 429 后的备份)"""
         random.shuffle(self.nitter_instances)
+        success = False
+        tweets = []
         for instance in self.nitter_instances:
             try:
                 self.logger.info(f"Trying Nitter instance: {instance} for @{username}")
@@ -55,12 +62,20 @@ class TwitterScraper(BaseScraper):
                 url = f"{instance}/{username}/rss"
                 response = requests.get(url, headers=self.headers, timeout=15)
                 if response.status_code == 200:
-                    return self._parse_nitter_rss(response.text, username)
+                    tweets = self._parse_nitter_rss(response.text, username)
+                    success = True
+                    break
                 else:
                     self.logger.warning(f"Nitter instance {instance} returned {response.status_code}")
             except Exception as e:
                 self.logger.warning(f"Failed to fetch from Nitter {instance}: {e}")
-        return []
+        
+        if success:
+            self.consecutive_nitter_failures = 0
+        else:
+            self.consecutive_nitter_failures += 1
+            
+        return tweets
 
     def _parse_nitter_rss(self, rss_content: str, username: str) -> list:
         """解析 Nitter RSS 内容"""
@@ -125,12 +140,16 @@ class TwitterScraper(BaseScraper):
         return media_urls
 
     def scrape(self):
-        self.logger.info("🚀 Starting Twitter scraping (Syndication + Nitter Fallback)...")
+        self.logger.info(f"🚀 Starting Twitter scraping (Accounts: {len(self.ai_accounts)})...")
         
-        base_wait_min = 10
-        base_wait_max = 20
+        base_wait_min = 5
+        base_wait_max = 10
         
         for username in self.ai_accounts:
+            if self.consecutive_nitter_failures >= self.max_nitter_failures:
+                self.logger.error("🛑 Too many consecutive Nitter failures. Skipping remaining Twitter targets.")
+                break
+
             try:
                 multiplier = 2 ** self.current_429_count
                 wait_time = random.uniform(base_wait_min * multiplier, base_wait_max * multiplier)
@@ -141,12 +160,19 @@ class TwitterScraper(BaseScraper):
                 
                 # 尝试 A 方案: Syndication
                 url = f"https://syndication.twitter.com/srv/timeline-profile/screen-name/{username}"
-                response = requests.get(url, headers=self.headers, timeout=15)
-                
+                response = None
                 valid_tweets = []
                 newest_id = None
+                syndication_success = False
 
-                if response.status_code == 200:
+                try:
+                    response = requests.get(url, headers=self.headers, timeout=15)
+                    self.logger.info(f"📡 Syndication check for @{username}: HTTP {response.status_code}")
+                except Exception as e:
+                    self.logger.warning(f"Syndication connection error for @{username}: {e}")
+                
+                if response and response.status_code == 200:
+                    syndication_success = True
                     soup = BeautifulSoup(response.text, 'html.parser')
                     script_tag = soup.find('script', id='__NEXT_DATA__')
                     if script_tag:
@@ -158,18 +184,26 @@ class TwitterScraper(BaseScraper):
                             if not tweet: continue
                             tid = tweet['id_str']
                             if newest_id is None: newest_id = tid
-                            if last_id and int(tid) <= int(last_id): break
+                            
+                            # 增量判断
+                            if last_id and int(tid) <= int(last_id): 
+                                break
                             valid_tweets.append(tweet)
+                        
+                        self.logger.info(f"✅ Syndication found {len(valid_tweets)} new tweets for @{username}")
                         
                         if self.current_429_count > 0:
                             self.logger.info("✅ Connection recovered. Resetting 429 error counter.")
                             self.current_429_count = 0
                 
-                # 尝试 B 方案: Nitter (如果 A 方案触发 429 或没抓到新东西)
-                if response.status_code == 429 or not valid_tweets:
-                    if response.status_code == 429:
+                # 尝试 B 方案: Nitter (仅当 A 方案明确失败或触发 429 时才降级)
+                # 如果 syndication_success 为 True 且 valid_tweets 为空，说明确实没新内容，无需降级
+                if not syndication_success or (response and response.status_code == 429):
+                    if response and response.status_code == 429:
                         self.logger.warning(f"⚠️ Syndication 429 for @{username}. Switching to Nitter...")
                         self.current_429_count = min(self.current_429_count + 1, self.max_429_errors)
+                    else:
+                        self.logger.warning(f"⚠️ Syndication failed for @{username}. Trying Nitter...")
                     
                     nitter_tweets = self._fetch_from_nitter(username)
                     for nt in nitter_tweets:
@@ -179,11 +213,16 @@ class TwitterScraper(BaseScraper):
                         valid_tweets.append(nt)
 
                 if not valid_tweets:
+                    # 如果主方案抓到了 newest_id (虽然可能都在 window 外)，也更新一下状态
+                    if newest_id:
+                        self.update_last_id(username, newest_id)
+                        self._save_state()
                     continue
 
                 # 后续处理逻辑
                 processed_ids = set()
-                for tweet in valid_tweets:
+                # 按时间正序处理（从旧到新），确保 newest_id 最终更新正确
+                for tweet in reversed(valid_tweets):
                     tid = tweet['id_str']
                     if tid in processed_ids: continue
                     processed_ids.add(tid)
@@ -197,8 +236,10 @@ class TwitterScraper(BaseScraper):
                     if raw_date:
                         try:
                             if tweet.get('is_nitter'):
+                                # Nitter RSS: Fri, 22 May 2026 12:34:56 GMT
                                 dt_obj = datetime.strptime(raw_date, '%a, %d %b %Y %H:%M:%S %Z')
                             else:
+                                # Syndication: Fri May 22 12:34:56 +0000 2026
                                 dt_obj = datetime.strptime(raw_date, '%a %b %d %H:%M:%S +0000 %Y')
                         except: pass
 
@@ -227,6 +268,7 @@ class TwitterScraper(BaseScraper):
 
                 if newest_id:
                     self.update_last_id(username, newest_id)
+                    self._save_state() # 显式保存状态，确保及时持久化
                         
             except Exception as e:
                 self.logger.error(f"Error scraping @{username}: {e}")

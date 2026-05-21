@@ -1,0 +1,72 @@
+<h2>方案 A：官方实验室直连 (Official AI Labs)</h2>
+<p class="subtitle">这些信源通常提供 RSS/Atom 订阅，抓取极度稳定且信息价值最高。</p>
+
+<div class="cards" data-multiselect>
+  <div class="card" data-choice="openai" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>OpenAI Blog</h3>
+      <p>最重磅的发布（GPT-5, Sora 等）首发地。</p>
+      <p class="label">抓取方式：RSS / JSON API</p>
+    </div>
+  </div>
+  
+  <div class="card" data-choice="anthropic" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>Anthropic News</h3>
+      <p>Claude 模型更新及安全研究动态。</p>
+      <p class="label">抓取方式：RSS</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="deepmind" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>Google DeepMind</h3>
+      <p>前沿科学 AI 研究及模型进展。</p>
+      <p class="label">抓取方式：RSS</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="meta" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>Meta AI Blog</h3>
+      <p>Llama 系列及开源生态动态。</p>
+      <p class="label">抓取方式：JSON API / Scrape</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="mistral" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>Mistral AI</h3>
+      <p>欧洲最强开源/闭源模型动态。</p>
+      <p class="label">抓取方式：Atom Feed</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="deepseek" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>DeepSeek News</h3>
+      <p>国产最强模型动态及技术周报。</p>
+      <p class="label">抓取方式：RSS / Scrape</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>技术架构建议</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>优点</h4>
+      <ul>
+        <li>**稳定性 100%**：官方 RSS 不会像 Twitter 那样反爬。</li>
+        <li>**信息密度极高**：没有废话，每一篇都是干货。</li>
+        <li>**内容完整**：可以直接获取全文摘要，无需 AI 盲猜。</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>缺点</h4>
+      <ul>
+        <li>**频率较低**：通常一周 1-2 篇，不如 Twitter 活跃。</li>
+      </ul>
+    </div>
+  </div>
+</div>

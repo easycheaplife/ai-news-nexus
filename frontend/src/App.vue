@@ -93,6 +93,7 @@ const filters = ref({
 
 const platforms = [
   { label: '全部来源', value: '' },
+  { label: '官方实验室', value: 'labs' },
   { label: 'Twitter / X', value: 'twitter' },
   { label: 'GitHub', value: 'github' },
   { label: 'ArXiv', value: 'arxiv' },
@@ -251,7 +252,7 @@ const coreNarratives = computed(() => {
 // 📊 计算各平台分布 (优先使用存档数据)
 const platformStats = computed(() => {
   const stats: Record<string, number> = {};
-  const platforms_list = ['twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph'];
+  const platforms_list = ['twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph', 'labs'];
   
   // 1. 初始化所有平台，确保不会缺失
   platforms_list.forEach(p => stats[p] = 0);
@@ -278,7 +279,8 @@ const platformFullNames: Record<string, string> = {
   youtube: 'YouTube',
   reddit: 'Reddit',
   hn: 'HackerNews',
-  ph: 'ProductHunt'
+  ph: 'ProductHunt',
+  labs: 'Official Labs'
 };
 
 const platformAbbreviations: Record<string, string> = {
@@ -288,7 +290,8 @@ const platformAbbreviations: Record<string, string> = {
   youtube: 'YT',
   reddit: 'RD',
   hn: 'HN',
-  ph: 'PH'
+  ph: 'PH',
+  labs: 'LB'
 };
 
 const platformBarColors: Record<string, string> = {
@@ -298,7 +301,8 @@ const platformBarColors: Record<string, string> = {
   youtube: 'bg-red-600',
   reddit: 'bg-orange-500',
   hn: 'bg-orange-400',
-  ph: 'bg-orange-600'
+  ph: 'bg-orange-600',
+  labs: 'bg-indigo-500'
 };
 
 // 📝 极简 Markdown 渲染逻辑
