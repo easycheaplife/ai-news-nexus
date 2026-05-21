@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, cast, String
 from typing import List, Optional
 from datetime import datetime
 from app.db.session import get_db
@@ -78,17 +78,13 @@ def read_news(
         db_query = db_query.filter(NewsItem.score >= min_score)
 
     if query:
-        if query.startswith('@') and len(query) > 1:
-            author_handle = query[1:]
-            db_query = db_query.filter(
-                (NewsItem.title.ilike(f"%{query}%")) | 
-                (NewsItem.content.ilike(f"%{query}%")) |
-                (func.json_extract(NewsItem.metadata_json, "$.author").ilike(f"%{author_handle}%"))
-            )
-        else:
-            db_query = db_query.filter(
-                (NewsItem.title.ilike(f"%{query}%")) | 
-                (NewsItem.content.ilike(f"%{query}%"))
-            )
+        # If the user searches "@Handle", strip the "@" for the metadata search but keep it for title/content
+        clean_query = query[1:] if query.startswith('@') and len(query) > 1 else query
+        
+        db_query = db_query.filter(
+            (NewsItem.title.ilike(f"%{query}%")) | 
+            (NewsItem.content.ilike(f"%{query}%")) |
+            (cast(NewsItem.metadata_json, String).ilike(f"%{clean_query}%"))
+        )
     
     return db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
