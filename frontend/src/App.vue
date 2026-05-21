@@ -229,25 +229,23 @@ const handleSearch = () => {
   searchTimeout = setTimeout(() => fetchNews(false), 500);
 };
 
-// 📈 提取今日热点关键词 (优先从后端 Insight 获取)
-const hotTopics = computed(() => {
-  if (latestInsight.value?.hot_topics) {
-    return latestInsight.value.hot_topics;
+// 📈 提取核心议题 Narratives (优先从共振聚类获取)
+const coreNarratives = computed(() => {
+  if (trendingClusters.value && trendingClusters.value.length > 0) {
+    return trendingClusters.value.map(c => ({
+      id: c.id,
+      title: c.title,
+      type: 'cluster'
+    })).slice(0, 4);
   }
-  const words: Record<string, number> = {};
-  const currentItems = news.value.slice(0, 30);
-  currentItems.forEach(item => {
-    const matches = item.title.match(/[A-Z]{2,}|AI|GPT|LLM|Sora|Gemini|Claude|DeepSeek/g);
-    if (matches) {
-      matches.forEach((w: string) => {
-        words[w] = (words[w] || 0) + 1;
-      });
-    }
-  });
-  return Object.entries(words)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 6)
-    .map(entry => entry[0]);
+  
+  // 降级：如果没聚类，使用提取的热词
+  const topics = latestInsight.value?.hot_topics || [];
+  return topics.slice(0, 6).map((t: string) => ({
+    id: null,
+    title: t,
+    type: 'keyword'
+  }));
 });
 
 // 📊 计算各平台分布 (优先使用存档数据)
@@ -534,7 +532,9 @@ const renderMarkdown = (text: string) => {
           </div>
           <div class="flex items-center gap-4">
             <div v-if="!showBriefing" class="flex gap-2">
-              <span v-for="tag in hotTopics.slice(0, 3)" :key="tag" class="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase">#{{ tag }}</span>
+              <span v-for="n in coreNarratives.slice(0, 2)" :key="n.title" class="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase truncate max-w-[150px]">
+                {{ n.type === 'cluster' ? '议题: ' : '#' }}{{ n.title }}
+              </span>
             </div>
             <component :is="showBriefing ? ChevronUp : ChevronDown" class="w-5 h-5 text-text-muted group-hover:text-white" />
           </div>
@@ -550,20 +550,23 @@ const renderMarkdown = (text: string) => {
           leave-to-class="max-h-0 opacity-0"
         >
           <div v-if="showBriefing" class="px-8 pb-10 pt-4 flex flex-col xl:flex-row gap-10 border-t border-white/5 bg-[#1a1a20]/30">
-            <!-- 1. Left Column: Hot Topics (1/4) -->
+            <!-- 1. Left Column: Core Narratives (1/4) -->
             <div class="xl:w-1/4 space-y-6">
               <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span class="w-1 h-1 bg-primary rounded-full"></span>
-                当前热点聚合 Trending Now
+                <span class="w-1 h-1 bg-orange-500 rounded-full"></span>
+                核心议题 · Core Narratives
               </h4>
-              <div class="flex flex-wrap gap-2">
+              <div class="flex flex-col gap-2">
                 <button 
-                  v-for="topic in hotTopics" 
-                  :key="topic"
-                  @click="handleFilterKeyword(topic)"
-                  class="px-3 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-lg text-[11px] font-bold transition-all text-slate-400 hover:text-primary active:scale-95"
+                  v-for="n in coreNarratives" 
+                  :key="n.title"
+                  @click="n.type === 'cluster' ? handleFilterCluster(n.id) : handleFilterKeyword(n.title)"
+                  class="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl text-left transition-all active:scale-[0.98] group/n"
                 >
-                  # {{ topic }}
+                  <div class="shrink-0 w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 text-[10px] font-black">
+                    {{ n.type === 'cluster' ? '叙' : '#' }}
+                  </div>
+                  <span class="text-xs font-bold text-slate-400 group-hover/n:text-white truncate">{{ n.title }}</span>
                 </button>
               </div>
             </div>
@@ -583,7 +586,7 @@ const renderMarkdown = (text: string) => {
                 <div v-else class="p-6 rounded-2xl bg-primary/5 border border-primary/10 italic">
                   <p class="text-sm text-primary leading-relaxed">
                     根据今日 {{ news.length }} 条资讯分析，AI 圈主要聚焦于 
-                    <span class="text-white font-bold">{{ hotTopics.slice(0, 2).join(' 和 ') }}</span> 
+                    <span class="text-white font-bold">{{ coreNarratives.map((n: any) => n.title).slice(0, 2).join(' 和 ') }}</span> 
                     相关进展。整体技术密度极高，建议优先关注评分 90+ 的硬核发布。
                   </p>
                 </div>

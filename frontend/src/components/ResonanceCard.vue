@@ -135,16 +135,6 @@ const getPlatformColor = (platform: string) => {
   return 'bg-indigo-500';
 };
 
-const getPlatformTextColor = (platform: string) => {
-  const p = platform?.toLowerCase() || '';
-  if (p.includes('github')) return 'text-gray-800 dark:text-gray-300';
-  if (p.includes('twitter')) return 'text-blue-400';
-  if (p.includes('reddit')) return 'text-orange-500';
-  if (p.includes('arxiv')) return 'text-red-700';
-  if (p.includes('hn')) return 'text-orange-400';
-  return 'text-indigo-500';
-};
-
 const getPlatformIcon = (platform: string) => {
   const p = platform?.toLowerCase() || '';
   if (p.includes('github')) return '🐙';
