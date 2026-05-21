@@ -14,9 +14,10 @@ import axios from 'axios';
 
 const props = defineProps<{
   apiUrl: string;
+  isOpen?: boolean;
 }>();
 
-const emit = defineEmits(['filter-author', 'filter-keyword']);
+const emit = defineEmits(['filter-author', 'filter-keyword', 'close']);
 
 const targets = ref<any[]>([]);
 const discoveryItems = ref<any[]>([]);
@@ -73,7 +74,15 @@ const getStatusColor = (status: string) => {
 </script>
 
 <template>
-  <aside class="w-72 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-88px)] fixed lg:sticky top-[140px] lg:top-[88px] z-50 border-r border-white/5 bg-[#0a0a0c] lg:bg-[#0a0a0c]/50 backdrop-blur-xl overflow-y-auto no-scrollbar py-6 px-4 gap-8">
+  <aside 
+    class="flex flex-col overflow-y-auto no-scrollbar gap-8 fixed bottom-0 left-0 w-full max-h-[85vh] bg-[#1a1a20] z-[60] rounded-t-[2.5rem] p-6 pb-12 shadow-[0_-10px_50px_rgba(0,0,0,0.5)] border-t border-white/10 transition-transform duration-500 ease-[cubic-bezier(0.2,0.8,0.2,1)] lg:relative lg:bottom-auto lg:left-auto lg:w-72 lg:max-h-none lg:h-[calc(100vh-88px)] lg:sticky lg:top-[88px] lg:bg-[#0a0a0c]/50 lg:backdrop-blur-xl lg:rounded-none lg:p-4 lg:pt-6 lg:border-t-0 lg:border-r lg:border-white/5 lg:shadow-none lg:z-auto"
+    :class="isOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'"
+  >
+    <!-- Mobile Drag Handle -->
+    <div 
+      class="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-2 lg:hidden shrink-0 cursor-pointer hover:bg-white/40 transition-colors"
+      @click="emit('close')"
+    ></div>
     
     <!-- 1. System Pulse (Simplified for now) -->
     <section>

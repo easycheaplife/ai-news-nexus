@@ -355,12 +355,6 @@ const renderMarkdown = (text: string) => {
               <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
             </div>
           </div>
-          
-          <!-- Mobile Menu Button -->
-          <button @click="showMobileMenu = !showMobileMenu" class="lg:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors">
-            <Menu v-if="!showMobileMenu" class="w-6 h-6" />
-            <X v-else class="w-6 h-6" />
-          </button>
         </div>
 
         <div class="flex flex-col sm:flex-row flex-1 max-w-3xl w-full items-center gap-3">
@@ -411,20 +405,32 @@ const renderMarkdown = (text: string) => {
 
     <div class="flex max-w-[1800px] mx-auto relative">
       <!-- Mobile Sidebar Overlay -->
-      <div 
-        v-if="showMobileMenu" 
-        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-        @click="closeMobileMenu"
-      ></div>
+      <transition enter-active-class="transition-opacity duration-300" enter-from-class="opacity-0" enter-to-class="opacity-100" leave-active-class="transition-opacity duration-300" leave-from-class="opacity-100" leave-to-class="opacity-0">
+        <div 
+          v-if="showMobileMenu" 
+          class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[55] lg:hidden"
+          @click="closeMobileMenu"
+        ></div>
+      </transition>
 
-      <!-- 📡 Sidebar -->
+      <!-- 📡 Sidebar (Responsive Bottom Sheet on Mobile / Sticky on Desktop) -->
       <Sidebar 
         :apiUrl="apiUrl" 
+        :is-open="showMobileMenu"
         @filter-author="handleFilterAuthor"
         @filter-keyword="handleFilterKeyword"
-        class="absolute lg:relative z-50 lg:z-auto transition-transform duration-300 lg:translate-x-0"
-        :class="showMobileMenu ? 'translate-x-0' : '-translate-x-full'"
+        @close="closeMobileMenu"
       />
+
+      <!-- Mobile Floating Action Button (FAB) -->
+      <button 
+        v-if="!showMobileMenu"
+        @click="showMobileMenu = true"
+        class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-[45] bg-gradient-to-r from-primary to-blue-600 text-white px-6 py-3.5 rounded-full shadow-[0_10px_30px_rgba(37,99,235,0.4)] flex items-center gap-2 font-bold text-sm border border-white/20 active:scale-95 transition-all animate-slide-up"
+      >
+        <Zap class="w-4 h-4" />
+        情报雷达
+      </button>
 
       <!-- 🌌 Main Content -->
       <div class="flex-1 min-w-0">
