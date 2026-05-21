@@ -1,59 +1,66 @@
 <template>
-  <div class="resonance-card bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-xl transition-all duration-300">
+  <div class="resonance-card group relative bg-[#131316] hover:bg-[#18181c] rounded-[2rem] border border-white/5 hover:border-primary/30 transition-all duration-500 overflow-hidden shadow-2xl shadow-primary/5">
+    <!-- Top Progress Bar Decoration -->
+    <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500/50 to-primary/50 opacity-30 group-hover:opacity-100 transition-opacity"></div>
+    
     <!-- Header with Source Badges -->
-    <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex -space-x-2">
+    <div class="p-6 pb-4">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex -space-x-3">
           <!-- Render icons based on platforms involved in this cluster -->
           <div v-for="platform in uniquePlatforms" :key="platform" 
-               class="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800 shadow-sm z-10"
+               class="w-9 h-9 rounded-full flex items-center justify-center border-2 border-[#131316] shadow-2xl z-10 transition-transform group-hover:translate-x-1"
                :class="getPlatformColor(platform)">
-            <span class="text-xs font-bold text-white">{{ getPlatformIcon(platform) }}</span>
+            <span class="text-sm font-bold text-white">{{ getPlatformIcon(platform) }}</span>
           </div>
           <div v-if="cluster.news_items.length > uniquePlatforms.length" 
-               class="w-8 h-8 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-800 bg-gray-200 dark:bg-gray-600 text-xs font-bold text-gray-600 dark:text-gray-300 shadow-sm z-10">
+               class="w-9 h-9 rounded-full flex items-center justify-center border-2 border-[#131316] bg-slate-800 text-[10px] font-black text-slate-400 shadow-2xl z-10">
             +{{ cluster.news_items.length - uniquePlatforms.length }}
           </div>
         </div>
-        <div class="text-sm font-semibold text-orange-500 bg-orange-50 dark:bg-orange-900/30 px-3 py-1 rounded-full flex items-center gap-1">
-          <span>🔥</span> Resonance {{ cluster.resonance_score }}
+        
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20">
+          <span class="text-orange-500">🔥</span>
+          <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">Resonance {{ cluster.resonance_score }}</span>
         </div>
       </div>
-      <h3 class="text-xl font-bold text-gray-900 dark:text-white leading-tight mt-3">
+
+      <h3 class="text-xl font-bold text-white leading-tight tracking-tight group-hover:text-primary transition-colors">
         {{ cluster.title }}
       </h3>
-      <p class="text-gray-600 dark:text-gray-300 text-sm mt-2 line-clamp-2">
+      <p class="text-slate-400 text-sm mt-3 line-clamp-2 leading-relaxed opacity-80">
         {{ cluster.summary }}
       </p>
     </div>
 
-    <!-- Perspective View -->
-    <div class="p-4 bg-[#1a1a20]/30">
-      <div class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
-        <div class="w-1 h-1 bg-orange-500 rounded-full"></div>
-        互证视角 Perspectives
+    <!-- Perspective View (Darker Inset) -->
+    <div class="p-5 bg-black/20 mt-2">
+      <div class="text-[9px] font-black text-text-muted uppercase tracking-[0.2em] mb-4 flex items-center gap-2 opacity-50">
+        <div class="w-1.5 h-1.5 bg-orange-500 rounded-full shadow-[0_0_8px_rgba(249,115,22,0.5)]"></div>
+        跨源视角 Perspectives
       </div>
+      
       <div class="space-y-2">
         <div 
           v-for="item in previewItems" 
           :key="item.id" 
           @click="item.news?.url && window.open(item.news.url, '_blank')"
-          class="flex gap-4 items-start group cursor-pointer p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all"
+          class="flex gap-4 items-start group/item cursor-pointer p-3 rounded-2xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all"
         >
-          <div class="mt-1 flex-shrink-0" :class="getPlatformTextColor(item.platform_role)">
+          <div class="mt-1 flex-shrink-0 w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center border border-white/5 group-hover/item:border-primary/30 transition-all">
             <span class="text-sm">{{ getPlatformIcon(item.platform_role) }}</span>
           </div>
           <div class="flex-1 min-w-0">
-            <h4 class="text-xs font-bold text-slate-200 truncate group-hover:text-primary transition-colors">
+            <h4 class="text-xs font-bold text-slate-200 truncate group-hover/item:text-primary transition-colors">
               {{ item.news?.title || 'Unknown Source' }}
             </h4>
-            <p class="text-[10px] text-text-muted line-clamp-1 mt-1 opacity-60">
-              {{ item.news?.reason || (item.news?.content ? item.news.content.substring(0, 80) : 'Click to read more...') }}
+            <p class="text-[10px] text-text-muted line-clamp-1 mt-1 opacity-60 italic">
+              {{ item.news?.reason || (item.news?.content ? item.news.content.substring(0, 80) : '点击阅读详情...') }}
             </p>
           </div>
-          <div class="flex-shrink-0">
-             <div class="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary transition-all">
-               <span class="text-[10px]">↗</span>
+          <div class="flex-shrink-0 opacity-0 group-hover/item:opacity-100 transition-all translate-x-2 group-hover/item:translate-x-0">
+             <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+               <span class="text-xs">↗</span>
              </div>
           </div>
         </div>
@@ -62,8 +69,9 @@
       <!-- Expand Button -->
       <button v-if="cluster.news_items.length > 3" 
               @click="emit('filter-cluster', cluster.id)"
-              class="w-full mt-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl transition-all active:scale-95">
-        查看全部 {{ cluster.news_items.length }} 个来源
+              class="w-full mt-5 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2 group/btn">
+        查看全部 {{ cluster.news_items.length }} 个共振来源
+        <span class="group-hover/btn:translate-x-1 transition-transform">→</span>
       </button>
     </div>
   </div>
