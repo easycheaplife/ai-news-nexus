@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime
 from app.db.session import get_db
@@ -62,7 +63,6 @@ def read_news(
     
     if author:
         # 在 metadata_json JSON 字段中搜索作者名 (兼容 MySQL JSON 处理)
-        from sqlalchemy import func
         db_query = db_query.filter(func.json_extract(NewsItem.metadata_json, "$.author") == author)
 
     if start_date:
@@ -78,9 +78,17 @@ def read_news(
         db_query = db_query.filter(NewsItem.score >= min_score)
 
     if query:
-        db_query = db_query.filter(
-            (NewsItem.title.ilike(f"%{query}%")) | 
-            (NewsItem.content.ilike(f"%{query}%"))
-        )
+        if query.startswith('@') and len(query) > 1:
+            author_handle = query[1:]
+            db_query = db_query.filter(
+                (NewsItem.title.ilike(f"%{query}%")) | 
+                (NewsItem.content.ilike(f"%{query}%")) |
+                (func.json_extract(NewsItem.metadata_json, "$.author").ilike(f"%{author_handle}%"))
+            )
+        else:
+            db_query = db_query.filter(
+                (NewsItem.title.ilike(f"%{query}%")) | 
+                (NewsItem.content.ilike(f"%{query}%"))
+            )
     
     return db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
