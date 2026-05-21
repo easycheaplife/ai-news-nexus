@@ -86,6 +86,7 @@ const loadingMore = ref(false);
 const filters = ref({
   platform: '',
   query: '',
+  cluster_id: '',
   limit: 100,
   skip: 0
 });
@@ -117,6 +118,7 @@ const fetchNews = async (isLoadMore = false) => {
     const params = {
       platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
+      cluster_id: filters.value.cluster_id || undefined,
       limit: filters.value.limit,
       skip: filters.value.skip
     };
@@ -162,15 +164,31 @@ const loadMore = () => {
 // 🎯 处理侧边栏过滤
 const handleFilterAuthor = (author: string) => {
   filters.value.platform = ''; // 清除平台过滤，因为 KOL 跨平台
+  filters.value.cluster_id = '';
   filters.value.query = `@${author}`;
   fetchNews(false);
   closeMobileMenu();
 };
 
 const handleFilterKeyword = (keyword: string) => {
+  filters.value.cluster_id = '';
   filters.value.query = keyword;
   fetchNews(false);
   closeMobileMenu();
+};
+
+const handleFilterCluster = (clusterId: string) => {
+  filters.value.platform = '';
+  filters.value.query = '';
+  filters.value.cluster_id = clusterId;
+  fetchNews(false);
+};
+
+const clearFilters = () => {
+  filters.value.platform = '';
+  filters.value.query = '';
+  filters.value.cluster_id = '';
+  fetchNews(false);
 };
 
 // 按日期分组
@@ -609,7 +627,7 @@ const renderMarkdown = (text: string) => {
         <main class="px-4 md:px-8 py-10 md:py-16">
           
       <!-- 🪐 Cross-Source Resonance Clusters -->
-      <div v-if="trendingClusters.length > 0 && !filters.query && !filters.platform" class="mb-16">
+      <div v-if="trendingClusters.length > 0 && !filters.query && !filters.platform && !filters.cluster_id" class="mb-16">
         <div class="flex items-center gap-4 mb-8">
           <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-3">
             <span class="w-1.5 h-6 bg-orange-500 rounded-full"></span>
@@ -624,8 +642,31 @@ const renderMarkdown = (text: string) => {
             v-for="cluster in trendingClusters" 
             :key="cluster.id" 
             :cluster="cluster" 
+            @filter-cluster="handleFilterCluster"
           />
         </div>
+      </div>
+
+      <!-- 🔍 Active Filter Badge -->
+      <div v-if="filters.cluster_id || filters.query || filters.platform" class="mb-8 flex items-center justify-between bg-primary/5 border border-primary/20 p-4 rounded-2xl">
+        <div class="flex items-center gap-3">
+          <div class="p-2 rounded-xl bg-primary/10 text-primary">
+            <Search class="w-4 h-4" />
+          </div>
+          <div>
+            <span class="text-xs font-bold text-text-muted uppercase tracking-widest block mb-0.5">正在筛选</span>
+            <span class="text-sm font-black text-white">
+              {{ filters.cluster_id ? '话题聚合模式' : (filters.query || filters.platform || '全部来源') }}
+            </span>
+          </div>
+        </div>
+        <button 
+          @click="clearFilters"
+          class="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold text-white transition-all active:scale-95"
+        >
+          <X class="w-3.5 h-3.5" />
+          清除筛选
+        </button>
       </div>
 
       <!-- 1. Loading State (Initial) -->

@@ -28,31 +28,42 @@
     </div>
 
     <!-- Perspective View -->
-    <div class="p-4 bg-white dark:bg-gray-800">
-      <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Perspectives</div>
-      <div class="space-y-3">
-        <div v-for="item in previewItems" :key="item.id" class="flex gap-3 items-start group cursor-pointer p-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+    <div class="p-4 bg-[#1a1a20]/30">
+      <div class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
+        <div class="w-1 h-1 bg-orange-500 rounded-full"></div>
+        互证视角 Perspectives
+      </div>
+      <div class="space-y-2">
+        <div 
+          v-for="item in previewItems" 
+          :key="item.id" 
+          @click="item.news?.url && window.open(item.news.url, '_blank')"
+          class="flex gap-4 items-start group cursor-pointer p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/5 transition-all"
+        >
           <div class="mt-1 flex-shrink-0" :class="getPlatformTextColor(item.platform_role)">
-            {{ getPlatformIcon(item.platform_role) }}
+            <span class="text-sm">{{ getPlatformIcon(item.platform_role) }}</span>
           </div>
           <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-medium text-gray-900 dark:text-gray-100 truncate group-hover:text-blue-600 transition-colors">
+            <h4 class="text-xs font-bold text-slate-200 truncate group-hover:text-primary transition-colors">
               {{ item.news?.title || 'Unknown Source' }}
             </h4>
-            <p class="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-0.5">
-              {{ item.news?.reason || item.news?.content?.substring(0, 80) || 'Click to read more...' }}
+            <p class="text-[10px] text-text-muted line-clamp-1 mt-1 opacity-60">
+              {{ item.news?.reason || (item.news?.content ? item.news.content.substring(0, 80) : 'Click to read more...') }}
             </p>
           </div>
-          <div class="flex-shrink-0 text-xs text-gray-400">
-             <a :href="item.news?.url" target="_blank" class="hover:text-blue-500" @click.stop>↗</a>
+          <div class="flex-shrink-0">
+             <div class="w-6 h-6 rounded-lg bg-white/5 flex items-center justify-center group-hover:bg-primary/20 group-hover:text-primary transition-all">
+               <span class="text-[10px]">↗</span>
+             </div>
           </div>
         </div>
       </div>
       
       <!-- Expand Button -->
       <button v-if="cluster.news_items.length > 3" 
-              class="w-full mt-4 py-2 text-sm font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors">
-        View all {{ cluster.news_items.length }} sources
+              @click="emit('filter-cluster', cluster.id)"
+              class="w-full mt-4 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-white bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl transition-all active:scale-95">
+        查看全部 {{ cluster.news_items.length }} 个来源
       </button>
     </div>
   </div>
@@ -87,6 +98,10 @@ interface TopicCluster {
 const props = defineProps<{
   cluster: TopicCluster
 }>();
+
+const emit = defineEmits(['filter-cluster']);
+
+const window = (globalThis as any).window;
 
 // Extract unique platforms for badges
 const uniquePlatforms = computed<string[]>(() => {
