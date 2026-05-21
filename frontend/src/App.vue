@@ -338,74 +338,128 @@ const renderMarkdown = (text: string) => {
     </transition>
 
     <!-- Header / Navigation -->
-    <header class="sticky top-0 z-50 bg-[#0a0a0c]/90 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
-      <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
-        <div class="w-full lg:w-auto flex justify-between items-center">
-          <div class="flex items-center gap-4 group cursor-pointer" @click.stop="() => fetchNews(false)">
-            <div class="relative hidden sm:block">
-              <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
-              <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
-                <Zap class="w-6 h-6 text-white" />
+    <header class="sticky top-0 z-50 bg-[#0a0a0c]/90 backdrop-blur-xl border-b border-white/5 py-3 px-4 md:px-8">
+      <div class="max-w-[1800px] mx-auto flex flex-col gap-3">
+        <!-- Top Row: Mobile Menu + Logo + Mobile Refresh -->
+        <div class="flex justify-between items-center w-full">
+          <!-- Left side: Hamburger & Logo -->
+          <div class="flex items-center gap-3">
+            <!-- Mobile Menu Button (Hamburger) -->
+            <button 
+              type="button" 
+              @click.stop="showMobileMenu = true" 
+              class="lg:hidden p-2 -ml-2 text-text-muted hover:text-white active:scale-95 transition-all flex items-center gap-2"
+              title="打开侧边栏"
+            >
+              <Menu class="w-6 h-6" />
+            </button>
+            
+            <div class="flex items-center gap-3 group cursor-pointer" @click.stop="() => fetchNews(false)">
+              <div class="relative hidden sm:block">
+                <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
+                <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
+                  <Zap class="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white leading-none">
+                  AI NEWS <span class="text-primary">NEXUS</span>
+                </h1>
+                <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50 hidden md:block">Global Intelligence Hub</p>
               </div>
             </div>
-            <div>
-              <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white">
-                AI NEWS <span class="text-primary">NEXUS</span>
-              </h1>
-              <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
+          </div>
+
+          <!-- Desktop Navigation / Mobile Refresh -->
+          <div class="flex items-center gap-3">
+            <!-- Mobile Only: Refresh Button on top right -->
+            <button 
+              type="button"
+              @click.stop="() => fetchNews(false)"
+              class="lg:hidden p-2 text-text-muted hover:text-primary active:scale-95 transition-all"
+              title="刷新数据"
+            >
+              <RefreshCw class="w-5 h-5" :class="{ 'animate-spin': loading }" />
+            </button>
+
+            <!-- Desktop Only: Search, Filter, Refresh -->
+            <div class="hidden lg:flex items-center gap-3 flex-1 max-w-3xl">
+              <!-- Search Bar -->
+              <div class="relative flex-1 w-full min-w-[200px] group">
+                <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary transition-colors" />
+                <input 
+                  v-model="filters.query"
+                  @input="handleSearch"
+                  type="text" 
+                  placeholder="搜索全球 AI 资讯..." 
+                  class="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-11 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/40"
+                >
+                <button 
+                  v-if="filters.query"
+                  type="button"
+                  @click.stop="filters.query = ''; handleSearch()"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-white transition-colors"
+                >
+                  <X class="w-4 h-4" />
+                </button>
+              </div>
+              
+              <!-- Platform Filter -->
+              <div class="relative shrink-0">
+                <select 
+                  v-model="filters.platform"
+                  class="appearance-none bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
+                >
+                  <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
+                    {{ p.label }}
+                  </option>
+                </select>
+                <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+              </div>
+
+              <button 
+                type="button"
+                @click.stop="() => fetchNews(false)"
+                class="p-2.5 shrink-0 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
+                title="刷新数据"
+              >
+                <RefreshCw class="w-4 h-4" :class="{ 'animate-spin': loading }" />
+              </button>
             </div>
           </div>
-          
-          <!-- Mobile Menu Button -->
-          <button type="button" @click.stop="showMobileMenu = !showMobileMenu" class="lg:hidden p-2.5 text-white bg-white/5 border border-white/10 hover:bg-white/10 rounded-xl transition-colors">
-            <Menu v-if="!showMobileMenu" class="w-5 h-5" />
-            <X v-else class="w-5 h-5" />
-          </button>
         </div>
 
-        <div class="flex flex-col sm:flex-row w-full lg:flex-1 max-w-3xl items-center gap-3">
-          <!-- Search Bar -->
-          <div class="relative flex-1 w-full min-w-0 group">
-            <Search class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-primary transition-colors" />
+        <!-- Bottom Row: Search & Filters (Mobile Only) -->
+        <div class="flex lg:hidden items-center gap-2 w-full mt-1">
+          <div class="relative flex-1 group">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <input 
               v-model="filters.query"
               @input="handleSearch"
               type="text" 
-              placeholder="搜索全球 AI 资讯..." 
-              class="w-full bg-white/5 border border-white/10 rounded-2xl py-3 pl-11 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all placeholder:text-text-muted/40"
+              placeholder="搜索资讯..." 
+              class="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-8 text-sm focus:outline-none focus:ring-1 focus:ring-primary/50 text-white"
             >
             <button 
               v-if="filters.query"
               type="button"
               @click.stop="filters.query = ''; handleSearch()"
-              class="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-white transition-colors"
+              class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted"
             >
-              <X class="w-4 h-4" />
+              <X class="w-3 h-3" />
             </button>
           </div>
           
-          <!-- Platform Filter -->
-          <div class="flex w-full sm:w-auto shrink-0 items-center gap-2">
-            <div class="relative flex-1 sm:flex-none">
-              <select 
-                v-model="filters.platform"
-                class="w-full sm:w-auto appearance-none bg-white/5 border border-white/10 rounded-2xl py-3 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
-              >
-                <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
-                  {{ p.label }}
-                </option>
-              </select>
-              <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-            </div>
-
-            <button 
-              type="button"
-              @click.stop="() => fetchNews(false)"
-              class="p-3 shrink-0 rounded-2xl bg-white/5 hover:bg-white/10 transition-all border border-white/10 text-text-muted hover:text-primary active:scale-95"
-              title="刷新数据"
+          <div class="relative shrink-0 w-[110px]">
+            <select 
+              v-model="filters.platform"
+              class="w-full appearance-none bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-sm font-bold text-text-muted focus:outline-none focus:ring-1 focus:ring-primary/50"
             >
-              <RefreshCw class="w-5 h-5 sm:w-4 sm:h-4" :class="{ 'animate-spin': loading }" />
-            </button>
+              <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
+                {{ p.label }}
+              </option>
+            </select>
+            <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-text-muted pointer-events-none" />
           </div>
         </div>
       </div>
