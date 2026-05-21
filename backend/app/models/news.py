@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, JSON, Text, UniqueConstraint, Date, Enum, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, JSON, Text, UniqueConstraint, Date, Enum, Boolean, ForeignKey
 import enum
 from sqlalchemy.ext.declarative import declarative_base
 from datetime import datetime
@@ -91,4 +91,26 @@ class ScrapingTarget(Base):
 
     __table_args__ = (
         UniqueConstraint('platform', 'handle', name='_platform_handle_uc'),
+    )
+
+class TopicCluster(Base):
+    __tablename__ = "topic_clusters"
+
+    id = Column(String(36), primary_key=True, index=True) # UUID string
+    title = Column(String(500), nullable=False)
+    summary = Column(Text)
+    resonance_score = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class ClusterNewsMapping(Base):
+    __tablename__ = "cluster_news_mapping"
+
+    id = Column(Integer, primary_key=True, index=True)
+    cluster_id = Column(String(36), ForeignKey('topic_clusters.id', ondelete="CASCADE"), index=True, nullable=False)
+    news_id = Column(Integer, ForeignKey('news_items.id', ondelete="CASCADE"), index=True, nullable=False)
+    platform_role = Column(String(50)) # e.g., 'origin_repo', 'paper', 'discussion'
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    __table_args__ = (
+        UniqueConstraint('cluster_id', 'news_id', name='_cluster_news_uc'),
     )

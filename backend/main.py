@@ -6,6 +6,7 @@ from app.api.v1.insights import router as insights_router
 from app.api.v1.discovery import router as discovery_router
 from app.api.v1.targets import router as targets_router
 from app.api.v1.media import router as media_router
+from app.api.v1.clusters import router as clusters_router
 from app.core.config import settings
 from app.db.session import engine
 from app.models.news import Base
@@ -28,6 +29,7 @@ app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(discovery_router, prefix="/discovery", tags=["discovery"])
 app.include_router(targets_router, prefix="/targets", tags=["targets"])
 app.include_router(media_router, prefix="/media", tags=["media"])
+app.include_router(clusters_router, prefix="/clusters", tags=["clusters"])
 
 # 挂载静态文件分发目录 (/f 开头)
 app.mount("/f", StaticFiles(directory="data/media"), name="media")
