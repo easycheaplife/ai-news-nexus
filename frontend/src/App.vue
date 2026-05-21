@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue';
 import axios from 'axios';
-import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X } from 'lucide-vue-next';
+import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X, Menu } from 'lucide-vue-next';
 import NewsCard from './components/NewsCard.vue';
 import Sidebar from './components/Sidebar.vue';
 import ResonanceCard from './components/ResonanceCard.vue';
@@ -159,11 +159,13 @@ const handleFilterAuthor = (author: string) => {
   filters.value.platform = ''; // 清除平台过滤，因为 KOL 跨平台
   filters.value.query = `@${author}`;
   fetchNews(false);
+  closeMobileMenu();
 };
 
 const handleFilterKeyword = (keyword: string) => {
   filters.value.query = keyword;
   fetchNews(false);
+  closeMobileMenu();
 };
 
 // 按日期分组
@@ -336,21 +338,29 @@ const renderMarkdown = (text: string) => {
     </transition>
 
     <!-- Header / Navigation -->
-    <header class="sticky top-0 z-50 bg-[#0a0a0c]/80 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
-      <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-6">
-        <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
-          <div class="relative">
-            <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
-            <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
-              <Zap class="w-6 h-6 text-white" />
+    <header class="sticky top-0 z-50 bg-[#0a0a0c]/90 backdrop-blur-xl border-b border-white/5 py-4 px-4 md:px-8">
+      <div class="max-w-[1800px] mx-auto flex flex-col lg:flex-row justify-between items-center gap-4 lg:gap-6">
+        <div class="w-full lg:w-auto flex justify-between items-center">
+          <div class="flex items-center gap-4 group cursor-pointer" @click="() => fetchNews(false)">
+            <div class="relative">
+              <div class="absolute inset-0 bg-primary/20 blur-xl group-hover:bg-primary/40 transition-all"></div>
+              <div class="relative bg-gradient-to-br from-primary to-blue-600 p-2.5 rounded-2xl shadow-2xl">
+                <Zap class="w-6 h-6 text-white" />
+              </div>
+            </div>
+            <div>
+              <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white">
+                AI NEWS <span class="text-primary">NEXUS</span>
+              </h1>
+              <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
             </div>
           </div>
-          <div>
-            <h1 class="text-xl md:text-2xl font-black tracking-tighter text-white">
-              AI NEWS <span class="text-primary">NEXUS</span>
-            </h1>
-            <p class="text-[10px] text-text-muted font-bold tracking-[0.2em] uppercase opacity-50">Global Intelligence Hub</p>
-          </div>
+          
+          <!-- Mobile Menu Button -->
+          <button @click="showMobileMenu = !showMobileMenu" class="lg:hidden p-2 text-white hover:bg-white/10 rounded-lg transition-colors">
+            <Menu v-if="!showMobileMenu" class="w-6 h-6" />
+            <X v-else class="w-6 h-6" />
+          </button>
         </div>
 
         <div class="flex flex-col sm:flex-row flex-1 max-w-3xl w-full items-center gap-3">
@@ -399,12 +409,21 @@ const renderMarkdown = (text: string) => {
       </div>
     </header>
 
-    <div class="flex max-w-[1800px] mx-auto">
+    <div class="flex max-w-[1800px] mx-auto relative">
+      <!-- Mobile Sidebar Overlay -->
+      <div 
+        v-if="showMobileMenu" 
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+        @click="closeMobileMenu"
+      ></div>
+
       <!-- 📡 Sidebar -->
       <Sidebar 
         :apiUrl="apiUrl" 
         @filter-author="handleFilterAuthor"
         @filter-keyword="handleFilterKeyword"
+        class="absolute lg:relative z-50 lg:z-auto transition-transform duration-300 lg:translate-x-0"
+        :class="showMobileMenu ? 'translate-x-0' : '-translate-x-full'"
       />
 
       <!-- 🌌 Main Content -->
@@ -653,6 +672,12 @@ const renderMarkdown = (text: string) => {
 }
 .prose strong {
   color: #60a5fa;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+</style>
+60a5fa;
   background: rgba(37, 99, 235, 0.1);
   padding: 0 4px;
   border-radius: 4px;

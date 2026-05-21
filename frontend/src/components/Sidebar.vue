@@ -73,7 +73,7 @@ const getStatusColor = (status: string) => {
 </script>
 
 <template>
-  <aside class="w-72 hidden lg:flex flex-col h-[calc(100vh-88px)] sticky top-[88px] border-r border-white/5 bg-[#0a0a0c]/50 backdrop-blur-xl overflow-y-auto no-scrollbar py-6 px-4 gap-8">
+  <aside class="w-72 flex flex-col h-[calc(100vh-140px)] lg:h-[calc(100vh-88px)] fixed lg:sticky top-[140px] lg:top-[88px] z-50 border-r border-white/5 bg-[#0a0a0c] lg:bg-[#0a0a0c]/50 backdrop-blur-xl overflow-y-auto no-scrollbar py-6 px-4 gap-8">
     
     <!-- 1. System Pulse (Simplified for now) -->
     <section>
