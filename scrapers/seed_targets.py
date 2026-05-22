@@ -38,6 +38,20 @@ TWITTER_KOLS = [
     ("p_george", "George Hotz, Comma.ai / tinygrad")
 ]
 
+GITHUB_TARGETS = [
+    ("huggingface", "Home of open-source AI models"),
+    ("microsoft", "Major AI research and tools (phi, olive, etc.)"),
+    ("google", "Google's open-source projects"),
+    ("meta-llama", "Official Llama model repository"),
+    ("langchain-ai", "LLM orchestration framework"),
+    ("openai", "OpenAI open-source repositories"),
+    ("anthropics", "Anthropic's open-source contributions"),
+    ("deepseek-ai", "DeepSeek-V2 and other open-source models"),
+    ("comfyanonymous", "ComfyUI creator"),
+    ("AUTOMATIC1111", "Stable Diffusion WebUI"),
+    ("karpathy", "AI education and small implementations")
+]
+
 def seed_twitter_targets():
     logger.info(f"Seeding Twitter KOLs to {API_URL}...")
     for handle, desc in TWITTER_KOLS:
@@ -51,11 +65,31 @@ def seed_twitter_targets():
         try:
             res = requests.post(f"{API_URL}/targets/", json=payload, timeout=5)
             if res.status_code == 200:
-                logger.info(f"✅ Target added: @{handle}")
+                logger.info(f"✅ Twitter target added: @{handle}")
             else:
                 logger.error(f"❌ Failed to add @{handle}: {res.text}")
         except Exception as e:
             logger.error(f"Error seeding @{handle}: {e}")
 
+def seed_github_targets():
+    logger.info(f"Seeding GitHub Targets to {API_URL}...")
+    for handle, desc in GITHUB_TARGETS:
+        payload = {
+            "platform": "github",
+            "handle": handle,
+            "name": handle,
+            "description": desc,
+            "is_active": True
+        }
+        try:
+            res = requests.post(f"{API_URL}/targets/", json=payload, timeout=5)
+            if res.status_code == 200:
+                logger.info(f"✅ GitHub target added: {handle}")
+            else:
+                logger.error(f"❌ Failed to add {handle}: {res.text}")
+        except Exception as e:
+            logger.error(f"Error seeding {handle}: {e}")
+
 if __name__ == "__main__":
     seed_twitter_targets()
+    seed_github_targets()

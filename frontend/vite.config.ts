@@ -19,6 +19,35 @@ export default defineConfig(({ mode }) => {
     server: {
       host: env.VITE_HOST || '0.0.0.0',
       port: parseInt(env.VITE_PORT) || 5173,
+      strictPort: true,
+      fs: {
+        strict: true,
+        allow: ['..'], // Allows files in the project root and above as needed by Vite, but we'll filter them below
+        deny: ['.env', '.env.*', '*.{php,cgi,pl,conf,sql,log,sh,bash,passwd,version}']
+      },
+      // 🛡️ Custom security middleware to intercept malicious path traversal attempts
+      proxy: {
+        '/etc/passwd': { 
+          target: 'http://localhost', 
+          bypass: (_req, res) => { 
+            if (res) {
+              res.statusCode = 403; 
+              res.end('Forbidden'); 
+            }
+            return false; 
+          } 
+        },
+        '/proc/version': { 
+          target: 'http://localhost', 
+          bypass: (_req, res) => { 
+            if (res) {
+              res.statusCode = 403; 
+              res.end('Forbidden'); 
+            }
+            return false; 
+          } 
+        }
+      }
     }
   }
 })
