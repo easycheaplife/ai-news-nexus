@@ -20,12 +20,7 @@ class ClusteringEngine:
         
         try:
             # 1. Fetch recent news items (e.g., last 100 items with good scores)
-            # Assuming backend /news/ endpoint supports limit and ordering by date
-            response = requests.get(f"{self.api_url}/api/v1/news/", params={"limit": 100}, timeout=15)
-            
-            # fallback if api is at root or different path
-            if response.status_code == 404:
-                response = requests.get(f"{self.api_url}/news/", params={"limit": 100}, timeout=15)
+            response = requests.get(f"{self.api_url}/news/", params={"limit": 100}, timeout=15)
                 
             if response.status_code != 200:
                 logger.error(f"Failed to fetch news: {response.text}")
@@ -101,19 +96,16 @@ class ClusteringEngine:
 
             # 4. Save clusters to backend
             save_res = requests.post(
-                f"{self.api_url}/api/v1/clusters/batch", 
+                f"{self.api_url}/clusters/batch", 
                 json={"clusters": clusters},
                 timeout=15
             )
-            
-            # fallback path
-            if save_res.status_code == 404:
-                save_res = requests.post(f"{self.api_url}/clusters/batch", json={"clusters": clusters}, timeout=15)
 
             if save_res.status_code in (200, 201):
                 logger.info("✅ Clusters successfully saved to backend!")
             else:
                 logger.error(f"Failed to save clusters: {save_res.text}")
+
 
         except Exception as e:
             logger.error(f"Error during clustering phase: {e}")

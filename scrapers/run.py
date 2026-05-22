@@ -18,6 +18,7 @@ from scrapers.engines.labs import LabsScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
+from scrapers.utils.clustering import ClusteringEngine
 
 # 加载 .env 文件
 load_dotenv()
@@ -35,6 +36,7 @@ def generate_daily_insights(api_url: str):
     try:
         # 1. 获取近期资讯用于分析
         response = requests.get(f"{api_url}/news/", params={"limit": 200})
+            
         if response.status_code != 200:
             logging.error(f"❌ Failed to fetch news for analysis: {response.text}")
             return
@@ -44,7 +46,7 @@ def generate_daily_insights(api_url: str):
             logging.warning("⚠️ No news found to analyze.")
             return
         
-        # 2. 按 cluster_id 聚合
+        # 2. 按 cluster_id 聚合 (由之前的 ClusteringEngine 生成)
         clusters = {}
         platform_counts = {}
         for item in all_news:
@@ -55,6 +57,7 @@ def generate_daily_insights(api_url: str):
             cid = item.get('cluster_id')
             if not cid: continue
             
+            # 使用 cluster_id 作为键，聚合信息
             if cid not in clusters:
                 clusters[cid] = {"cluster_id": cid, "count": 0, "reasons": []}
             
@@ -65,6 +68,10 @@ def generate_daily_insights(api_url: str):
         # 3. 排序并取前 10 个热点
         sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
         
+        if not sorted_clusters:
+            logging.warning("⚠️ No topic clusters found to summarize.")
+            return
+
         # 4. 调用 AI 生成简报
         briefing_content = evaluator.summarize_clusters(sorted_clusters)
         
@@ -78,7 +85,8 @@ def generate_daily_insights(api_url: str):
         }
         
         res = requests.post(f"{api_url}/insights/", json=insight_data)
-        if res.status_code == 200:
+
+        if res.status_code in (200, 201):
             logging.info("✅ Daily Strategic Briefing successfully archived.")
         else:
             logging.error(f"❌ Failed to archive briefing: {res.text}")
@@ -86,9 +94,11 @@ def generate_daily_insights(api_url: str):
     except Exception as e:
         logging.error(f"Error during insight generation: {e}")
 
+
 def run_scrapers(target_platform: str = None, 
                  do_discovery: bool = True,
                  do_scrape: bool = True,
+                 do_clustering: bool = True,
                  do_curation: bool = True,
                  do_insights: bool = True):
     # 获取后端 API 地址
@@ -130,15 +140,22 @@ def run_scrapers(target_platform: str = None,
                 logging.error(f"❌ Error in {engine.platform} engine: {e}")
     else:
         logging.info("⏩ Skipping account scraping phase")
+
+    # 3. 运行语义聚类 (Clustering) - 在抓取完成后
+    if do_clustering and not target_platform:
+        clustering_engine = ClusteringEngine(api_url)
+        clustering_engine.run_clustering()
+    else:
+        logging.info("⏩ Skipping clustering phase")
             
-    # 3. 运行信源质量评价与汰换 (Curation)
+    # 4. 运行信源质量评价与汰换 (Curation)
     if do_curation and not target_platform:
         curator = SourceCurator(api_url)
         curator.run_curation()
     else:
         logging.info("⏩ Skipping curation phase")
         
-    # 4. 抓取结束后自动生成今日 AI 深度洞察
+    # 5. 抓取结束后自动生成今日 AI 深度洞察
     if do_insights and not target_platform:
         generate_daily_insights(api_url)
     else:
@@ -152,12 +169,14 @@ if __name__ == "__main__":
     # 功能开关 (默认不设置，通过后续逻辑判断)
     parser.add_argument("--discovery", action="store_true", help="Run discovery engine")
     parser.add_argument("--scrape", "-s", action="store_true", help="Run scraping engines")
+    parser.add_argument("--clustering", action="store_true", help="Run clustering engine")
     parser.add_argument("--curation", action="store_true", help="Run curation engine")
     parser.add_argument("--insights", action="store_true", help="Run insights generation")
     
     # 禁用特定功能的便捷开关
     parser.add_argument("--no-discovery", action="store_true", help="Explicitly disable discovery engine")
     parser.add_argument("--no-scrape", action="store_true", help="Explicitly disable scraping engines")
+    parser.add_argument("--no-clustering", action="store_true", help="Explicitly disable clustering engine")
     parser.add_argument("--no-curation", action="store_true", help="Explicitly disable curation engine")
     parser.add_argument("--no-insights", action="store_true", help="Explicitly disable insights generation")
 
@@ -168,24 +187,27 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 逻辑判断：如果用户显式指定了任何正向功能参数，则只运行指定的。否则，默认全部开启。
-    any_positive_flag_set = args.discovery or args.scrape or args.curation or args.insights
+    any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights
     
     do_discovery = args.discovery if any_positive_flag_set else True
     do_scrape = args.scrape if any_positive_flag_set else True
+    do_clustering = args.clustering if any_positive_flag_set else True
     do_curation = args.curation if any_positive_flag_set else True
     do_insights = args.insights if any_positive_flag_set else True
 
     # 显式禁用的优先级最高
     if args.no_discovery: do_discovery = False
     if args.no_scrape: do_scrape = False
+    if args.no_clustering: do_clustering = False
     if args.no_curation: do_curation = False
     if args.no_insights: do_insights = False
 
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, do_discovery, do_scrape, do_curation, do_insights)
+            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, do_discovery, do_scrape, do_curation, do_insights)
+        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights)
+
