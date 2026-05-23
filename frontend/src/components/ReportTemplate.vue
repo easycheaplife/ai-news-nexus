@@ -89,7 +89,7 @@ onMounted(fetchReportData);
         <div class="grid grid-cols-3 gap-6 border-t border-slate-100 pt-10">
           <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Intelligence Count</div>
-            <div class="text-3xl font-black text-primary">{{ news.length }}+</div>
+            <div class="text-3xl font-black text-primary">{{ latestInsight?.stats_json?.Total || news.length }}+</div>
             <div class="text-[11px] text-slate-400 font-bold mt-1">Processed globally</div>
           </div>
           <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
