@@ -118,8 +118,9 @@ onMounted(fetchReportData);
       </div>
     </div>
 
-    <!-- Hidden element to signal readiness to Playwright -->
-    <div v-if="ready" id="report-ready" class="hidden"></div>
+    <!-- Hidden element to signal readiness to Playwright (persistent) -->
+    <div id="report-ready" :class="{ 'ready': ready }" class="hidden"></div>
+    <div class="hidden">Debug: Loading: {{ loading }}, Ready: {{ ready }}, News Count: {{ news.length }}</div>
   </div>
 </template>
 
