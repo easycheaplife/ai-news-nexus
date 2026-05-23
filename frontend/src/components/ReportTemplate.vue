@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { Zap, Target, BookOpen, Quote } from 'lucide-vue-next';
+import { Zap, Target, Quote } from 'lucide-vue-next';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 import { marked } from 'marked';
@@ -83,14 +83,6 @@ const fetchReportData = async () => {
   }
 };
 
-const formatDate = (dateStr: string) => {
-  try {
-    return format(new Date(dateStr), 'HH:mm');
-  } catch {
-    return '00:00';
-  }
-};
-
 onMounted(fetchReportData);
 </script>
 
@@ -117,110 +109,23 @@ onMounted(fetchReportData);
         </div>
       </div>
 
-      <!-- Strategic Briefing (New Section) -->
-      <div v-if="latestInsight && latestInsight.content" class="p-10 pb-0">
-        <div class="bg-slate-50 rounded-2xl p-8 border border-slate-100 relative">
-          <div class="absolute top-4 right-6 opacity-10">
-            <Quote class="w-12 h-12" />
+      <!-- Global Intelligence Synthesis (The main body) -->
+      <div v-if="latestInsight && latestInsight.content" class="p-10 pb-12">
+        <div class="bg-white relative">
+          <div class="absolute -top-4 right-0 opacity-10">
+            <Quote class="w-20 h-20" />
           </div>
-          <div class="flex items-center gap-2 mb-4">
-            <Target class="w-4 h-4 text-primary" />
-            <h2 class="text-xs font-black uppercase tracking-widest text-slate-400">今日战略简报 · Strategic Briefing</h2>
+          <div class="flex items-center gap-3 mb-8 border-b border-slate-100 pb-6">
+            <Target class="w-6 h-6 text-primary" />
+            <h2 class="text-lg font-black uppercase tracking-[0.2em] text-slate-800">深度战略综述 · Strategic Synthesis</h2>
           </div>
-          <div class="prose prose-sm prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-strong:text-primary markdown-content text-slate-800" v-html="renderMarkdown(latestInsight.content)">
-          </div>
-        </div>
-      </div>
-
-      <!-- Timeline -->
-      <div class="p-10">
-        <div class="flex items-center gap-2 mb-8">
-          <BookOpen class="w-4 h-4 text-primary" />
-          <h2 class="text-xs font-black uppercase tracking-widest text-slate-400">核心资讯 · Top Intelligence</h2>
-        </div>
-        
-        <div class="relative">
-          <!-- Timeline line -->
-          <div class="absolute left-4 top-0 bottom-0 w-[2px] bg-slate-100"></div>
-
-          <div class="space-y-12">
-            <template v-for="(group, gIdx) in groupedNews" :key="gIdx">
-              <!-- Cluster Group -->
-              <div v-if="group.type === 'cluster'" class="relative pl-12">
-                <!-- Cluster Indicator -->
-                <div class="absolute left-[11px] top-2 w-3 h-3 rounded-full bg-primary ring-4 ring-white z-10 shadow-md"></div>
-                <div class="absolute left-[-2px] top-6 bottom-[-48px] w-1 bg-primary/10 rounded-full"></div>
-                
-                <div class="space-y-6">
-                  <!-- Cluster Header -->
-                  <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-black text-white bg-primary px-2 py-0.5 rounded uppercase tracking-widest">Topic Group</span>
-                    <h3 class="text-lg font-black text-slate-900 tracking-tight">{{ group.title }}</h3>
-                  </div>
-
-                  <!-- Items in Cluster -->
-                  <div class="space-y-8">
-                    <div v-for="item in group.items" :key="item.id" class="space-y-3">
-                      <div class="flex items-center gap-3">
-                        <span class="text-[10px] font-black text-primary/60 border border-primary/20 px-1.5 py-0.5 rounded uppercase tracking-wider">
-                          {{ formatDate(item.published_at) }}
-                        </span>
-                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          {{ item.platform }}
-                        </span>
-                      </div>
-                      
-                      <h4 class="text-base font-bold text-slate-800 leading-snug">
-                        {{ (item.title || '').replace(/^🐙 |^🏛️ |^🐦 |^📄 |^🎥 |^👤 |^🔥 |^💎 /, '') }}
-                      </h4>
-                      
-                      <p class="text-sm text-slate-500 leading-relaxed">
-                        {{ item.reason || (item.content ? item.content.slice(0, 500) : '') }}
-                      </p>
-
-                      <!-- Core Takeaways -->
-                      <div v-if="item.takeaways && item.takeaways.length > 0" class="bg-slate-50/50 rounded-lg p-3 space-y-1 border border-slate-100/50">
-                        <div v-for="(point, idx) in item.takeaways.slice(0, 5)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
-                          <span class="text-primary/60 font-bold">•</span>
-                          <span>{{ point }}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Standalone Item -->
-              <div v-else class="relative pl-12">
-                <div class="absolute left-[11px] top-2 w-3 h-3 rounded-full bg-slate-300 ring-4 ring-white z-10 shadow-sm"></div>
-                
-                <div class="space-y-3">
-                  <div class="flex items-center gap-3">
-                    <span class="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase tracking-wider">
-                      {{ formatDate(group.item.published_at) }}
-                    </span>
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      {{ group.item.platform }}
-                    </span>
-                  </div>
-                  
-                  <h3 class="text-lg font-bold text-slate-800 leading-tight">
-                    {{ (group.item.title || '').replace(/^🐙 |^🏛️ |^🐦 |^📄 |^🎥 |^👤 |^🔥 |^💎 /, '') }}
-                  </h3>
-                  
-                  <p class="text-sm text-slate-500 leading-relaxed">
-                    {{ group.item.reason || (group.item.content ? group.item.content.slice(0, 500) : '') }}
-                  </p>
-
-                  <div v-if="group.item.takeaways && group.item.takeaways.length > 0" class="bg-slate-50/50 rounded-lg p-3 space-y-1 border border-slate-100/50">
-                    <div v-for="(point, idx) in group.item.takeaways.slice(0, 5)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
-                      <span class="text-slate-400 font-bold">•</span>
-                      <span>{{ point }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </template>
+          <div class="prose prose-slate max-w-none 
+                      prose-headings:text-slate-900 prose-headings:font-black prose-headings:tracking-tight
+                      prose-h3:text-xl prose-h3:border-l-4 prose-h3:border-primary prose-h3:pl-4 prose-h3:mt-10
+                      prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-justify
+                      prose-strong:text-slate-900 prose-strong:bg-yellow-100/50 prose-strong:px-1
+                      markdown-content" 
+               v-html="renderMarkdown(latestInsight.content)">
           </div>
         </div>
       </div>

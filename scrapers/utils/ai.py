@@ -106,41 +106,45 @@ class GeminiEvaluator:
 
     def summarize_clusters(self, clusters_data: List[Dict[str, Any]]) -> str:
         """
-        根据今日抓取的聚类簇信息，生成一份全局战略简报
+        根据今日抓取的聚类簇信息，生成一份全天候、深度整合的《全球 AI 行业综述报告》
         """
         if not self.enabled or not clusters_data:
             return "今日暂无深度情报分析。"
 
-        # 将聚类信息序列化为提示词背景
+        # 将聚类信息序列化为提示词背景，包含尽可能多的摘要信息
         summary_payload = ""
-        for i, c in enumerate(clusters_data[:20]): # 分析前 20 个最火的热点
-            summary_payload += f"{i+1}. 热点主题: {c['cluster_id']}\n   规模: {c['count']} 条相关资讯\n   观点摘要: {c['reasons'][:5]}\n\n"
+        for i, c in enumerate(clusters_data[:25]): # 覆盖最核心的 25 个热点
+            reasons_text = " | ".join(c['reasons'][:8])
+            summary_payload += f"【主题: {c['cluster_id']} (规模:{c['count']})】\n核心内容: {reasons_text}\n\n"
 
         prompt = f"""
-        你是一个资深的 AI 行业战略分析师。以下是今日全球 AI 圈最重要的热点事件聚合数据：
+        你是一个顶级 AI 行业智库的首席战略官。请根据以下今日全球 AI 圈的海量原始数据，撰写一份 800-1000 字的《今日全球 AI 深度战略情报综述》。
         
+        原始数据背景:
         {summary_payload}
         
-        请基于以上深度数据，撰写一份 500 字左右的《今日 AI 全球战略情报简报》。
-        要求：
-        1. 使用 Markdown 格式。
-        2. 必须包含以下结构化板块：
-           ### 核心突破与技术风向
-           (深入分析今日最重大的 1-2 个技术突破，解释其底层逻辑)
-           ### 行业格局与竞争态势
-           (分析厂商动作、融资、开源动态等对行业格局的影响)
-           ### 开发者与社区声音
-           (总结开发者社区的真实反馈、争议点或实战建议)
-        3. 语言要犀利、充满前瞻性，避免客套话。
-        4. 结尾以“【明日关注建议】”为题给出 3 条具体的观察指标。
+        要求（极其重要）：
+        1. **禁止单纯罗列新闻**：严禁出现“第一条是...第二条是...”或者单纯的列表展示。
+        2. **深度逻辑整合**：你需要将散落在不同主题中的信息进行“化学反应式”的加工。例如，将底层模型进展、算力变化与上层应用爆发联系起来，形成一个完整的叙事。
+        3. **专业深度分析**：
+           - 识别出今日最底层的技术范式转移。
+           - 分析各大厂（OpenAI, Google, Meta, NVIDIA 等）之间的博弈与策略变化。
+           - 提炼出开发者社区的真实情绪、技术槽点或群体共识。
+        4. **结构化报告逻辑**：
+           - 使用大标题分块（如：### 范式演进：从逻辑推理到具身智能）。
+           - 内部使用清晰的段落进行深度阐述。
+           - 必须包含一个“【行业影响评估】”板块，分析今日事件对未来 3-6 个月的具体影响。
+           - 必须包含一个“【战术执行建议】”板块，给开发者或企业提供实战性的避坑或入场建议。
+        5. **语言风格**：犀利、干货、具有强烈的前瞻性和洞察力，像麦肯锡或高盛的行业内参。
+        6. **结尾**：以“【核心情报雷达：明日关注】”给出 3 条极具穿透力的监控指标。
         """
 
         try:
             response = self._generate_content_with_fallback(prompt)
-            return response.text.strip() if response else "深度简报生成失败。"
+            return response.text.strip() if response else "深度综述生成失败。"
         except Exception as e:
             self.logger.error(f"❌ Summary generation failed: {e}")
-            return "深度简报生成失败，请稍后重试。"
+            return "深度综述生成失败，请稍后重试。"
 
 # 单例模式
 evaluator = GeminiEvaluator()
