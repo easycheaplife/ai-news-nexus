@@ -14,22 +14,23 @@ const ready = ref(false);
 
 const fetchReportData = async () => {
   try {
+    // 自动处理前缀重叠问题
+    const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
     const [newsRes, insightRes] = await Promise.all([
-      axios.get(`${apiUrl}/news/`, { params: { limit: 10 } }),
-      axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null }))
+      axios.get(`${base}/api/news/`, { params: { limit: 10 } }),
+      axios.get(`${base}/api/insights/latest`).catch(() => ({ data: null }))
     ]);
     
     news.value = newsRes.data;
     latestInsight.value = insightRes.data;
-    
-    // Signal readiness for Playwright
-    setTimeout(() => {
-      ready.value = true;
-    }, 1000);
   } catch (err) {
     console.error('Failed to fetch report data:', err);
   } finally {
     loading.value = false;
+    // 无论成功失败，都发送就绪信号，避免 Playwright 永久等待超时
+    setTimeout(() => {
+      ready.value = true;
+    }, 1000);
   }
 };
 
