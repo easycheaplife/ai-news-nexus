@@ -35,8 +35,8 @@ def generate_daily_insights(api_url: str):
     """
     logging.info("🧠 Starting AI Deep Insights synthesis...")
     try:
-        # 1. 获取近期资讯用于分析
-        response = requests.get(f"{api_url}/news/", params={"limit": 200})
+        # 1. 获取近期资讯用于分析 (增加到 500 条以获得更深度的关联)
+        response = requests.get(f"{api_url}/news/", params={"limit": 500})
             
         if response.status_code != 200:
             logging.error(f"❌ Failed to fetch news for analysis: {response.text}")

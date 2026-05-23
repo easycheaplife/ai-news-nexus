@@ -175,12 +175,12 @@ onMounted(fetchReportData);
                       </h4>
                       
                       <p class="text-sm text-slate-500 leading-relaxed">
-                        {{ item.reason || (item.content ? item.content.slice(0, 150) : '') }}
+                        {{ item.reason || (item.content ? item.content.slice(0, 500) : '') }}
                       </p>
 
                       <!-- Core Takeaways -->
                       <div v-if="item.takeaways && item.takeaways.length > 0" class="bg-slate-50/50 rounded-lg p-3 space-y-1 border border-slate-100/50">
-                        <div v-for="(point, idx) in item.takeaways.slice(0, 2)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
+                        <div v-for="(point, idx) in item.takeaways.slice(0, 5)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
                           <span class="text-primary/60 font-bold">•</span>
                           <span>{{ point }}</span>
                         </div>
@@ -209,11 +209,11 @@ onMounted(fetchReportData);
                   </h3>
                   
                   <p class="text-sm text-slate-500 leading-relaxed">
-                    {{ group.item.reason || (group.item.content ? group.item.content.slice(0, 150) : '') }}
+                    {{ group.item.reason || (group.item.content ? group.item.content.slice(0, 500) : '') }}
                   </p>
 
                   <div v-if="group.item.takeaways && group.item.takeaways.length > 0" class="bg-slate-50/50 rounded-lg p-3 space-y-1 border border-slate-100/50">
-                    <div v-for="(point, idx) in group.item.takeaways.slice(0, 2)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
+                    <div v-for="(point, idx) in group.item.takeaways.slice(0, 5)" :key="idx" class="flex gap-2 text-[12px] text-slate-600">
                       <span class="text-slate-400 font-bold">•</span>
                       <span>{{ point }}</span>
                     </div>
