@@ -12,3 +12,5 @@ ntscraper
 feedparser
 twikit
 youtube-transcript-api
+playwright
+python-multipart
