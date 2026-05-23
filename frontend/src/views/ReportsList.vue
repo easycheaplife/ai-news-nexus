@@ -14,7 +14,9 @@ const error = ref<string | null>(null);
 const fetchReports = async () => {
   loading.value = true;
   try {
-    const response = await axios.get(`${apiUrl}/api/insights/`);
+    // 自动处理前缀重叠问题
+    const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
+    const response = await axios.get(`${base}/api/insights/`);
     // 仅显示有报表链接的记录
     reports.value = response.data.filter((i: any) => i.report_url);
     error.value = null;
@@ -28,7 +30,10 @@ const fetchReports = async () => {
 
 const getReportUrl = (url: string) => {
   if (url.startsWith('http')) return url;
-  return `${apiUrl}${url}`;
+  // 确保使用当前访问的域名和端口，防止公网/内网 IP 切换导致图片加载失败
+  const protocol = window.location.protocol;
+  const host = window.location.host;
+  return `${protocol}//${host}${url}`;
 };
 
 const downloadReport = (report: any) => {
