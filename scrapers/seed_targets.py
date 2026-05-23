@@ -55,6 +55,7 @@ GITHUB_TARGETS = [
 def seed_twitter_targets():
     logger.info(f"Seeding Twitter KOLs to {API_URL}...")
     for handle, desc in TWITTER_KOLS:
+        handle = handle.strip()
         payload = {
             "platform": "twitter",
             "handle": handle,
@@ -74,6 +75,7 @@ def seed_twitter_targets():
 def seed_github_targets():
     logger.info(f"Seeding GitHub Targets to {API_URL}...")
     for handle, desc in GITHUB_TARGETS:
+        handle = handle.strip()
         payload = {
             "platform": "github",
             "handle": handle,

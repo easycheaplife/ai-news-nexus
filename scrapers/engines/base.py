@@ -133,8 +133,8 @@ class BaseScraper:
         keywords = item.get('trending_keywords') or []
         
         for user in users:
-            # 1. 基础清理：移除 @，截断空格、斜杠和点号 (防止 scrapers/debug.py 这种)
-            clean_user = user.strip('@').split(' ')[0].split('/')[0].split('.')[0]
+            # 1. 基础清理：移除 @，截断空格、斜杠和点号
+            clean_user = user.strip().strip('@').split(' ')[0].split('/')[0].split('.')[0]
             
             # 2. 严格合法性校验
             if not self._is_valid_twitter_handle(clean_user):

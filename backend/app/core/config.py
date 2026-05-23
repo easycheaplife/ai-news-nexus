@@ -20,10 +20,8 @@ class Settings(BaseSettings):
     
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        # 如果提供了密码，强制使用 MySQL
-        if self.MYSQL_PASSWORD:
-            return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}?charset=utf8mb4"
-        return "sqlite:///./ai_news.db"
+        # 强制使用 MySQL (云端生产环境)
+        return f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}?charset=utf8mb4"
 
     model_config = {
         "env_file": ".env",

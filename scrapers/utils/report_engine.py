@@ -42,24 +42,34 @@ class ReportEngine:
             # 📝 Capture browser console logs for debugging
             page.on("console", lambda msg: logger.info(f"🌐 [Browser Console] {msg.text}"))
             page.on("pageerror", lambda exc: logger.error(f"❌ [Browser Error] {exc}"))
-            page.on("requestfailed", lambda req: logger.warning(f"⚠️ [Network Error] {req.method} {req.url} - {req.failure.error_text if req.failure else 'Unknown'}"))
+            
+            # 修复之前的 AttributeError
+            async def handle_request_failed(request):
+                error_text = request.failure if isinstance(request.failure, str) else (request.failure.get("errorText") if isinstance(request.failure, dict) else "Unknown")
+                logger.warning(f"⚠️ [Network Error] {request.method} {request.url} - {error_text}")
+            
+            page.on("requestfailed", handle_request_failed)
 
             try:
                 logger.info(f"🌐 Navigating to {self.frontend_url}")
-                response = await page.goto(self.frontend_url, wait_until="networkidle", timeout=60000)
+                response = await page.goto(self.frontend_url, wait_until="domcontentloaded", timeout=60000)
                 
                 if not response or response.status != 200:
-                    logger.error(f"❌ Failed to load page: {response.status if response else 'No Response'}")
-                    # If it's a 404, the route might not exist on the target server
-                    if response and response.status == 404:
-                        logger.error("🚀 Hint: The /report route returned 404. Ensure the backend is serving the latest frontend build.")
+                    status_code = response.status if response else 'No Response'
+                    logger.error(f"❌ Failed to load page: {status_code}")
+                    if status_code == 404:
+                        logger.error("🚀 Hint: The /report route returned 404. This means your CLOUD SERVER needs 'npm run build' inside the frontend folder and a uvicorn restart.")
                     return None
 
                 logger.info("⏳ Waiting for report readiness signal (#report-ready)...")
                 try:
-                    await page.wait_for_selector("#report-ready", timeout=30000, state="attached")
+                    # 使用较短的等待，如果没取到数据也强制截图
+                    await page.wait_for_selector("#report-ready", timeout=15000, state="attached")
                 except Exception as e:
-                    logger.warning(f"⚠️ Readiness signal timeout, but continuing to screenshot anyway to see state. Error: {e}")
+                    logger.warning("⚠️ Readiness signal timeout. The page might be empty or API failed.")
+                
+                # 给一定的渲染缓冲时间
+                await asyncio.sleep(2)
                 
                 element = await page.query_selector("#report-content")
                 if not element:

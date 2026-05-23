@@ -35,8 +35,19 @@ const fetchSidebarData = async () => {
       axios.get(`${props.apiUrl}/discovery/`, { params: { status: 'pending' } })
     ]);
     
-    // 按评分排序取 Top 10
-    targets.value = targetsRes.data
+    // 获取活跃信源并去重
+    const rawTargets = targetsRes.data;
+    const uniqueTargetsMap: Record<string, any> = {};
+    
+    rawTargets.forEach((t: any) => {
+      const handle = (t.handle || '').trim().toLowerCase();
+      // 如果已存在且当前分数更高，或者还没存在，则记录
+      if (!uniqueTargetsMap[handle] || (t.avg_score || 0) > (uniqueTargetsMap[handle].avg_score || 0)) {
+        uniqueTargetsMap[handle] = t;
+      }
+    });
+
+    targets.value = Object.values(uniqueTargetsMap)
       .sort((a: any, b: any) => (b.avg_score || 0) - (a.avg_score || 0))
       .slice(0, 15);
       
