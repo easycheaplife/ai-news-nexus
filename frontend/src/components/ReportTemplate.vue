@@ -127,7 +127,7 @@ onMounted(fetchReportData);
             <Target class="w-4 h-4 text-primary" />
             <h2 class="text-xs font-black uppercase tracking-widest text-slate-400">今日战略简报 · Strategic Briefing</h2>
           </div>
-          <div class="prose prose-sm prose-slate max-w-none prose-headings:text-slate-800 prose-p:text-slate-600 prose-strong:text-primary markdown-content" v-html="renderMarkdown(latestInsight.content)">
+          <div class="prose prose-sm prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-800 prose-strong:text-primary markdown-content text-slate-800" v-html="renderMarkdown(latestInsight.content)">
           </div>
         </div>
       </div>
