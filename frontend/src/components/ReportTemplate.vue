@@ -121,10 +121,10 @@ onMounted(fetchReportData);
           </div>
           <div class="prose prose-slate max-w-none 
                       prose-headings:text-slate-900 prose-headings:font-black prose-headings:tracking-tight
-                      prose-h3:text-xl prose-h3:border-l-4 prose-h3:border-primary prose-h3:pl-4 prose-h3:mt-10
-                      prose-p:text-slate-700 prose-p:leading-relaxed prose-p:text-justify
-                      prose-strong:text-slate-900 prose-strong:bg-yellow-100/50 prose-strong:px-1
-                      markdown-content" 
+                      prose-h3:text-xl prose-h3:text-slate-900 prose-h3:border-l-4 prose-h3:border-primary prose-h3:pl-4 prose-h3:mt-10
+                      prose-p:text-slate-800 prose-p:leading-relaxed prose-p:text-justify
+                      prose-strong:text-slate-900 prose-strong:font-bold
+                      markdown-content text-slate-800" 
                v-html="renderMarkdown(latestInsight.content)">
           </div>
         </div>
