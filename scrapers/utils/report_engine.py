@@ -11,12 +11,11 @@ logger = logging.getLogger("report_engine")
 
 class ReportEngine:
     def __init__(self, frontend_url: str = None, api_url: str = None, output_dir: str = None):
-        # 内部 API 调用优先使用 localhost
-        self.internal_api_url = "http://localhost:8000"
+        # 统一使用 .env 中的 SCRAPER_API_URL
         self.api_url = (api_url or os.getenv("SCRAPER_API_URL", "http://localhost:8000")).rstrip('/')
         
-        # 截图访问优先使用 localhost 以确保本地联通性
-        self.frontend_url = frontend_url or os.getenv("REPORT_FRONTEND_URL", "http://localhost:8000/report")
+        # 截图访问地址，如果未指定则默认使用 API 地址下的 /report 路由
+        self.frontend_url = frontend_url or os.getenv("REPORT_FRONTEND_URL", f"{self.api_url}/report")
         self.output_dir = output_dir or "backend/data/reports"
         
         if not os.path.exists(self.output_dir):
@@ -56,7 +55,7 @@ class ReportEngine:
                 logger.info(f"✅ Screenshot captured at: {temp_path}")
 
                 # 🚀 Upload to backend media service
-                upload_url = f"{self.internal_api_url}/api/media/upload"
+                upload_url = f"{self.api_url}/api/media/upload"
                 logger.info(f"📤 Uploading report to {upload_url}...")
                 
                 with open(temp_path, "rb") as f:
@@ -74,7 +73,7 @@ class ReportEngine:
                 # 💾 Update DailyInsight in database
                 logger.info(f"💾 Updating database for date {date_str}...")
                 update_res = requests.patch(
-                    f"{self.internal_api_url}/api/insights/{date_str}", 
+                    f"{self.api_url}/api/insights/{date_str}", 
                     json={"report_url": report_url},
                     timeout=10
                 )

@@ -9,8 +9,10 @@ import {
   Star,
   Flame,
   Zap,
-  X
+  X,
+  FileImage
 } from 'lucide-vue-next';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
 
 const props = defineProps<{
@@ -19,6 +21,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits(['filter-author', 'filter-keyword', 'close']);
+const router = useRouter();
 
 const targets = ref<any[]>([]);
 const discoveryItems = ref<any[]>([]);
@@ -96,7 +99,7 @@ const getStatusColor = (status: string) => {
         <Activity class="w-4 h-4 text-primary" />
         <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">系统脉冲 · System Pulse</h3>
       </div>
-      <div class="grid grid-cols-2 gap-2">
+      <div class="grid grid-cols-2 gap-2 mb-4">
         <div class="bg-white/5 rounded-xl p-2 flex items-center gap-2 border border-white/5">
           <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
           <span class="text-[10px] font-bold">Scraper OK</span>
@@ -106,6 +109,18 @@ const getStatusColor = (status: string) => {
           <span class="text-[10px] font-bold">AI Node OK</span>
         </div>
       </div>
+      
+      <!-- Daily Report Link -->
+      <button 
+        @click="router.push('/reports-list')"
+        class="w-full flex items-center gap-3 px-4 py-3 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-xl text-left transition-all active:scale-[0.98] group"
+      >
+        <FileImage class="w-4 h-4 text-primary" />
+        <div class="flex flex-col">
+          <span class="text-xs font-bold text-white">查看精美日报</span>
+          <span class="text-[9px] font-medium text-primary/60 uppercase">Daily Reports Archive</span>
+        </div>
+      </button>
     </section>
 
     <!-- 2. Inner Circle (KOLs) -->
