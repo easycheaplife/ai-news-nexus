@@ -7,30 +7,33 @@ import { useRouter } from 'vue-router';
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 const router = useRouter();
 
-const reports = ref<string[]>([]);
+const reports = ref<any[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
 
 const fetchReports = async () => {
   loading.value = true;
   try {
-    const response = await axios.get(`${apiUrl}/reports-api/list`);
-    reports.value = response.data;
+    const response = await axios.get(`${apiUrl}/api/insights/`);
+    // 仅显示有报表链接的记录
+    reports.value = response.data.filter((i: any) => i.report_url);
     error.value = null;
   } catch (err) {
     console.error('Failed to fetch reports list', err);
-    error.value = '无法加载日报列表。';
+    error.value = '无法从云端加载日报列表。';
   } finally {
     loading.value = false;
   }
 };
 
-const getReportUrl = (filename: string) => {
-  return `${apiUrl}/reports/${filename}`;
+const getReportUrl = (url: string) => {
+  if (url.startsWith('http')) return url;
+  return `${apiUrl}${url}`;
 };
 
-const downloadReport = (filename: string) => {
-  const url = getReportUrl(filename);
+const downloadReport = (report: any) => {
+  const url = getReportUrl(report.report_url);
+  const filename = `AI-Daily-${report.date}.png`;
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -46,11 +49,11 @@ const preview = ref<{ isOpen: boolean; url: string; title: string }>({
   title: ''
 });
 
-const openPreview = (filename: string) => {
+const openPreview = (report: any) => {
   preview.value = {
     isOpen: true,
-    url: getReportUrl(filename),
-    title: filename.replace('.png', '')
+    url: getReportUrl(report.report_url),
+    title: report.date
   };
   document.body.style.overflow = 'hidden';
 };
@@ -119,8 +122,8 @@ onMounted(fetchReports);
       <!-- Grid -->
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <div 
-          v-for="file in reports" 
-          :key="file"
+          v-for="report in reports" 
+          :key="report.id"
           class="group bg-[#131316] border border-white/5 rounded-3xl p-6 hover:border-primary/50 transition-all hover:shadow-2xl hover:shadow-primary/10 relative overflow-hidden"
         >
           <div class="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
@@ -134,20 +137,20 @@ onMounted(fetchReports);
               </div>
               <div>
                 <span class="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block">Daily Report</span>
-                <span class="text-xl font-bold text-white tracking-tight">{{ file.replace('.png', '') }}</span>
+                <span class="text-xl font-bold text-white tracking-tight">{{ report.date }}</span>
               </div>
             </div>
 
             <div class="flex gap-2">
               <button 
-                @click="openPreview(file)"
+                @click="openPreview(report)"
                 class="flex-1 flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-xs font-bold transition-all"
               >
                 <Eye class="w-4 h-4" />
                 预览图片
               </button>
               <button 
-                @click="downloadReport(file)"
+                @click="downloadReport(report)"
                 class="w-12 flex items-center justify-center bg-primary/10 hover:bg-primary text-primary hover:text-white rounded-xl transition-all active:scale-90"
                 title="直接下载"
               >

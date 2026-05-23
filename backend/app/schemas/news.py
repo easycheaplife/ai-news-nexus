@@ -34,9 +34,16 @@ class DailyInsightBase(BaseModel):
     content: str
     hot_topics: Optional[List[str]] = None
     stats_json: Optional[Dict[str, Any]] = None
+    report_url: Optional[str] = None
 
 class DailyInsightCreate(DailyInsightBase):
     pass
+
+class DailyInsightUpdate(BaseModel):
+    content: Optional[str] = None
+    hot_topics: Optional[List[str]] = None
+    stats_json: Optional[Dict[str, Any]] = None
+    report_url: Optional[str] = None
 
 class DailyInsight(DailyInsightBase):
     id: int

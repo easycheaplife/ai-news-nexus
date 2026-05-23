@@ -1,6 +1,7 @@
 import asyncio
 import os
 import logging
+import requests
 from playwright.async_api import async_playwright
 from datetime import datetime
 from dotenv import load_dotenv
@@ -9,56 +10,86 @@ load_dotenv()
 logger = logging.getLogger("report_engine")
 
 class ReportEngine:
-    def __init__(self, frontend_url: str = None, output_dir: str = None):
+    def __init__(self, frontend_url: str = None, api_url: str = None, output_dir: str = None):
+        # 内部 API 调用优先使用 localhost
+        self.internal_api_url = "http://localhost:8000"
+        self.api_url = (api_url or os.getenv("SCRAPER_API_URL", "http://localhost:8000")).rstrip('/')
+        
+        # 截图访问优先使用 localhost 以确保本地联通性
         self.frontend_url = frontend_url or os.getenv("REPORT_FRONTEND_URL", "http://localhost:8000/report")
-        self.output_dir = output_dir or os.getenv("REPORT_OUTPUT_DIR", "backend/data/reports")
+        self.output_dir = output_dir or "backend/data/reports"
         
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
     async def generate_daily_report(self, date_str: str = None):
         """
-        Generate a PNG report for a specific date (default: today)
+        Generate a PNG report for a specific date (default: today),
+        then upload it to the backend media service and update the database.
         """
         if not date_str:
             date_str = datetime.now().strftime("%Y-%m-%d")
             
-        output_path = os.path.join(self.output_dir, f"{date_str}.png")
-        logger.info(f"📸 Generating report for {date_str} -> {output_path}")
+        temp_path = os.path.join(self.output_dir, f"temp_{date_str}.png")
+        logger.info(f"📸 Generating report for {date_str} -> {temp_path}")
 
         async with async_playwright() as p:
-            # Launch browser
             browser = await p.chromium.launch(headless=True)
             page = await browser.new_page(
                 viewport={'width': 800, 'height': 1200},
-                device_scale_factor=2 # Retina quality
+                device_scale_factor=2
             )
 
             try:
-                # Visit the report template
-                # We can append ?date=date_str if the frontend supports it, 
-                # but currently it fetches latest.
-                target_url = self.frontend_url
-                logger.info(f"🌐 Navigating to {target_url}")
+                logger.info(f"🌐 Navigating to {self.frontend_url}")
+                await page.goto(self.frontend_url, wait_until="networkidle")
                 
-                await page.goto(target_url, wait_until="networkidle")
-                
-                # Wait for the "ready" signal from the Vue component
                 logger.info("⏳ Waiting for report readiness signal...")
                 await page.wait_for_selector("#report-ready", timeout=30000, state="attached")
                 
-                # Take the screenshot of the specific element
                 element = await page.query_selector("#report-content")
-                if element:
-                    await element.screenshot(path=output_path)
-                    logger.info(f"✅ Report successfully saved: {output_path}")
-                    return output_path
-                else:
+                if not element:
                     logger.error("❌ Could not find #report-content element")
+                    return None
+                    
+                await element.screenshot(path=temp_path)
+                logger.info(f"✅ Screenshot captured at: {temp_path}")
+
+                # 🚀 Upload to backend media service
+                upload_url = f"{self.internal_api_url}/api/media/upload"
+                logger.info(f"📤 Uploading report to {upload_url}...")
+                
+                with open(temp_path, "rb") as f:
+                    files = {"file": (f"{date_str}.png", f, "image/png")}
+                    res = requests.post(upload_url, files=files, timeout=30)
+                
+                if res.status_code != 200:
+                    logger.error(f"❌ Upload failed: {res.text}")
+                    return None
+                
+                report_data = res.json()
+                report_url = report_data.get("url")
+                logger.info(f"✅ Uploaded! URL: {report_url}")
+
+                # 💾 Update DailyInsight in database
+                logger.info(f"💾 Updating database for date {date_str}...")
+                update_res = requests.patch(
+                    f"{self.internal_api_url}/api/insights/{date_str}", 
+                    json={"report_url": report_url},
+                    timeout=10
+                )
+                
+                if update_res.status_code in [200, 201]:
+                    logger.info(f"✨ Successfully updated report_url for {date_str}")
+                    # Clean up temp file
+                    # os.remove(temp_path)
+                    return report_url
+                else:
+                    logger.error(f"❌ Database update failed: {update_res.text}")
                     return None
 
             except Exception as e:
-                logger.error(f"❌ Failed to generate report: {e}")
+                logger.error(f"❌ Failed to generate/upload report: {e}")
                 return None
             finally:
                 await browser.close()

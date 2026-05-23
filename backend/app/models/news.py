@@ -37,6 +37,7 @@ class DailyInsight(Base):
     content = Column(Text, nullable=False)
     hot_topics = Column(JSON)
     stats_json = Column(JSON)
+    report_url = Column(String(500)) # 新增：指向生成的日报图片 URL
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class DiscoveryType(enum.Enum):
