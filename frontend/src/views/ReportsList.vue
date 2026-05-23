@@ -29,15 +29,20 @@ const fetchReports = async () => {
 };
 
 const getReportUrl = (url: string) => {
+  if (!url) return '';
   if (url.startsWith('http')) return url;
-  // 确保使用当前访问的域名和端口，防止公网/内网 IP 切换导致图片加载失败
-  const protocol = window.location.protocol;
-  const host = window.location.host;
-  return `${protocol}//${host}${url}`;
+  
+  // 核心修复：直接使用相对路径，让浏览器自动基于当前域名和端口进行拼接
+  // 这样无论用户通过 8000 还是 8001 访问，都不会出错
+  return url; 
 };
 
 const downloadReport = (report: any) => {
-  const url = getReportUrl(report.report_url);
+  // 下载时使用绝对路径
+  const protocol = window.location.protocol;
+  const host = window.location.host;
+  const url = `${protocol}//${host}${report.report_url}`;
+  
   const filename = `AI-Daily-${report.date}.png`;
   const link = document.createElement('a');
   link.href = url;
