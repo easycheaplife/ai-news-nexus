@@ -10,7 +10,6 @@ import DOMPurify from 'dompurify';
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 const news = ref<any[]>([]);
-const groupedNews = ref<any[]>([]);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
 const ready = ref(false);
@@ -23,7 +22,6 @@ const renderMarkdown = (text: string) => {
 
 const fetchReportData = async () => {
   try {
-    // 自动处理前缀重叠问题
     const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
     const today = format(new Date(), 'yyyy-MM-dd');
     const [newsRes, insightRes] = await Promise.all([
@@ -33,50 +31,12 @@ const fetchReportData = async () => {
       )
     ]);
     
-    const rawNews = newsRes.data;
-    news.value = rawNews;
+    news.value = newsRes.data;
     latestInsight.value = insightRes.data;
-
-    // 🧠 执行话题聚类逻辑
-    const clusters: Record<string, any> = {};
-    const standalone: any[] = [];
-
-    rawNews.forEach((item: any) => {
-      if (item.cluster_id) {
-        if (!clusters[item.cluster_id]) {
-          clusters[item.cluster_id] = {
-            id: item.cluster_id,
-            items: [],
-            // 尝试从标题中提取可能的聚类名称（如果后端没给 TopicCluster 详情的话）
-            title: item.cluster_id.length < 30 ? item.cluster_id : '相关话题聚合', 
-            latest_time: item.published_at
-          };
-        }
-        clusters[item.cluster_id].items.push(item);
-        if (item.published_at > clusters[item.cluster_id].latest_time) {
-          clusters[item.cluster_id].latest_time = item.published_at;
-        }
-      } else {
-        standalone.push(item);
-      }
-    });
-
-    // 排序并合并
-    const sortedClusters = Object.values(clusters).sort((a: any, b: any) => 
-      new Date(b.latest_time).getTime() - new Date(a.latest_time).getTime()
-    );
-
-    // 最终展示结构：有聚类的排前面，没聚类的排后面
-    groupedNews.value = [
-      ...sortedClusters.map(c => ({ type: 'cluster', ...c })),
-      ...standalone.slice(0, 5).map(i => ({ type: 'standalone', item: i }))
-    ].slice(0, 10); // 总共取 Top 10
-
   } catch (err) {
     console.error('Failed to fetch report data:', err);
   } finally {
     loading.value = false;
-    // 无论成功失败，都发送就绪信号，避免 Playwright 永久等待超时
     setTimeout(() => {
       ready.value = true;
     }, 1500);
@@ -88,7 +48,7 @@ onMounted(fetchReportData);
 
 <template>
   <div :class="{ 'opacity-100': !loading, 'opacity-0': loading }" class="min-h-screen bg-[#f0f2f5] p-10 transition-opacity duration-500">
-    <div id="report-content" class="max-w-[700px] mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+    <div id="report-content" class="max-w-[800px] mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
       <!-- Header -->
       <div class="bg-gradient-to-br from-[#1a1a20] to-[#0a0a0c] p-10 text-white relative overflow-hidden">
         <div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[100px] -mr-32 -mt-32"></div>
@@ -109,67 +69,60 @@ onMounted(fetchReportData);
         </div>
       </div>
 
-      <!-- Global Intelligence Synthesis (The main body) -->
-      <div v-if="latestInsight && latestInsight.content" class="p-10 pb-12">
+      <!-- Global Intelligence Synthesis -->
+      <div v-if="latestInsight && latestInsight.content" class="p-12 pb-16">
         <div class="bg-white relative">
-          <div class="absolute -top-4 right-0 opacity-10">
-            <Quote class="w-20 h-20" />
+          <div class="absolute -top-6 right-0 opacity-10">
+            <Quote class="w-24 h-24 text-slate-400" />
           </div>
-          <div class="flex items-center gap-3 mb-8 border-b border-slate-100 pb-6">
-            <Target class="w-6 h-6 text-primary" />
-            <h2 class="text-lg font-black uppercase tracking-[0.2em] text-slate-800">深度战略综述 · Strategic Synthesis</h2>
+          <div class="flex items-center gap-3 mb-10 border-b-2 border-primary/10 pb-6">
+            <Target class="w-7 h-7 text-primary" />
+            <h2 class="text-xl font-black uppercase tracking-[0.2em] text-slate-900">深度战略综述 · Strategic Synthesis</h2>
           </div>
-          <div class="prose prose-slate max-w-none 
-                      prose-headings:text-slate-900 prose-headings:font-black prose-headings:tracking-tight
-                      prose-h3:text-xl prose-h3:text-slate-900 prose-h3:border-l-4 prose-h3:border-primary prose-h3:pl-4 prose-h3:mt-10
-                      prose-p:text-slate-800 prose-p:leading-relaxed prose-p:text-justify
-                      prose-strong:text-slate-900 prose-strong:font-bold
-                      markdown-content text-slate-800" 
-               v-html="renderMarkdown(latestInsight.content)">
-          </div>
+          
+          <div class="synthesis-content" v-html="renderMarkdown(latestInsight.content)"></div>
         </div>
       </div>
 
-      <!-- Intelligence Dashboard (New Section) -->
-      <div class="p-10 pt-0">
-        <div class="grid grid-cols-3 gap-4 border-t border-slate-100 pt-8">
-          <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Intelligence Count</div>
-            <div class="text-2xl font-black text-primary">{{ news.length }}+</div>
-            <div class="text-[9px] text-slate-400 font-bold">Processed globally</div>
+      <!-- Intelligence Dashboard -->
+      <div class="p-12 pt-0">
+        <div class="grid grid-cols-3 gap-6 border-t border-slate-100 pt-10">
+          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Intelligence Count</div>
+            <div class="text-3xl font-black text-primary">{{ news.length }}+</div>
+            <div class="text-[11px] text-slate-400 font-bold mt-1">Processed globally</div>
           </div>
-          <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Trending Tech</div>
-            <div class="flex flex-wrap gap-1 mt-1">
-              <span v-for="kw in (latestInsight?.hot_topics?.slice(0, 3) || ['LLM', 'Agent', 'Multimodal'])" :key="kw" class="text-[9px] font-bold bg-white text-primary/70 px-1.5 py-0.5 rounded border border-primary/10 uppercase">
+          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Trending Tech</div>
+            <div class="flex flex-wrap gap-1.5 mt-1">
+              <span v-for="kw in (latestInsight?.hot_topics?.slice(0, 3) || ['LLM', 'Agent', 'Multimodal'])" :key="kw" class="text-[10px] font-bold bg-white text-primary px-2 py-0.5 rounded border border-primary/20 uppercase">
                 {{ kw }}
               </span>
             </div>
           </div>
-          <div class="bg-slate-50 rounded-xl p-4 border border-slate-100">
-            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Pulse Status</div>
+          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+            <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pulse Status</div>
             <div class="flex items-center gap-2 mt-1">
-              <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-              <span class="text-[10px] font-black text-slate-600 uppercase">System OK</span>
+              <div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+              <span class="text-[11px] font-black text-slate-700 uppercase">System OK</span>
             </div>
-            <div class="text-[9px] text-slate-400 font-bold mt-1">AI Node: Active</div>
+            <div class="text-[11px] text-slate-400 font-bold mt-1">AI Node: Active</div>
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <div class="bg-slate-50 p-10 border-t border-slate-100 flex justify-between items-center">
+      <div class="bg-slate-50 p-12 border-t border-slate-100 flex justify-between items-center">
         <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-          <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Synthesized by AI News Nexus</span>
+          <div class="w-2 h-2 rounded-full bg-primary"></div>
+          <span class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Synthesized by AI News Nexus</span>
         </div>
-        <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Generated at {{ format(new Date(), 'HH:mm') }}</div>
+        <div class="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Generated at {{ format(new Date(), 'HH:mm') }}</div>
       </div>
     </div>
 
-    <!-- Hidden element to signal readiness to Playwright (persistent) -->
+    <!-- Signal for Playwright -->
     <div id="report-ready" :class="{ 'ready': ready }" class="hidden"></div>
-    <div class="hidden">Debug: Loading: {{ loading }}, Ready: {{ ready }}, News Count: {{ news.length }}</div>
   </div>
 </template>
 
@@ -178,29 +131,46 @@ onMounted(fetchReportData);
 
 #report-content {
   font-family: 'Inter', sans-serif;
+  background-color: white;
 }
 
-.markdown-content :deep(h1), 
-.markdown-content :deep(h2), 
-.markdown-content :deep(h3) {
-  font-weight: 800;
-  margin-top: 1.5rem;
-  margin-bottom: 0.75rem;
+.synthesis-content {
+  color: #1e293b !important; /* slate-800 */
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.synthesis-content :deep(h3) {
+  color: #0f172a !important; /* slate-900 */
+  font-weight: 900;
+  font-size: 1.4rem;
+  margin-top: 3rem;
+  margin-bottom: 1.5rem;
+  border-left: 6px solid #6366f1;
+  padding-left: 1.25rem;
   line-height: 1.2;
 }
 
-.markdown-content :deep(p) {
-  margin-bottom: 1rem;
-  line-height: 1.6;
+.synthesis-content :deep(p) {
+  margin-bottom: 1.5rem;
+  text-align: justify;
 }
 
-.markdown-content :deep(ul) {
+.synthesis-content :deep(strong) {
+  color: #0f172a !important;
+  font-weight: 800;
+  background-color: rgba(254, 240, 138, 0.5);
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+.synthesis-content :deep(ul) {
   list-style-type: disc;
-  padding-left: 1.25rem;
-  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+  margin-bottom: 1.5rem;
 }
 
-.markdown-content :deep(li) {
-  margin-bottom: 0.5rem;
+.synthesis-content :deep(li) {
+  margin-bottom: 0.75rem;
 }
 </style>
