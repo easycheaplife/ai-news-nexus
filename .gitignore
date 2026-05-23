@@ -21,3 +21,4 @@ scrapers/.env
 .vscode/
 .idea/
 frontend/netlify.toml
+backend/data/reports/
