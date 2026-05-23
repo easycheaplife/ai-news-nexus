@@ -32,8 +32,15 @@ const getReportUrl = (url: string) => {
   if (!url) return '';
   if (url.startsWith('http')) return url;
   
-  // 核心修复：直接使用相对路径，让浏览器自动基于当前域名和端口进行拼接
-  // 这样无论用户通过 8000 还是 8001 访问，都不会出错
+  // 🚀 核心修复：如果配置了绝对路径的 VITE_API_URL，则从中提取域名和端口
+  // 这样即使前端在 8001，也能正确去 8000 加载图片
+  const envApiUrl = import.meta.env.VITE_API_URL || '';
+  if (envApiUrl.startsWith('http')) {
+    const base = envApiUrl.split('/api')[0];
+    return `${base}${url}`;
+  }
+
+  // 兜底：直接返回相对路径
   return url; 
 };
 

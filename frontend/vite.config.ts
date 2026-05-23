@@ -27,6 +27,9 @@ export default defineConfig(({ mode }) => {
       },
       // 🛡️ Custom security middleware to intercept malicious path traversal attempts
       proxy: {
+        '/api': { target: 'http://localhost:8000', changeOrigin: true },
+        '/f': { target: 'http://localhost:8000', changeOrigin: true },
+        '/media': { target: 'http://localhost:8000', changeOrigin: true },
         '/etc/passwd': { 
           target: 'http://localhost', 
           bypass: (_req, res) => { 
