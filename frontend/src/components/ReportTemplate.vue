@@ -16,7 +16,11 @@ const ready = ref(false);
 
 const renderMarkdown = (text: string) => {
   if (!text) return '';
-  const html = marked.parse(text);
+  // 🧩 极致解析配置：确保 GFM 开启且处理换行
+  const html = marked.parse(text, { 
+    gfm: true, 
+    breaks: true 
+  });
   return DOMPurify.sanitize(html as string);
 };
 
@@ -140,16 +144,21 @@ onMounted(fetchReportData);
   font-size: 16px;
 }
 
-.synthesis-content :deep(h3) {
-  color: #0f172a !important; /* slate-900 */
+.synthesis-content :deep(h1),
+.synthesis-content :deep(h2),
+.synthesis-content :deep(h3),
+.synthesis-content :deep(h4) {
+  color: #0f172a !important; /* Force slate-900 */
   font-weight: 900;
-  font-size: 1.4rem;
-  margin-top: 3rem;
-  margin-bottom: 1.5rem;
+  margin-top: 2.5rem;
+  margin-bottom: 1.25rem;
   border-left: 6px solid #6366f1;
   padding-left: 1.25rem;
   line-height: 1.2;
 }
+
+.synthesis-content :deep(h3) { font-size: 1.4rem; }
+.synthesis-content :deep(h4) { font-size: 1.1rem; border-left-width: 4px; }
 
 .synthesis-content :deep(p) {
   margin-bottom: 1.5rem;

@@ -71,38 +71,55 @@ def generate_daily_insights(api_url: str):
             if item.get('reason'):
                 clusters[cid]["reasons"].append(item['reason'])
 
-        # 3. 提取最高频的 8 个关键词作为 hot_topics (替代 UUID)
+        # 3. 提取最高频的 12 个关键词作为 hot_topics (替代 UUID)
         from collections import Counter
-        kw_counts = Counter(all_keywords)
-        top_kws = [kw for kw, count in kw_counts.most_common(12) if len(kw) > 1]
+        import re
+
+        normalized_keywords = []
+        for kw in all_keywords:
+            if not kw or len(kw) < 2: continue
+            # 基础归一化：小写 -> 去空格 -> 去掉结尾的 's' (简单的单复数合并) -> 去掉连字符
+            norm = kw.lower().strip().rstrip('s').replace('-', '')
+            normalized_keywords.append((norm, kw)) # 记录归一化后的词和原始词
+
+        # 统计频次
+        kw_counts = Counter([n[0] for n in normalized_keywords])
+
+        # 映射回最常见的原始写法
+        final_kws = []
+        seen_norms = set()
+        for norm, count in kw_counts.most_common(15):
+            if norm in seen_norms: continue
+            # 找到这个归一化词对应的最原始写法（比如取最长的一个，通常更准确）
+            original_variations = [n[1] for n in normalized_keywords if n[0] == norm]
+            best_original = max(set(original_variations), key=original_variations.count)
+            final_kws.append(best_original)
+            seen_norms.add(norm)
 
         # 4. 排序并取前 25 个热点进行总结
         sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
-        
+
         if not sorted_clusters:
             logging.warning("⚠️ No topic clusters found to summarize.")
             return
 
         # 5. 调用 AI 生成简报
         briefing_content = evaluator.summarize_clusters(sorted_clusters)
-        
-        # 6. 获取今日处理的全量总数 (不仅仅是 limit 1000)
-        total_count = len(all_news) # 基础是采样数
+
+        # 6. 获取今日处理的全量总数
+        total_count = len(all_news)
         try:
-            # 尝试通过后端获取一个大致的今日总数 (如果 API 支持的话，或者加一个随机偏移使其看起来像实时动态)
-            # 这里简单处理：采样 1000，显示 1000+，增加专业感
             platform_counts['Total'] = total_count
         except: pass
 
-        # 7. 回传到后端存储 (使用 UTC 日期)
+        # 7. 回传到后端存储
         today = datetime.utcnow().strftime('%Y-%m-%d')
         insight_data = {
             "date": today,
             "content": briefing_content,
-            "hot_topics": top_kws[:8], # 这里现在存的是真正的关键词
+            "hot_topics": final_kws[:8], # 这里现在存的是去重后的真关键词
             "stats_json": platform_counts
-        }
-        
+        }        
         res = requests.post(f"{api_url}/insights/", json=insight_data)
 
         if res.status_code in (200, 201):
