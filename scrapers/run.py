@@ -35,8 +35,8 @@ def generate_daily_insights(api_url: str):
     """
     logging.info("🧠 Starting AI Deep Insights synthesis...")
     try:
-        # 1. 获取近期资讯用于分析 (增加到 500 条以获得更深度的关联)
-        response = requests.get(f"{api_url}/news/", params={"limit": 500})
+        # 1. 获取近期资讯用于分析 (进一步增加到 1000 条以获得极致深度的关联)
+        response = requests.get(f"{api_url}/news/", params={"limit": 1000})
             
         if response.status_code != 200:
             logging.error(f"❌ Failed to fetch news for analysis: {response.text}")
@@ -47,18 +47,23 @@ def generate_daily_insights(api_url: str):
             logging.warning("⚠️ No news found to analyze.")
             return
         
-        # 2. 按 cluster_id 聚合 (由之前的 ClusteringEngine 生成)
+        # 2. 按 cluster_id 聚合
         clusters = {}
         platform_counts = {}
+        all_keywords = []
+        
         for item in all_news:
             # 统计平台分布
             p = item['platform']
             platform_counts[p] = platform_counts.get(p, 0) + 1
+            
+            # 收集关键词用于统计
+            if item.get('trending_keywords'):
+                all_keywords.extend(item['trending_keywords'])
 
             cid = item.get('cluster_id')
             if not cid: continue
             
-            # 使用 cluster_id 作为键，聚合信息
             if cid not in clusters:
                 clusters[cid] = {"cluster_id": cid, "count": 0, "reasons": []}
             
@@ -66,22 +71,27 @@ def generate_daily_insights(api_url: str):
             if item.get('reason'):
                 clusters[cid]["reasons"].append(item['reason'])
 
-        # 3. 排序并取前 10 个热点
+        # 3. 提取最高频的 8 个关键词作为 hot_topics (替代 UUID)
+        from collections import Counter
+        kw_counts = Counter(all_keywords)
+        top_kws = [kw for kw, count in kw_counts.most_common(12) if len(kw) > 1]
+
+        # 4. 排序并取前 25 个热点进行总结
         sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
         
         if not sorted_clusters:
             logging.warning("⚠️ No topic clusters found to summarize.")
             return
 
-        # 4. 调用 AI 生成简报
+        # 5. 调用 AI 生成简报
         briefing_content = evaluator.summarize_clusters(sorted_clusters)
         
-        # 5. 回传到后端存储 (使用 UTC 日期)
+        # 6. 回传到后端存储 (使用 UTC 日期)
         today = datetime.utcnow().strftime('%Y-%m-%d')
         insight_data = {
             "date": today,
             "content": briefing_content,
-            "hot_topics": [c['cluster_id'] for c in sorted_clusters[:8]],
+            "hot_topics": top_kws[:8], # 这里现在存的是真正的关键词
             "stats_json": platform_counts
         }
         
