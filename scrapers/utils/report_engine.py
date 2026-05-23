@@ -39,39 +39,68 @@ class ReportEngine:
                 device_scale_factor=2
             )
 
+            # 📝 Capture browser console logs for debugging
+            page.on("console", lambda msg: logger.info(f"🌐 [Browser Console] {msg.text}"))
+            page.on("pageerror", lambda exc: logger.error(f"❌ [Browser Error] {exc}"))
+            page.on("requestfailed", lambda req: logger.warning(f"⚠️ [Network Error] {req.method} {req.url} - {req.failure.error_text if req.failure else 'Unknown'}"))
+
             try:
                 logger.info(f"🌐 Navigating to {self.frontend_url}")
-                await page.goto(self.frontend_url, wait_until="networkidle")
+                response = await page.goto(self.frontend_url, wait_until="networkidle", timeout=60000)
                 
-                logger.info("⏳ Waiting for report readiness signal...")
-                await page.wait_for_selector("#report-ready", timeout=30000, state="attached")
+                if not response or response.status != 200:
+                    logger.error(f"❌ Failed to load page: {response.status if response else 'No Response'}")
+                    # If it's a 404, the route might not exist on the target server
+                    if response and response.status == 404:
+                        logger.error("🚀 Hint: The /report route returned 404. Ensure the backend is serving the latest frontend build.")
+                    return None
+
+                logger.info("⏳ Waiting for report readiness signal (#report-ready)...")
+                try:
+                    await page.wait_for_selector("#report-ready", timeout=30000, state="attached")
+                except Exception as e:
+                    logger.warning(f"⚠️ Readiness signal timeout, but continuing to screenshot anyway to see state. Error: {e}")
                 
                 element = await page.query_selector("#report-content")
                 if not element:
-                    logger.error("❌ Could not find #report-content element")
+                    logger.error("❌ Could not find #report-content element. Is the page rendering correctly?")
+                    # Screenshot the whole page to debug
+                    await page.screenshot(path=temp_path.replace(".png", "_error_full.png"))
                     return None
                     
                 await element.screenshot(path=temp_path)
                 logger.info(f"✅ Screenshot captured at: {temp_path}")
 
-                # 🚀 Upload to backend media service
+                # 🚀 Upload to backend media service (matching MediaMirror pattern)
+                # Using /media/upload (legacy support) or /api/media/upload
+                # We'll try the /api/ one first as it's the new standard
                 upload_url = f"{self.api_url}/api/media/upload"
                 logger.info(f"📤 Uploading report to {upload_url}...")
                 
                 with open(temp_path, "rb") as f:
-                    files = {"file": (f"{date_str}.png", f, "image/png")}
+                    # File name for the upload is descriptive, backend will rename it to MD5
+                    files = {"file": (f"daily-report-{date_str}.png", f, "image/png")}
                     res = requests.post(upload_url, files=files, timeout=30)
                 
                 if res.status_code != 200:
-                    logger.error(f"❌ Upload failed: {res.text}")
+                    # Fallback to legacy endpoint if new one fails
+                    upload_url_legacy = f"{self.api_url}/media/upload"
+                    logger.info(f"⚠️ New API failed, retrying legacy upload to {upload_url_legacy}...")
+                    with open(temp_path, "rb") as f:
+                        files = {"file": (f"daily-report-{date_str}.png", f, "image/png")}
+                        res = requests.post(upload_url_legacy, files=files, timeout=30)
+                
+                if res.status_code != 200:
+                    logger.error(f"❌ All upload attempts failed: {res.text}")
                     return None
                 
                 report_data = res.json()
+                # Backend returns path starting with /f/
                 report_url = report_data.get("url")
-                logger.info(f"✅ Uploaded! URL: {report_url}")
+                logger.info(f"✅ Uploaded to media pool! URL: {report_url}")
 
-                # 💾 Update DailyInsight in database
-                logger.info(f"💾 Updating database for date {date_str}...")
+                # 💾 Update DailyInsight in database with the consistent relative path
+                logger.info(f"💾 Reporting report_url to database for {date_str}...")
                 update_res = requests.patch(
                     f"{self.api_url}/api/insights/{date_str}", 
                     json={"report_url": report_url},
@@ -79,12 +108,15 @@ class ReportEngine:
                 )
                 
                 if update_res.status_code in [200, 201]:
-                    logger.info(f"✨ Successfully updated report_url for {date_str}")
-                    # Clean up temp file
-                    # os.remove(temp_path)
+                    logger.info(f"✨ Successfully linked report to database record.")
+                    # Clean up temp file after successful reporting
+                    try:
+                        os.remove(temp_path)
+                        logger.info(f"🗑️ Cleaned up temporary screenshot.")
+                    except: pass
                     return report_url
                 else:
-                    logger.error(f"❌ Database update failed: {update_res.text}")
+                    logger.error(f"❌ Database reporting failed: {update_res.text}")
                     return None
 
             except Exception as e:
