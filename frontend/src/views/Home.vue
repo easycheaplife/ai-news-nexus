@@ -87,7 +87,7 @@ const filters = ref({
   platform: '',
   query: '',
   cluster_id: '',
-  limit: 100,
+  limit: 40,
   skip: 0
 });
 
