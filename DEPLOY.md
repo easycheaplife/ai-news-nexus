@@ -69,6 +69,14 @@ python3 -m uvicorn main:app --reload --port 8000
     GEMINI_API_KEY=your_gemini_api_key_here
     GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 
+    # 截图与报表配置
+    REPORT_FRONTEND_URL=http://localhost:5173/report # 截图访问的前端地址
+    
+    # 采集控制
+    SCRAPE_WINDOW_HOURS=72         # 抓取过去多少小时内的内容
+    TWITTER_MAX_429_ERRORS=10      # 允许的最大 Twitter 429 报错次数
+    PRODUCTHUNT_TOKEN=your_token   # 可选：ProductHunt API Token
+
     # 发现引擎限制
     MAX_ACTIVE_TARGETS=100
     DISCOVERY_MAX_VETTING=50

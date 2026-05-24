@@ -61,20 +61,25 @@ ai-news-nexus/
    ```
 
 ### 命令行参数说明
-
 | 参数 | 缩写 | 默认值 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `--discovery` | - | `True` | 是否运行信源发现引擎（挖掘新大佬）。 |
 | `--scrape` | `-s` | `True` | 是否运行各平台内容采集引擎。 |
+| `--clustering` | - | `True` | 是否运行语义聚类引擎（话题聚合）。 |
 | `--curation` | - | `True` | 是否运行信源质量评价与汰换引擎。 |
 | `--insights` | - | `True` | 是否运行每日 AI 深度简报生成。 |
+| `--report` | - | `True` | 是否运行日报图片生成。 |
 | `--no-discovery` | - | - | 禁用发现引擎。 |
 | `--no-scrape` | - | - | 禁用内容采集。 |
+| `--no-clustering` | - | - | 禁用聚类引擎。 |
 | `--no-curation` | - | - | 禁用信源汰换。 |
 | `--no-insights` | - | - | 禁用简报生成。 |
-| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`）。 |
+| `--no-report` | - | - | 禁用日报生成。 |
+| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`, `github`, `arxiv` 等）。 |
+| `--style` | - | `toxic` | 简报风格：`toxic` (毒舌吐槽版) 或 `official` (正经战略版)。 |
 | `--loop` | `-l` | `False` | 开启循环模式。 |
 | `--interval` | `-i` | `3600` | 循环间隔（秒）。 |
+
 
 ### 常见运行场景
 

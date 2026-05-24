@@ -53,29 +53,41 @@
 
 ## 3. 深度简报接口 (Insights API)
 
-### 2.1 获取最新战略简报
+### 3.1 获取最新战略简报
 - **Endpoint**: `GET /insights/latest`
 - **说明**: 获取由 AI 综合今日所有热点生成的全局总结。
+- **响应示例**:
+  ```json
+  {
+    "id": 45,
+    "date": "2026-05-24",
+    "content": "...",
+    "hot_topics": ["LLM", "Agent"],
+    "stats_json": {"twitter": 15, "github": 8},
+    "report_url": "/f/daily-report-2026-05-24.png",
+    "created_at": "2026-05-24T..."
+  }
+  ```
 
-### 2.2 上报每日简报
+### 3.2 上报每日简报
 - **Endpoint**: `POST /insights/`
 - **说明**: 供采集调度器在抓取结束后提交汇总分析结果。
 
 ---
 
-## 3. 情报发现接口 (Discovery API)
+## 4. 情报发现接口 (Discovery API)
 
-### 3.1 获取待验证池内容
+### 4.1 获取待验证池内容
 - **Endpoint**: `GET /discovery/`
 - **说明**: 获取发现引擎从高分资讯中挖掘到的新账号（user）或技术热词（keyword）。
 - **Query 参数**:
   - `status`: 过滤状态 (pending, vetted, rejected)。
 
-### 3.2 提交发现信号
+### 4.2 提交发现信号
 - **Endpoint**: `POST /discovery/`
 - **说明**: 采集引擎将内容中提取到的 Mentions 或 Keywords 实时存入发现池。
 
-### 3.3 更新发现池状态
+### 4.3 更新发现池状态
 - **Endpoint**: `PATCH /discovery/{id}`
 - **说明**: 发现引擎验证通过后，更新其状态为 `vetted` 或 `rejected`。
 - **Payload 示例**:
@@ -87,9 +99,9 @@
 
 ---
 
-## 4. 采集目标管理 (Targets API)
+## 5. 采集目标管理 (Targets API)
 
-### 4.1 获取采集白名单
+### 5.1 获取采集白名单
 - **Endpoint**: `GET /targets/`
 - **说明**: 获取当前账号名单，支持质量指标筛选。
 - **Query 参数**:
@@ -97,7 +109,7 @@
   - `is_active`: (Optional) 是否活跃。
   - `status`: (Optional) 过滤状态 (active, probation, deactivated, blacklisted)。
 
-### 4.2 更新采集目标状态
+### 5.2 更新采集目标状态
 - **Endpoint**: `PATCH /targets/{id}`
 - **说明**: 质量评价引擎提交评分、更新状态或下架低质信源。
 - **Payload 示例**:
@@ -110,13 +122,13 @@
   }
   ```
 
-### 4.3 注册新采集账号
+### 5.3 注册新采集账号
 - **Endpoint**: `POST /targets/`
 - **说明**: 发现引擎验证（Vetting）通过后，将新牛人账号正式录入采集列表。
 
 ---
 
-## 5. 开发建议
+## 6. 开发建议
 
 - **认证**: 目前接口主要面向内部封闭环境，建议在生产环境前端通过 Nginx 限制公网 POST 访问。
 - **并发**: 后端基于异步 FastAPI 框架，但在数据库层面使用了 SQLAlchemy 同步引擎，在高频采集时建议维持合理的连接池配置。

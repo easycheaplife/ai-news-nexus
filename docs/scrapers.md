@@ -49,15 +49,19 @@ GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 ```
 
 ### 可用模型列表 (2026版)
-根据环境支持，以下模型 ID 可直接填入 `GEMINI_MODEL`：
+根据环境支持，以下模型 ID 可直接填入 `GEMINI_MODEL` (系统将按逗号分隔顺序自动尝试)：
 
 | 模型 ID | 说明 | 推荐场景 |
 | :--- | :--- | :--- |
-| `gemini-1.5-flash` | 速度极快，高性价比 | 基础采集、批量处理 |
-| `gemini-2.0-flash` | 下一代快速模型，逻辑更强 | 默认推荐 |
-| `gemini-3.1-flash-lite` | **3.1系列首选**，极速响应 | 实时资讯评分 |
-| `gemini-3.1-pro-preview` | 强推理能力，分析更深刻 | 深度内容分析 |
-| `gemini-3.1-flash-image-preview` | 支持图像分析的 3.1 预览版 | 包含图片的推文分析 |
+| `gemini-3.1-flash-lite` | **3.1系列首选**，极速响应，极低成本 | 实时资讯评分与摘要 |
+| `gemini-2.5-flash` | 平衡性能与速度的旗舰 Flash 模型 | 深度聚类分析 |
+| `gemini-2.0-flash` | 下一代快速模型，逻辑较强 | 默认推荐 |
+| `gemini-1.5-flash` | 速度快且稳定 | 基础采集任务 |
+
+除了基础评分，AI 还会自动提取以下字段用于系统流转：
+- **语义聚类 (cluster_id)**：用于话题级聚合。
+- **提到用户 (mentioned_users)**：由发现引擎用于挖掘潜在 KOL。
+- **趋势关键词 (trending_keywords)**：用于全网猎词与搜索扩张。
 
 ## 5. Twitter 高可用方案 (Nitter Fallback)
 为了应对 Twitter 极其严格的反爬政策，采集引擎实现了双引擎切换机制：
@@ -91,5 +95,16 @@ GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 - **toxic (默认)**: **毒舌吐槽版**。风格犀利、幽默，直击行业“画饼”本质，适合寻求真实、有趣视角的专业读者。
 - **official**: **正经战略版**。仿高盛/麦肯锡内参风格，专业严谨，侧重底层范式演进与宏观产业评估，适合决策参考。
 
-## 9. 异常恢复
+## 9. 自动化日报生成 (Automated Report Generation)
+系统集成了基于 Playwright 的截图引擎，可自动将每日简报转换为视觉排版精美的图片。
+
+- **核心逻辑**: `scrapers/utils/report_engine.py`。
+- **工作流**:
+  1. 采集流程结束后，自动触发 `Insights API` 提交汇总。
+  2. 提交成功后，启动无头浏览器访问前端 `/report` 路由。
+  3. 等待页面渲染完成（监听 `#report-ready` 信号）后，截取 `#report-content` 区域。
+  4. 将生成的 PNG 上传至后端媒体库，并更新 `DailyInsight` 的 `report_url` 字段。
+- **环境依赖**: 需要在运行环境中安装 Playwright 浏览器核心：`playwright install chromium`。
+
+## 10. 异常恢复
 如果 `state.json` 丢失，采集器将回退到全量抓取模式（后端会自动去重），并在完成后重新生成状态文件。
