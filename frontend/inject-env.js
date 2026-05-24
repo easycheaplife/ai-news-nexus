@@ -2,10 +2,28 @@ import fs from 'fs';
 import path from 'path';
 
 const redirectsPath = path.resolve('public/_redirects');
-const backendUrl = process.env.BACKEND_URL;
+
+// Attempt to load from .env or .env.local files if process.env.BACKEND_URL is missing
+let backendUrl = process.env.BACKEND_URL;
 
 if (!backendUrl) {
-  console.warn('⚠️ BACKEND_URL environment variable is not set. Skipping injection.');
+  const envFiles = ['.env.local', '.env'];
+  for (const file of envFiles) {
+    const envPath = path.resolve(file);
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      const match = content.match(/^BACKEND_URL=(.+)$/m);
+      if (match) {
+        backendUrl = match[1].trim().replace(/['"]/g, '');
+        console.log(`💡 Loaded BACKEND_URL from ${file}`);
+        break;
+      }
+    }
+  }
+}
+
+if (!backendUrl) {
+  console.warn('⚠️ BACKEND_URL environment variable is not set and not found in .env files. Skipping injection.');
   process.exit(0);
 }
 
