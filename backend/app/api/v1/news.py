@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String
 from typing import List, Optional
@@ -47,6 +47,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
 @router.get("/", response_model=List[NewsSchema])
 @cache(expire=300) # 缓存 5 分钟
 async def read_news(
+    request: Request,
     platform: Optional[str] = None,
     author: Optional[str] = None,
     cluster_id: Optional[str] = None,
