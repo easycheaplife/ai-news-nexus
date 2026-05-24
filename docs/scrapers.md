@@ -37,6 +37,9 @@
 - **Hugging Face**: 
   - **Daily Papers**: 基于 `publishedAt` 时间戳进行增量过滤。
   - **Trending Models**: 基于 `lastModified` 时间戳进行增量过滤。
+- **WeChat (公众号)**: 
+  - **更新监控**: 基于 RSS 桥接服务的时间戳进行增量抓取。
+  - **全文穿透**: 使用 Jina Reader (`r.jina.ai`) 将 HTML 长文转换为 Markdown 纯文本。
 
 ## 4. AI 智能评估 (AI Evaluation)
 采集器集成了 Google Gemini API，对抓取到的内容进行自动化评分和推荐理由生成。
