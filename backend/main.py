@@ -17,6 +17,7 @@ from app.models.news import Base
 from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
+from app.core.cache_utils import nexus_key_builder
 
 # Initialize Database
 Base.metadata.create_all(bind=engine)
@@ -32,7 +33,7 @@ async def startup():
         encoding="utf8",
         decode_responses=True
     )
-    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache", key_builder=nexus_key_builder)
 
 app.add_middleware(
     CORSMiddleware,
