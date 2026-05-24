@@ -2,6 +2,7 @@ import logging
 import argparse
 import os
 import time
+import random
 from dotenv import load_dotenv
 from datetime import datetime
 import requests
@@ -211,7 +212,13 @@ def run_scrapers(target_platform: str = None,
 
     # 6. 抓取结束后自动生成今日 AI 深度洞察
     if do_insights and not target_platform:
-        generate_daily_insights(api_url, style=style)
+        # 如果未指定风格，随机选择毒舌或正经版
+        actual_style = style
+        if not actual_style:
+            actual_style = random.choice(["toxic", "official"])
+            logging.info(f"🎲 No style specified. Randomly selected: {actual_style}")
+            
+        generate_daily_insights(api_url, style=actual_style)
     else:
         logging.info("⏩ Skipping insights generation phase")
 
@@ -245,7 +252,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-report", action="store_true", help="Explicitly disable report generation")
 
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
-    parser.add_argument("--style", default="toxic", choices=["toxic", "official"], help="Report style: toxic or official (default: toxic)")
+    parser.add_argument("--style", choices=["toxic", "official"], help="Report style: toxic or official (default: random)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
     
