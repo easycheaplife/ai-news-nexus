@@ -99,7 +99,6 @@ const platforms = [
   { label: 'ArXiv', value: 'arxiv' },
   { label: 'YouTube', value: 'youtube' },
   { label: 'Hugging Face', value: 'huggingface' },
-  { label: '微信公众号', value: 'wechat' },
   { label: 'Reddit', value: 'reddit' },
   { label: 'Hacker News', value: 'hn' },
   { label: 'Product Hunt', value: 'ph' },

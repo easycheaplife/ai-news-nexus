@@ -16,7 +16,6 @@ from scrapers.engines.arxiv import ArxivScraper
 from scrapers.engines.youtube import YouTubeScraper
 from scrapers.engines.labs import LabsScraper
 from scrapers.engines.huggingface import HuggingFaceScraper
-from scrapers.engines.wechat import WeChatScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
@@ -168,8 +167,7 @@ def run_scrapers(target_platform: str = None,
             ArxivScraper(api_url=api_url),
             YouTubeScraper(api_url=api_url),
             LabsScraper(api_url=api_url),
-            HuggingFaceScraper(api_url=api_url),
-            WeChatScraper(api_url=api_url)
+            HuggingFaceScraper(api_url=api_url)
         ]
         
         if target_platform:

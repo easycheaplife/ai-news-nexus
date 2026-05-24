@@ -8,7 +8,6 @@ from .base import BaseScraper
 from datetime import datetime
 from ..utils.ai import evaluator
 from ..utils.link_scraper import scrape_link_content
-from ..utils.wechat_utils import extract_wechat_full_text
 
 class TwitterScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -248,35 +247,14 @@ class TwitterScraper(BaseScraper):
                     if dt_obj and not self.is_within_window(dt_obj):
                         continue
 
-                    # 🔍 探测推文中的链接，识别是否包含公众号链接
-                    wechat_url = None
-                    if "mp.weixin.qq.com" in full_content:
-                        # 尝试提取第一个微信链接
-                        urls = re.findall(r'https?://mp\.weixin\.qq\.com[^\s]+', full_content)
-                        if urls:
-                            wechat_url = urls[0].split('?')[0] # 基础链接，避免过长
-                    
-                    # 🚀 如果发现微信链接，触发“借道穿透”逻辑
-                    if wechat_url:
-                        self.logger.info(f"🔗 Detected WeChat link in @{username}'s tweet, triggering bridge extraction...")
-                        wc_full_text = extract_wechat_full_text(wechat_url)
-                        if len(wc_full_text) > 100:
-                            # 替换内容为公众号全文
-                            full_content = wc_full_text
-                            target_platform = "wechat"
-                        else:
-                            target_platform = "twitter"
-                    else:
-                        target_platform = "twitter"
-
                     score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", full_content)
                     
                     item = {
-                        "platform": target_platform,
-                        "external_id": tid if target_platform == "twitter" else f"wc_bridge_{tid}",
-                        "title": f"@{username}: {full_content[:100].strip()}" if target_platform == "twitter" else f"[微信全文] {full_content[:100].strip().splitlines()[0]}",
+                        "platform": "twitter",
+                        "external_id": tid,
+                        "title": f"@{username}: {full_content[:100].strip()}",
                         "content": full_content,
-                        "url": tweet.get('url', f"https://twitter.com/{username}/status/{tid}") if target_platform == "twitter" else wechat_url,
+                        "url": tweet.get('url', f"https://twitter.com/{username}/status/{tid}"),
                         "published_at": dt_obj.isoformat() if dt_obj else datetime.utcnow().isoformat(),
                         "score": score,
                         "reason": reason,
@@ -285,11 +263,7 @@ class TwitterScraper(BaseScraper):
                         "mentioned_users": mentioned_users,
                         "trending_keywords": trending_keywords,
                         "media_urls": self._process_tweet_media(tweet),
-                        "metadata_json": {
-                            "author": username, 
-                            "source": "nitter" if tweet.get('is_nitter') else "syndication",
-                            "is_wechat_bridge": target_platform == "wechat"
-                        }
+                        "metadata_json": {"author": username, "source": "nitter" if tweet.get('is_nitter') else "syndication"}
                     }
                     self.push_to_backend(item)
 
