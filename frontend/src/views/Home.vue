@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X, Menu } from 'lucide-vue-next';
 import NewsCard from '../components/NewsCard.vue';
