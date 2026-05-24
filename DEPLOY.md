@@ -51,7 +51,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # 安装 Playwright 浏览器依赖 (日报生成引擎必需)
-pip install playwright
+pip install playwright yt-dlp
 playwright install --with-deps chromium
 
 # 启动后端服务
