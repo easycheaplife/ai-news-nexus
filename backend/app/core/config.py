@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     ENV: str = "development"
     MIN_SCORE: int = 60
     
+    # Redis
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
+    REDIS_PASSWORD: Optional[str] = None
+    
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         # 强制使用 MySQL (云端生产环境)

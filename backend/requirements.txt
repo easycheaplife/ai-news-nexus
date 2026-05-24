@@ -15,3 +15,5 @@ youtube-transcript-api
 yt-dlp
 playwright
 python-multipart
+redis
+fastapi-cache2[redis]

@@ -13,10 +13,26 @@ from app.core.config import settings
 from app.db.session import engine
 from app.models.news import Base
 
+# Redis Caching
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from redis import asyncio as aioredis
+
 # Initialize Database
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title=settings.PROJECT_NAME)
+
+@app.on_event("startup")
+async def startup():
+    redis = aioredis.from_url(
+        f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}",
+        password=settings.REDIS_PASSWORD,
+        db=settings.REDIS_DB,
+        encoding="utf8",
+        decode_responses=True
+    )
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
 
 app.add_middleware(
     CORSMiddleware,

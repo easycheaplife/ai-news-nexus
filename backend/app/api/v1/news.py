@@ -7,6 +7,7 @@ from app.db.session import get_db
 from app.core.config import settings
 from app.models.news import NewsItem
 from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate
+from fastapi_cache.decorator import cache
 
 router = APIRouter()
 
@@ -44,6 +45,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[NewsSchema])
+@cache(expire=300) # 缓存 5 分钟
 def read_news(
     platform: Optional[str] = None,
     author: Optional[str] = None,

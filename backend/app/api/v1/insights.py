@@ -5,6 +5,7 @@ from datetime import date
 from app.db.session import get_db
 from app.models.news import DailyInsight
 from app.schemas.news import DailyInsight as InsightSchema, DailyInsightCreate, DailyInsightUpdate
+from fastapi_cache.decorator import cache
 
 router = APIRouter()
 
@@ -49,14 +50,17 @@ def update_daily_insight(insight_date: date, insight: DailyInsightUpdate, db: Se
     return db_insight
 
 @router.get("/", response_model=List[InsightSchema])
+@cache(expire=600)
 def list_insights(limit: int = 100, db: Session = Depends(get_db)):
     return db.query(DailyInsight).order_by(DailyInsight.date.desc()).limit(limit).all()
 
 @router.get("/latest", response_model=Optional[InsightSchema])
+@cache(expire=600)
 def get_latest_insight(db: Session = Depends(get_db)):
     return db.query(DailyInsight).order_by(DailyInsight.date.desc()).first()
 
 @router.get("/{target_date}", response_model=InsightSchema)
+@cache(expire=600)
 def get_insight_by_date(target_date: date, db: Session = Depends(get_db)):
     db_insight = db.query(DailyInsight).filter(DailyInsight.date == target_date).first()
     if not db_insight:
