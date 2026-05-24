@@ -104,10 +104,9 @@ const platforms = [
   { label: 'Product Hunt', value: 'ph' },
 ];
 
-let isFetching = false;
+let currentFetchId = 0;
 const fetchNews = async (isLoadMore = false) => {
-  if (isFetching) return;
-  isFetching = true;
+  const fetchId = ++currentFetchId;
   
   if (isLoadMore) {
     loadingMore.value = true;
@@ -117,44 +116,48 @@ const fetchNews = async (isLoadMore = false) => {
   }
 
   try {
-    const params = {
+    const params: any = {
       platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
       cluster_id: filters.value.cluster_id || undefined,
       limit: filters.value.limit,
-      skip: filters.value.skip
+      skip: filters.value.skip,
+      _t: Date.now() // Cache buster
     };
     
     if (isLoadMore) {
-      // 仅抓取更多资讯
       const response = await axios.get(`${apiUrl}/news/`, { params });
+      if (fetchId !== currentFetchId) return; // Ignore stale request
+      
       const newItems = response.data;
       news.value = [...news.value, ...newItems];
       hasMore.value = newItems.length === filters.value.limit;
     } else {
-      // 并行抓取资讯、最新洞察和热门话题聚类
       const [newsRes, insightRes, clustersRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
-        axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] }))
+        axios.get(`${apiUrl}/insights/latest`, { params: { _t: params._t } }).catch(() => ({ data: null })),
+        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4, _t: params._t } }).catch(() => ({ data: [] }))
       ]);
+      
+      if (fetchId !== currentFetchId) return; // Ignore stale request
       
       news.value = newsRes.data;
       latestInsight.value = insightRes.data;
       trendingClusters.value = clustersRes.data || [];
       hasMore.value = news.value.length === filters.value.limit;
-      console.log('Briefing Data Received:', latestInsight.value);
-      console.log('Trending Clusters:', trendingClusters.value);
     }
     
     error.value = null;
   } catch (err: any) {
-    error.value = '无法连接到资讯引擎。';
+    if (fetchId === currentFetchId) {
+      error.value = '无法连接到资讯引擎。';
+    }
     console.error(err);
   } finally {
-    loading.value = false;
-    loadingMore.value = false;
-    isFetching = false;
+    if (fetchId === currentFetchId) {
+      loading.value = false;
+      loadingMore.value = false;
+    }
   }
 };
 
