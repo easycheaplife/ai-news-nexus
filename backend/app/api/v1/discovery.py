@@ -4,6 +4,7 @@ from app.db.session import get_db
 from app.models.news import DiscoveryPool, DiscoveryStatus
 from app.schemas.news import DiscoveryPoolCreate, DiscoveryPool as DiscoverySchema, DiscoveryPoolUpdate
 from typing import List, Optional
+from datetime import datetime
 
 router = APIRouter()
 
@@ -16,6 +17,12 @@ def add_to_discovery_pool(item: DiscoveryPoolCreate, db: Session = Depends(get_d
     ).first()
     
     if db_item:
+        # 如果已存在，更新时间戳使其“浮动”到最前，并尝试更新理由（如果原理由较短）
+        db_item.created_at = datetime.utcnow()
+        if len(item.discovery_reason) > len(db_item.discovery_reason or ""):
+            db_item.discovery_reason = item.discovery_reason
+        db.commit()
+        db.refresh(db_item)
         return db_item
 
     try:

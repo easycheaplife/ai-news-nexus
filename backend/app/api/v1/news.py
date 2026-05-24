@@ -92,6 +92,7 @@ def read_news(
         db_query = db_query.filter(or_(
             func.lower(NewsItem.title).like(f"%{query}%"),
             (NewsItem.content.isnot(None)) & (func.lower(NewsItem.content).like(f"%{query}%")),
+            (NewsItem.trending_keywords.isnot(None)) & (func.lower(cast(NewsItem.trending_keywords, String)).like(f"%{query}%")),
             (NewsItem.metadata_json.isnot(None)) & (func.lower(cast(NewsItem.metadata_json, String)).like(f"%{clean_query}%"))
         ))
     

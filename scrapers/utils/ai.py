@@ -76,7 +76,7 @@ class GeminiEvaluator:
             "takeaways": ["核心要点1：详细描述", "核心要点2：详细描述", "核心要点3：详细描述", "核心要点4：详细描述", "核心要点5：详细描述"],
             "cluster_id": "核心语义主题 (2-4个词)",
             "mentioned_users": ["提取内容中提到的其他高价值 AI 相关用户名/Handle"],
-            "trending_keywords": ["提取该资讯涉及的 3-5 个核心技术热词"]
+            "trending_keywords": ["提取该资讯涉及的 3-5 个核心技术热词 (每个词 1-3 单词，如 'LLM', 'Agent', 'VLA')"]
         }}
         """
 
