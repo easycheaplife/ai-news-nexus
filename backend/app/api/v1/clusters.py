@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
@@ -7,11 +7,13 @@ import uuid
 from app.db.session import get_db
 from app.models.news import TopicCluster, ClusterNewsMapping, NewsItem
 from app.schemas.cluster import TopicCluster as TopicClusterSchema, ClusterBatchCreate
+from fastapi_cache.decorator import cache
 
 router = APIRouter()
 
 @router.get("/trending", response_model=List[TopicClusterSchema])
-def get_trending_clusters(limit: int = 10, db: Session = Depends(get_db)):
+@cache(expire=300)
+async def get_trending_clusters(request: Request, limit: int = 10, db: Session = Depends(get_db)):
     """
     Get top trending topic clusters.
     """
@@ -31,7 +33,8 @@ def get_trending_clusters(limit: int = 10, db: Session = Depends(get_db)):
     return result
 
 @router.get("/{cluster_id}", response_model=TopicClusterSchema)
-def get_cluster(cluster_id: str, db: Session = Depends(get_db)):
+@cache(expire=600)
+async def get_cluster(request: Request, cluster_id: str, db: Session = Depends(get_db)):
     """
     Get specific cluster by ID.
     """
