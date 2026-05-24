@@ -111,24 +111,24 @@ def generate_daily_insights(api_url: str):
         try:
             platform_counts['Total'] = total_count
         except: pass
+# 7. 回传到后端存储 (统一使用本地日期，确保与截图引擎对齐)
+today_str = datetime.now().strftime('%Y-%m-%d')
+insight_data = {
+    "date": today_str,
+    "content": briefing_content,
+    "hot_topics": final_kws[:8], # 这里现在存的是去重后的真关键词
+    "stats_json": platform_counts
+}
 
-        # 7. 回传到后端存储
-        today = datetime.utcnow().strftime('%Y-%m-%d')
-        insight_data = {
-            "date": today,
-            "content": briefing_content,
-            "hot_topics": final_kws[:8], # 这里现在存的是去重后的真关键词
-            "stats_json": platform_counts
-        }        
-        res = requests.post(f"{api_url}/insights/", json=insight_data)
+res = requests.post(f"{api_url}/insights/", json=insight_data)
 
-        if res.status_code in (200, 201):
-            logging.info("✅ Daily Strategic Briefing successfully archived.")
-            # 自动生成日报图片
-            try:
-                run_report_generation()
-            except Exception as e:
-                logging.error(f"❌ Failed to generate automated report: {e}")
+if res.status_code in (200, 201):
+    logging.info(f"✅ Daily Strategic Briefing ({today_str}) successfully archived.")
+    # 自动生成日报图片 (传递明确的日期)
+    try:
+        run_report_generation(today_str)
+    except Exception as e:
+        logging.error(f"❌ Failed to generate automated report: {e}")
         else:
             logging.error(f"❌ Failed to archive briefing: {res.text}")
 
