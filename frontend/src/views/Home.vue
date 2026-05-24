@@ -98,6 +98,7 @@ const platforms = [
   { label: 'GitHub', value: 'github' },
   { label: 'ArXiv', value: 'arxiv' },
   { label: 'YouTube', value: 'youtube' },
+  { label: 'Hugging Face', value: 'huggingface' },
   { label: 'Reddit', value: 'reddit' },
   { label: 'Hacker News', value: 'hn' },
   { label: 'Product Hunt', value: 'ph' },

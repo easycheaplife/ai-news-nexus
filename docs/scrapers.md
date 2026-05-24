@@ -34,6 +34,9 @@
 - **Reddit**: 解析 `created_utc` 时间戳，若 `timestamp <= last_timestamp` 则停止。
 - **Hacker News**: 记录扫描过的最大 `story_id`，只处理更大的 ID。
 - **Product Hunt**: 基于 RSS 条目的唯一 ID 或发布时间进行过滤。
+- **Hugging Face**: 
+  - **Daily Papers**: 基于 `publishedAt` 时间戳进行增量过滤。
+  - **Trending Models**: 基于 `lastModified` 时间戳进行增量过滤。
 
 ## 4. AI 智能评估 (AI Evaluation)
 采集器集成了 Google Gemini API，对抓取到的内容进行自动化评分和推荐理由生成。

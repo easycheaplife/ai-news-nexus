@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -71,6 +71,7 @@ const platformIcons: Record<string, any> = {
   github: Github,
   arxiv: BookOpen,
   labs: Building2,
+  huggingface: Cpu,
 };
 
 const platformColors: Record<string, string> = {
@@ -83,6 +84,7 @@ const platformColors: Record<string, string> = {
   github: 'bg-[#333]/40 text-[#ffffff] border-white/20',
   arxiv: 'bg-[#B31B1B]/10 text-[#B31B1B] border-[#B31B1B]/30',
   labs: 'bg-[#6366f1]/10 text-[#818cf8] border-[#6366f1]/30',
+  huggingface: 'bg-[#FFD21E]/10 text-[#eab308] border-[#FFD21E]/30',
 };
 
 const decodeUrl = (url: string) => {

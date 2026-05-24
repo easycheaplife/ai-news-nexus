@@ -75,7 +75,7 @@ ai-news-nexus/
 | `--no-curation` | - | - | 禁用信源汰换。 |
 | `--no-insights` | - | - | 禁用简报生成。 |
 | `--no-report` | - | - | 禁用日报生成。 |
-| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`, `github`, `arxiv` 等）。 |
+| `--platform` | `-p` | `None` | 指定抓取单一平台（如 `twitter`, `github`, `arxiv`, `huggingface` 等）。 |
 | `--style` | - | `toxic` | 简报风格：`toxic` (毒舌吐槽版) 或 `official` (正经战略版)。 |
 | `--loop` | `-l` | `False` | 开启循环模式。 |
 | `--interval` | `-i` | `3600` | 循环间隔（秒）。 |
