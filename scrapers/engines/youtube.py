@@ -4,10 +4,12 @@ from .base import BaseScraper
 from datetime import datetime
 import time
 from ..utils.ai import evaluator
+from ..utils.media_mirror import MediaMirror
 
 class YouTubeScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("youtube", api_url)
+        self.mirror = MediaMirror(self.api_url)
         # 顶级 AI 相关频道的 ID
         self.channels = {
             "UCv83tO5cePwHMt1952IVBgA": "Two Minute Papers",
@@ -81,11 +83,14 @@ class YouTubeScraper(BaseScraper):
                     full_content = f"{description}\n\n[视频字幕摘要]:\n{transcript_text}".strip()
 
                     # 提取封面图 (最大分辨率)
-                    media_urls = []
+                    raw_media_urls = []
                     if 'media_thumbnail' in entry and len(entry.media_thumbnail) > 0:
                         # Find the highest resolution thumbnail (usually the last one or max width)
                         best_thumb = max(entry.media_thumbnail, key=lambda x: int(x.get('width', 0)))
-                        media_urls.append(best_thumb['url'])
+                        raw_media_urls.append(best_thumb['url'])
+                    
+                    # 使用镜像服务转存封面图，确保显示稳定性
+                    media_urls = self.mirror.mirror_all(raw_media_urls)
 
                     # 🤖 AI 评分与理由
                     score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"YouTube Video: {entry.title}", full_content)

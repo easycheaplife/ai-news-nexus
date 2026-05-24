@@ -20,6 +20,7 @@ from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
 from scrapers.utils.clustering import ClusteringEngine
 from scrapers.utils.report_engine import run_report_generation
+from scrapers.utils.youtube_radar import YouTubeDiscoveryRadar
 
 # 加载 .env 文件
 load_dotenv()

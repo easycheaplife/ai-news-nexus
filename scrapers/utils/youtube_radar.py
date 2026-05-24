@@ -4,6 +4,7 @@ import json
 import subprocess
 from datetime import datetime, timedelta
 from scrapers.utils.ai import evaluator
+from scrapers.utils.media_mirror import MediaMirror
 from youtube_transcript_api import YouTubeTranscriptApi
 
 logger = logging.getLogger("youtube_radar")
@@ -11,6 +12,7 @@ logger = logging.getLogger("youtube_radar")
 class YouTubeDiscoveryRadar:
     def __init__(self, api_url: str = "http://localhost:8000"):
         self.api_url = api_url.rstrip('/')
+        self.mirror = MediaMirror(self.api_url)
 
     def _get_hot_keywords(self) -> list:
         """从后端获取过去 12 小时的热门技术关键词"""
@@ -65,12 +67,20 @@ class YouTubeDiscoveryRadar:
             for line in result.stdout.splitlines():
                 if not line.strip(): continue
                 video_data = json.loads(line)
+                
+                # 尝试从 thumbnails 列表中提取最高分辨率的预览图
+                thumbnails = video_data.get("thumbnails", [])
+                best_thumbnail = video_data.get("thumbnail") # 回退方案
+                if thumbnails:
+                    # 找到最宽的图
+                    best_thumbnail = max(thumbnails, key=lambda x: x.get("width", 0)).get("url")
+
                 videos.append({
                     "id": video_data.get("id"),
                     "title": video_data.get("title"),
-                    "description": video_data.get("description", ""),
+                    "description": video_data.get("description") or "",
                     "url": f"https://www.youtube.com/watch?v={video_data.get('id')}",
-                    "thumbnail": video_data.get("thumbnail")
+                    "thumbnail": best_thumbnail
                 })
             return videos
         except Exception as e:
@@ -146,6 +156,9 @@ class YouTubeDiscoveryRadar:
                 transcript = self._get_transcript(video['id'])
                 full_content = f"{video['description']}\n\n[视频字幕摘要]:\n{transcript}".strip()
                 
+                # 使用镜像服务转存封面图，确保显示稳定性
+                mirrored_media = self.mirror.mirror_all([video['thumbnail']]) if video['thumbnail'] else []
+
                 # AI 深度评估
                 score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(
                     f"YouTube Radar: {video['title']}", 
@@ -170,7 +183,7 @@ class YouTubeDiscoveryRadar:
                     "cluster_id": cluster_id,
                     "mentioned_users": mentioned_users,
                     "trending_keywords": trending_keywords,
-                    "media_urls": [video['thumbnail']] if video['thumbnail'] else [],
+                    "media_urls": mirrored_media,
                     "metadata_json": {
                         "discovery_keyword": kw,
                         "type": "radar_found"

@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2 } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -152,7 +152,10 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
           />
           
           <div class="absolute inset-0 bg-primary/20 opacity-0 group-hover/media:opacity-100 transition-opacity flex items-center justify-center">
-            <div class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl">
+            <div v-if="item.platform.toLowerCase() === 'youtube'" class="bg-primary/90 p-4 rounded-full shadow-2xl scale-75 group-hover/media:scale-100 transition-transform duration-500">
+              <Play class="w-8 h-8 text-white fill-white" />
+            </div>
+            <div v-else class="bg-white/10 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/20 text-[10px] font-black uppercase tracking-widest text-white shadow-2xl">
               Expand Content
             </div>
           </div>
