@@ -55,7 +55,11 @@ pip install playwright yt-dlp
 playwright install --with-deps chromium
 
 # 启动后端服务
-python3 -m uvicorn main:app --reload --port 8000
+# 推荐方式：使用 uvicorn 命令行启动（支持热重载和更多生产参数）
+python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# 备选方式：直接运行脚本（仅当 main.py 包含 uvicorn.run 逻辑时有效）
+# python3 main.py
 ```
 
 ---
