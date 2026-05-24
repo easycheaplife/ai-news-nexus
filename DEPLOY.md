@@ -50,6 +50,10 @@ source venv/bin/activate
 # 安装核心依赖
 pip install -r requirements.txt
 
+# 安装 Playwright 浏览器依赖 (日报生成引擎必需)
+pip install playwright
+playwright install --with-deps chromium
+
 # 启动后端服务
 python3 -m uvicorn main:app --reload --port 8000
 ```

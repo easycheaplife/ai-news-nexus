@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2026-05-24]
+
+### Added
+- **Multi-Style AI Briefings**:
+  - Introduced `--style` parameter for AI report generation, supporting `toxic` (sarcastic insider) and `official` (formal strategic) narrative modes.
+  - Refactored AI prompt engineering to support 2000+ word deep-dive summaries with distinct structural requirements.
+- **Visual Intelligence Engine**:
+  - Integrated Playwright-based screenshot engine (`report_engine.py`) to automatically generate PNG infographics from AI insights.
+  - Added signal-based rendering synchronization (using `#report-ready` DOM marker) to ensure perfect timing for visual capture.
+  - Implemented automated media upload and database linking for generated reports.
+- **Enhanced AI Metadata Extraction**:
+  - Updated `GeminiEvaluator` to extract `mentioned_users` and `trending_keywords` from content for downstream discovery and search expansion.
+  - Added support for latest Gemini 3.1 models and improved automated model fallback logic.
+- **CLI Robustness**:
+  - Expanded `scrapers/run.py` with granular flags (e.g., `--no-clustering`, `--no-curation`, `--style`) for surgical lifecycle control.
+  - Added loop mode with configurable intervals for autonomous perpetual operation.
+
+### Updated
+- **Comprehensive Documentation**:
+  - Synchronized `README.md`, `DEPLOY.md`, `docs/api.md`, and `docs/scrapers.md` with the latest feature set.
+  - Expanded environment variable documentation for visual reporting and AI configuration.
+
 ## [2026-05-21]
 
 ### Added
