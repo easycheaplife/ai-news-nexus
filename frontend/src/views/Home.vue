@@ -168,9 +168,14 @@ const loadMore = () => {
 
 // 🎯 处理侧边栏过滤
 const handleFilterAuthor = (author: string) => {
-  filters.value.platform = ''; // 清除平台过滤，因为 KOL 跨平台
+  const cleanAuthor = `@${author}`;
+  // 先更新参数，避免触发 watcher 的副作用清除 query
+  filters.value.platform = '';
   filters.value.cluster_id = '';
-  filters.value.query = `@${author}`;
+  filters.value.query = cleanAuthor;
+  filters.value.skip = 0;
+  
+  // 强制立即执行，不依赖 watcher
   fetchNews(false);
   closeMobileMenu();
 };
@@ -183,6 +188,7 @@ const handleFilterKeyword = (keyword: string) => {
   filters.value.cluster_id = '';
   filters.value.query = cleanKeyword;
   filters.value.skip = 0;
+  
   fetchNews(false);
   closeMobileMenu();
 };
@@ -225,10 +231,15 @@ const formatDateHeader = (dateStr: string) => {
 };
 
 onMounted(() => fetchNews(false));
-watch(() => filters.value.platform, () => {
-  filters.value.query = '';
-  filters.value.cluster_id = '';
-  fetchNews(false);
+
+// 仅监听平台切换，执行清空逻辑
+watch(() => filters.value.platform, (newVal, oldVal) => {
+  // 只有当平台真正发生变化，且不是从 KOL/关键字过滤跳转回来时（即 query 已经有值时），才执行清空
+  if (newVal !== oldVal && !filters.value.query && !filters.value.cluster_id) {
+    filters.value.query = '';
+    filters.value.cluster_id = '';
+    fetchNews(false);
+  }
 });
 
 let searchTimeout: any;
