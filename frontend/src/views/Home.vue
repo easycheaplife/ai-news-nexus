@@ -232,15 +232,14 @@ const formatDateHeader = (dateStr: string) => {
 
 onMounted(() => fetchNews(false));
 
-// 仅监听平台切换，执行清空逻辑
-watch(() => filters.value.platform, (newVal, oldVal) => {
-  // 只有当平台真正发生变化，且不是从 KOL/关键字过滤跳转回来时（即 query 已经有值时），才执行清空
-  if (newVal !== oldVal && !filters.value.query && !filters.value.cluster_id) {
-    filters.value.query = '';
-    filters.value.cluster_id = '';
-    fetchNews(false);
-  }
-});
+// 🎯 处理平台手动切换 (下拉框触发)
+const handlePlatformChange = () => {
+  // 手动切换平台时，清空其他筛选条件
+  filters.value.query = '';
+  filters.value.cluster_id = '';
+  filters.value.skip = 0;
+  fetchNews(false);
+};
 
 let searchTimeout: any;
 const handleSearch = () => {
@@ -460,6 +459,7 @@ const renderMarkdown = (text: string) => {
               <div class="relative shrink-0">
                 <select 
                   v-model="filters.platform"
+                  @change="handlePlatformChange"
                   class="appearance-none bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-4 pr-10 text-sm font-bold text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all cursor-pointer hover:text-white"
                 >
                   <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
@@ -505,6 +505,7 @@ const renderMarkdown = (text: string) => {
           <div class="relative shrink-0 w-[110px]">
             <select 
               v-model="filters.platform"
+              @change="handlePlatformChange"
               class="w-full appearance-none bg-white/5 border border-white/10 rounded-xl py-2 pl-3 pr-8 text-sm font-bold text-text-muted focus:outline-none focus:ring-1 focus:ring-primary/50"
             >
               <option v-for="p in platforms" :key="p.value" :value="p.value" class="bg-[#131316] text-white">
