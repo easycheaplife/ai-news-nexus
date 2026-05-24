@@ -143,7 +143,6 @@ def run_scrapers(target_platform: str = None,
                  do_curation: bool = True,
                  do_insights: bool = True,
                  do_report: bool = True,
-                 do_yt_radar: bool = True,
                  style: str = "toxic"):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
@@ -200,7 +199,8 @@ def run_scrapers(target_platform: str = None,
         logging.info("⏩ Skipping curation phase")
         
     # 5. 运行 YouTube 发现雷达 (YouTube Radar)
-    if do_yt_radar and not target_platform:
+    # 只有在全局运行或者显式指定 youtube 平台时才运行雷达，且必须开启了 scrape 开关
+    if do_scrape and (not target_platform or target_platform.lower() == "youtube"):
         yt_radar = YouTubeDiscoveryRadar(api_url)
         yt_radar.run()
     else:
@@ -232,7 +232,6 @@ if __name__ == "__main__":
     parser.add_argument("--curation", action="store_true", help="Run curation engine")
     parser.add_argument("--insights", action="store_true", help="Run insights generation")
     parser.add_argument("--report", action="store_true", help="Run report image generation")
-    parser.add_argument("--yt-radar", action="store_true", help="Run YouTube discovery radar")
     
     # 禁用特定功能的便捷开关
     parser.add_argument("--no-discovery", action="store_true", help="Explicitly disable discovery engine")
@@ -241,7 +240,6 @@ if __name__ == "__main__":
     parser.add_argument("--no-curation", action="store_true", help="Explicitly disable curation engine")
     parser.add_argument("--no-insights", action="store_true", help="Explicitly disable insights generation")
     parser.add_argument("--no-report", action="store_true", help="Explicitly disable report generation")
-    parser.add_argument("--no-yt-radar", action="store_true", help="Explicitly disable YouTube radar")
 
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
     parser.add_argument("--style", default="toxic", choices=["toxic", "official"], help="Report style: toxic or official (default: toxic)")
@@ -251,7 +249,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 逻辑判断：如果用户显式指定了任何正向功能参数，则只运行指定的。否则，默认全部开启。
-    any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights or args.report or args.yt_radar
+    any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights or args.report
     
     do_discovery = args.discovery if any_positive_flag_set else True
     do_scrape = args.scrape if any_positive_flag_set else True
@@ -259,7 +257,6 @@ if __name__ == "__main__":
     do_curation = args.curation if any_positive_flag_set else True
     do_insights = args.insights if any_positive_flag_set else True
     do_report = args.report if any_positive_flag_set else True
-    do_yt_radar = args.yt_radar if any_positive_flag_set else True
 
     # 显式禁用的优先级最高
     if args.no_discovery: do_discovery = False
@@ -268,13 +265,12 @@ if __name__ == "__main__":
     if args.no_curation: do_curation = False
     if args.no_insights: do_insights = False
     if args.no_report: do_report = False
-    if args.no_yt_radar: do_yt_radar = False
 
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, do_yt_radar, style=args.style)
+            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, do_yt_radar, style=args.style)
+        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
