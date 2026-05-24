@@ -22,3 +22,4 @@ scrapers/.env
 .idea/
 frontend/netlify.toml
 backend/data/reports/
+design-md

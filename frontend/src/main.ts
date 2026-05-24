@@ -5,9 +5,11 @@ import App from './App.vue'
 import Home from './views/Home.vue'
 import ReportsList from './views/ReportsList.vue'
 import ReportTemplate from './components/ReportTemplate.vue'
+import Landing from './views/Landing.vue'
 
 const routes = [
-  { path: '/', component: Home },
+  { path: '/', component: Landing },
+  { path: '/app', component: Home },
   { path: '/reports-list', component: ReportsList },
   { path: '/report', component: ReportTemplate }
 ]
