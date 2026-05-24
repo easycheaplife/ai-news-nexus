@@ -78,9 +78,13 @@ ai-news-nexus/
 
 ### 常见运行场景
 
-- **全量闭环运行** (默认行为，包含发现、采集、汰换、简报)：
+- **全量闭环运行 (默认毒舌风格)**:
   ```bash
   python3 scrapers/run.py
+  ```
+- **生成正经战略版简报**:
+  ```bash
+  python3 scrapers/run.py --style official
   ```
 - **仅执行采集任务** (跳过发现和汰换)：
   ```bash
@@ -102,5 +106,11 @@ ai-news-nexus/
 5. **更新日志**：请参阅 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 📄 许可证
+
+MIT License
+📄 许可证
+
+MIT License
+许可证
 
 MIT License
