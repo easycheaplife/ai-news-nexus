@@ -6,9 +6,10 @@
 
 ### 新增
 - **微信公众号深度抓取**:
-  - 实现了 `WeChatScraper`，支持对国内顶级 AI 公众号（如量子位、机器之心、智谱AI、DeepSeek 等）的自动化监控。
-  - 集成 Jina Reader (`r.jina.ai`) 穿透技术，实现对公众号长文的全文提取与 Markdown 转换，打破了公众号的“信息孤岛”。
-  - 优化了长文本 AI 评估逻辑，支持 8000 字符以上的全文阅读与深度要点提炼。
+  - 实现了 `WeChatScraper`，支持对国内顶级 AI 公众号的自动化监控。
+  - 集成 Jina Reader (`r.jina.ai`) 穿透技术，实现对公众号长文的全文提取。
+  - **新增 Twitter 借道 (Bridge) 机制**: 针对博主在 Twitter 上同步的公众号链接，系统可自动探测并触发全文抓取，彻底解决了公共 RSS 实例不稳定的痛点。
+  - 优化了长文本 AI 评估逻辑，支持 10000 字符以上的全文阅读与深度要点提炼。
 - **Hugging Face 数据源抓取**:
   - 实现了 `HuggingFaceScraper`，支持每日论文 (Daily Papers) 与趋势模型 (Trending Models) 的自动化采集。
   - 针对趋势模型集成了“README 深度穿透”逻辑，自动抓取并分析模型描述，提升 AI 评估的准确度。
