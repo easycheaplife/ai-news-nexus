@@ -225,7 +225,11 @@ const formatDateHeader = (dateStr: string) => {
 };
 
 onMounted(() => fetchNews(false));
-watch(() => filters.value.platform, () => fetchNews(false));
+watch(() => filters.value.platform, () => {
+  filters.value.query = '';
+  filters.value.cluster_id = '';
+  fetchNews(false);
+});
 
 let searchTimeout: any;
 const handleSearch = () => {
