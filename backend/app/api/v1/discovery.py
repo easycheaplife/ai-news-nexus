@@ -33,7 +33,7 @@ def list_discovery_pool(status: Optional[DiscoveryStatus] = None, db: Session = 
     query = db.query(DiscoveryPool)
     if status:
         query = query.filter(DiscoveryPool.status == status)
-    return query.all()
+    return query.order_by(DiscoveryPool.created_at.desc()).all()
 
 @router.patch("/{item_id}", response_model=DiscoverySchema)
 def update_discovery_item(item_id: int, item_update: DiscoveryPoolUpdate, db: Session = Depends(get_db)):
