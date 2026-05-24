@@ -1,64 +1,50 @@
-# Changelog
+# 更新日志 (Changelog)
 
-All notable changes to this project will be documented in this file.
+所有本项目的重要变更都将记录在此文件中。
 
 ## [2026-05-24]
 
-### Added
-- **Multi-Style AI Briefings**:
-  - Introduced `--style` parameter for AI report generation, supporting `toxic` (sarcastic insider) and `official` (formal strategic) narrative modes.
-  - Refactored AI prompt engineering to support 2000+ word deep-dive summaries with distinct structural requirements.
-- **Visual Intelligence Engine**:
-  - Integrated Playwright-based screenshot engine (`report_engine.py`) to automatically generate PNG infographics from AI insights.
-  - Added signal-based rendering synchronization (using `#report-ready` DOM marker) to ensure perfect timing for visual capture.
-  - Implemented automated media upload and database linking for generated reports.
-- **Enhanced AI Metadata Extraction**:
-  - Updated `GeminiEvaluator` to extract `mentioned_users` and `trending_keywords` from content for downstream discovery and search expansion.
-  - Added support for latest Gemini 3.1 models and improved automated model fallback logic.
-- **CLI Robustness**:
-  - Expanded `scrapers/run.py` with granular flags (e.g., `--no-clustering`, `--no-curation`, `--style`) for surgical lifecycle control.
-  - Added loop mode with configurable intervals for autonomous perpetual operation.
+### 新增
+- **多风格 AI 简报生成**:
+  - 引入 `--style` 参数，支持 `toxic` (毒舌内参版) 和 `official` (正经战略版) 两种叙事风格。
+  - 优化 AI Prompt 工程，支持生成 2000 字以上的深度行业综述，并具备清晰的模块化结构。
+- **自动化视觉报表引擎**:
+  - 集成基于 Playwright 的截图引擎 (`report_engine.py`)，自动将 AI 洞察转换为精美的 PNG 信息图。
+  - 引入基于信号的渲染同步机制（利用 `#report-ready` DOM 标记），确保视觉捕获的时机准确无误。
+  - 实现报表自动上传至媒体库并关联至数据库记录。
+- **增强型 AI 元数据提取**:
+  - 更新 `GeminiEvaluator`，支持从内容中自动提取 `mentioned_users` (提到的用户) 和 `trending_keywords` (趋势关键词)，用于后续的信源发现和搜索扩张。
+  - 增加对最新 Gemini 3.1 系列模型的支持，并优化了模型自动降级切换逻辑。
+- **CLI 命令行工具增强**:
+  - 扩展 `scrapers/run.py`，增加了一系列细粒度控制开关（如 `--no-clustering`, `--no-curation`, `--style` 等）。
+  - 增加循环模式 (`--loop`)，支持自定义间隔时间，实现全自动无人值守运行。
 
-### Updated
-- **Comprehensive Documentation**:
-  - Synchronized `README.md`, `DEPLOY.md`, `docs/api.md`, and `docs/scrapers.md` with the latest feature set.
-  - Expanded environment variable documentation for visual reporting and AI configuration.
+### 修复与优化
+- **采集器稳定性**:
+  - 修复了 `run.py` 中的缩进错误和逻辑漏洞。
+  - 统一使用本地时间同步报表日期，解决了跨日期时“找不到 Insight”的问题。
+- **文档同步**:
+  - 全面更新了 `README.md`, `DEPLOY.md`, `docs/api.md` 和 `docs/scrapers.md`，确保文档与最新代码功能完全一致。
+  - 在部署文档中补充了 Playwright 浏览器的安装步骤。
 
 ## [2026-05-21]
 
-### Added
-- **Cross-Source Resonance (Topic Clustering)**:
-  - Implemented semantic topic clustering to aggregate related news from multiple platforms (Twitter, Reddit, GitHub, etc.).
-  - Added "Resonance Score" to measure global topic impact.
-  - Introduced `ResonanceCard` component for high-level topic overview and platform matrix visualization.
-  - Added backend support for `topic_clusters` and many-to-many news mapping.
-- **Intelligence Sidebar & Curation**:
-  - Implemented professional sidebar with "Inner Circle" (KOL tracking) and "Discovery Radar" for real-time signals.
-  - Added soft-delete (blacklist) functionality for targets with a feedback loop to the discovery engine.
-- **Mobile UX Enhancement**:
-  - Implemented off-canvas sidebar (left drawer) for mobile navigation, replacing the experimental bottom sheet.
-  - Refactored platform filter to a space-efficient select dropdown on mobile.
-- **Search Capabilities**:
-  - Enhanced global search to support searching by author handle (e.g., "@username").
-  - Improved backend search compatibility for JSON fields with explicit string casting.
+### 新增
+- **跨源话题共振 (Topic Clustering)**:
+  - 实现语义化话题聚类，自动聚合 Twitter, Reddit, GitHub 等多平台的关联资讯。
+  - 引入“共振指数”概念，衡量话题的全网影响力。
+  - 首页增加 `ResonanceCard` 话题矩阵展示。
+- **智能侧边栏与信源管理**:
+  - 增加“大佬圈”跟踪与“信号雷达”功能。
+  - 实现信源黑名单机制，与发现引擎形成闭环。
+- **移动端 UX 优化**:
+  - 采用侧边抽屉式导航替代实验性的底部导航栏，提升操作便捷性。
+  - 针对小屏幕优化了平台筛选器布局。
 
-### Fixed
-- **Frontend**:
-  - Resolved TypeScript errors in `ResonanceCard.vue` related to missing interfaces and `unknown` type inference.
-  - Cleaned up unused imports in `Sidebar.vue`.
-  - Successfully verified production build with `npm run build`.
-- **UI/UX**:
-  - Resolved mobile header layout issues and fixed SVG click targets.
-  - Fixed button click bubbling and scope issues in various components.
-  - Removed duplicated style blocks and dead code in `App.vue`.
-- **Backend/Scrapers**:
-  - Resolved utils import errors in scraper engines.
-  - Fixed JSON search issues by explicitly casting to String for universal compatibility.
+## [2026-05-15] - 初始 Beta 版本发布
 
-## [2026-05-15] - Initial Beta Release
-
-### Added
-- Core AI-driven news aggregation from Twitter, GitHub, YouTube, Reddit, and Arxiv.
-- AI Intelligence Hub powered by Google Gemini for takeaways and clustering.
-- Magazine-style layout for high-density information display.
-- Automated source discovery and curation engine.
+### 新增
+- 核心功能：基于 AI 驱动的 Twitter, GitHub, YouTube, Reddit, Arxiv 资讯聚合。
+- 基于 Google Gemini 的核心提炼、评分与话题识别。
+- 杂志化高密度信息展示布局。
+- 自动信源发现与末位淘汰引擎。
