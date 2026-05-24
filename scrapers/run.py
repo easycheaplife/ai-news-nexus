@@ -29,11 +29,11 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-def generate_daily_insights(api_url: str):
+def generate_daily_insights(api_url: str, style: str = "toxic"):
     """
     抓取后分析逻辑：从后端获取今日资讯，进行聚类分析并生成 AI 战略简报
     """
-    logging.info("🧠 Starting AI Deep Insights synthesis...")
+    logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
         # 1. 获取近期资讯用于分析 (进一步增加到 1000 条以获得极致深度的关联)
         response = requests.get(f"{api_url}/news/", params={"limit": 1000})
@@ -104,7 +104,7 @@ def generate_daily_insights(api_url: str):
             return
 
         # 5. 调用 AI 生成简报
-        briefing_content = evaluator.summarize_clusters(sorted_clusters)
+        briefing_content = evaluator.summarize_clusters(sorted_clusters, style=style)
 
         # 6. 获取今日处理的全量总数
         total_count = len(all_news)
@@ -142,7 +142,8 @@ def run_scrapers(target_platform: str = None,
                  do_clustering: bool = True,
                  do_curation: bool = True,
                  do_insights: bool = True,
-                 do_report: bool = True):
+                 do_report: bool = True,
+                 style: str = "toxic"):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
@@ -199,7 +200,7 @@ def run_scrapers(target_platform: str = None,
         
     # 5. 抓取结束后自动生成今日 AI 深度洞察
     if do_insights and not target_platform:
-        generate_daily_insights(api_url)
+        generate_daily_insights(api_url, style=style)
     else:
         logging.info("⏩ Skipping insights generation phase")
 
@@ -233,6 +234,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-report", action="store_true", help="Explicitly disable report generation")
 
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
+    parser.add_argument("--style", default="toxic", choices=["toxic", "official"], help="Report style: toxic or official (default: toxic)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
     
@@ -259,9 +261,8 @@ if __name__ == "__main__":
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report)
+            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report)
-
+        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
