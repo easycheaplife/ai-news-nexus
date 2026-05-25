@@ -31,7 +31,7 @@ async def startup():
         password=settings.REDIS_PASSWORD,
         db=settings.REDIS_DB,
         encoding="utf8",
-        decode_responses=True
+        decode_responses=False
     )
     FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache", key_builder=nexus_key_builder)
 
