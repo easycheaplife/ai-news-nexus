@@ -323,14 +323,23 @@ const platformBarColors: Record<string, string> = {
   labs: 'bg-indigo-500'
 };
 
-// 📝 极简 Markdown 渲染逻辑
-const renderMarkdown = (text: string) => {
-  if (!text) return '';
-  return text
-    .replace(/### (.*)/g, '<h3 class="text-lg font-bold text-white mb-4 mt-2 border-l-4 border-primary pl-3">$1</h3>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-primary font-bold">$1</strong>')
-    .replace(/\n\n/g, '<br/>')
-    .replace(/\n/g, '<br/>');
+// ✂️ 提取 Markdown 标题和摘要用于预览
+const extractBriefingPreview = (content: string) => {
+  if (!content) return { headlines: [], summary: '' };
+  
+  // 1. 提取所有 ## 标题
+  const headlineMatches = content.match(/^##\s+(.+)$/gm) || [];
+  const headlines = headlineMatches
+    .map(m => m.replace(/^##\s+/, '').trim())
+    .filter(m => !m.includes('监控指标') && !m.includes('指南'))
+    .slice(0, 4);
+
+  // 2. 提取第一段话作为“执行摘要” (Executive Summary)
+  // 找到第一个 ## 标题后的内容，直到下一个标题或段落结束
+  const paragraphs = content.split('\n').filter(p => p.trim() && !p.startsWith('#'));
+  const summary = paragraphs.length > 0 ? paragraphs[0].slice(0, 120) + '...' : '';
+
+  return { headlines, summary };
 };
 </script>
 
@@ -597,21 +606,68 @@ const renderMarkdown = (text: string) => {
 
             <!-- 2. Middle Column: AI Strategic Briefing (2/4) -->
             <div class="xl:w-2/4 xl:border-x xl:border-white/5 xl:px-10">
-              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span class="w-1 h-1 bg-primary rounded-full"></span>
-                AI 战略简报 Strategic Insights
-              </h4>
-              <div class="prose prose-invert max-w-none">
-                <div 
+              <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-6 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-1 h-1 bg-primary rounded-full"></span>
+                  AI 战略简报 Strategic Insights
+                </div>
+                <button 
                   v-if="latestInsight" 
-                  class="text-sm text-slate-300 leading-loose"
-                  v-html="renderMarkdown(latestInsight.content)"
-                ></div>
-                <div v-else class="p-6 rounded-2xl bg-primary/5 border border-primary/10 italic">
+                  @click="$router.push('/reports-list')"
+                  class="text-[9px] text-primary hover:text-white transition-colors"
+                >
+                  查看往期 &rarr;
+                </button>
+              </h4>
+              
+              <div class="relative">
+                <div v-if="latestInsight" class="space-y-6">
+                  <!-- 1. 执行摘要 (Executive Hook) -->
+                  <div class="px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
+                    <div class="absolute top-0 left-0 w-1 h-full bg-primary/40 group-hover:bg-primary transition-colors"></div>
+                    <p class="text-xs text-slate-400 leading-relaxed italic">
+                      {{ extractBriefingPreview(latestInsight.content).summary }}
+                    </p>
+                  </div>
+
+                  <!-- 2. 核心看点列表 -->
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div 
+                      v-for="(headline, idx) in extractBriefingPreview(latestInsight.content).headlines" 
+                      :key="idx"
+                      class="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10 group/insight cursor-pointer hover:bg-primary/10 transition-all"
+                      @click="$router.push('/report')"
+                    >
+                      <div class="shrink-0 w-5 h-5 rounded-lg bg-primary/20 flex items-center justify-center text-[9px] font-black text-primary">
+                        {{ idx + 1 }}
+                      </div>
+                      <span class="text-[11px] font-bold text-slate-300 group-hover/insight:text-white leading-tight truncate">
+                        {{ headline }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 3. 操作按钮 -->
+                  <div class="flex items-center gap-3 mt-4">
+                    <button 
+                      @click="$router.push('/report')"
+                      class="flex-1 py-3 rounded-xl bg-primary text-white font-bold text-[11px] hover:brightness-110 transition-all flex items-center justify-center gap-2 group"
+                    >
+                      <span>阅读完整深度简报</span>
+                      <ArrowRight class="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                    </button>
+                    <button 
+                      @click="$router.push('/reports-list')"
+                      class="px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-400 font-bold text-[11px] hover:bg-white/10 transition-all"
+                    >
+                      往期
+                    </button>
+                  </div>
+                </div>
+                
+                <div v-else class="p-8 rounded-[2rem] bg-primary/5 border border-primary/10 italic text-center">
                   <p class="text-sm text-primary leading-relaxed">
-                    根据今日 {{ news.length }} 条资讯分析，AI 圈主要聚焦于 
-                    <span class="text-white font-bold">{{ coreNarratives.map((n: any) => n.title).slice(0, 2).join(' 和 ') }}</span> 
-                    相关进展。整体技术密度极高，建议优先关注评分 90+ 的硬核发布。
+                    正在分析今日 {{ news.length }} 条情报，生成深度内参中...
                   </p>
                 </div>
               </div>
