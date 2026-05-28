@@ -80,7 +80,7 @@ class SourceCurator:
 
             days_since_added = (datetime.utcnow().replace(tzinfo=None) - added_at.replace(tzinfo=None)).days
             
-            if days_since_added > 21: # 给冷门账号更多耐心 (3周)
+            if days_since_added > 14: # 缩短沉默观察期到 14 天 (2周)
                 current_fail = target.get('failure_count', 0)
                 logger.info(f"⏳ @{handle} has ZERO content in history. Increasing failure count ({current_fail + 1})")
                 requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": current_fail + 1}, timeout=5)
@@ -88,14 +88,12 @@ class SourceCurator:
                 logger.info(f"💤 @{handle} is silent but new ({days_since_added} days), skipping.")
             return
 
-        # 计算质量指标：剔除 0 分内容（0分通常代表 AI 额度超限或解析失败，不代表内容差）
+        # 计算质量指标：剔除 0 分内容
         valid_scores = [n['score'] for n in recent_news if n.get('score') and n['score'] > 0]
         unscored_count = len([n for n in recent_news if not n.get('score') or n['score'] == 0])
         
         if not valid_scores:
-            # 如果有内容但全都没评分，不应该降级账号，但需要记录
             logger.info(f"⏩ @{handle} has {unscored_count} posts but none are AI-scored yet. skipping quality update.")
-            # 仅更新最后抓取时间，重置失败计数（因为确实有产出）
             requests.patch(f"{self.api_url}/targets/{target_id}", json={
                 "last_scraped_at": datetime.utcnow().isoformat(),
                 "failure_count": 0 
@@ -104,9 +102,12 @@ class SourceCurator:
         
         avg_score = sum(valid_scores) / len(valid_scores)
         high_value_count = len([s for s in valid_scores if s >= 80])
-        total_posts = len(recent_news) # 总数包含未评分的，用于观察活跃度
+        total_posts = len(recent_news)
         
-        logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f} (based on {len(valid_scores)} items), Unscored={unscored_count}, HighValue={high_value_count}")
+        # 核心比例指标
+        high_value_ratio = high_value_count / len(valid_scores) if valid_scores else 0
+        
+        logger.info(f"📊 Stats for @{handle}: Avg={avg_score:.1f}, HV-Ratio={high_value_ratio:.1%}, Total={total_posts}")
 
         # 决策逻辑
         update_payload = {
@@ -118,18 +119,25 @@ class SourceCurator:
         
         if high_value_count > 0:
             update_payload["last_high_score_at"] = datetime.utcnow().isoformat()
-            update_payload["failure_count"] = 0 # 哪怕只有一条高质量内容，也重置失败计数
+            update_payload["failure_count"] = 0
         else:
             current_fail = target.get('failure_count', 0)
             update_payload["failure_count"] = current_fail + 1
 
-        # 执行自动下架
-        if avg_score < 30 and total_posts >= 5: # 调低阈值到 30，避免误伤
-            logger.warning(f"🚨 Deactivating @{handle}: Extremely low average score ({avg_score:.1f})")
+        # --- 精英化淘汰逻辑 ---
+        # 1. 评分过低 (门槛由 30 提升至 60)
+        is_low_quality = avg_score < 60
+        # 2. 信息密度过低 (高分干货占比必须 >= 20%)
+        is_low_density = high_value_ratio < 0.20
+        # 3. 话多但没干货 (总数多但高分少)
+        is_verbose_noise = total_posts >= 15 and high_value_count < 2
+
+        if (is_low_quality or is_low_density or is_verbose_noise) and total_posts >= 10:
+            logger.warning(f"🚨 Deactivating @{handle}: Elite-tier check failed (Avg:{avg_score:.1f}, HV-Ratio:{high_value_ratio:.1%})")
             update_payload["is_active"] = False
             update_payload["status"] = "deactivated"
         
-        elif update_payload["failure_count"] >= 15: # 增加容忍度到 15 次循环
+        elif update_payload["failure_count"] >= 10: # 沉默惩罚阈值从 15 缩短至 10
             logger.warning(f"🚨 Deactivating @{handle}: Long-term silence or zero value")
             update_payload["is_active"] = False
             update_payload["status"] = "deactivated"
