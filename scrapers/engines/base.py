@@ -116,8 +116,8 @@ class BaseScraper:
                 self.logger.info(f"✅ Successfully pushed: {item['title'][:50]}...")
                 self.seen_ids.add(item_key)
                 
-                # 3. 处理发现信号 (如果是 90+ 高分内容，提取信号)
-                if item.get('score', 0) >= 80:
+                # 3. 处理发现信号 (如果是 70+ 中高分内容，提取信号)
+                if item.get('score', 0) >= 70:
                     self._push_discovery_signals(item)
 
             elif response.status_code == 409: # 已存在
@@ -133,13 +133,12 @@ class BaseScraper:
         keywords = item.get('trending_keywords') or []
         
         for user in users:
-            # 1. 基础清理：移除 @，截断空格、斜杠和点号
-            clean_user = user.strip().strip('@').split(' ')[0].split('/')[0].split('.')[0]
+            # 1. 更加彻底的清理：只保留字母、数字和下划线
+            # 移除所有非 Handle 字符
+            clean_user = re.sub(r'[^A-Za-z0-9_]', '', user.strip().strip('@'))
             
             # 2. 严格合法性校验
-            if not self._is_valid_twitter_handle(clean_user):
-                if clean_user: # 仅对非空字符串记录调试日志
-                    self.logger.debug(f"⏩ Dropping invalid handle: {clean_user}")
+            if not self._is_valid_twitter_handle(clean_user) or clean_user.isdigit():
                 continue
             
             payload = {

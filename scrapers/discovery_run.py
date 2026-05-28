@@ -30,8 +30,19 @@ class DiscoveryEngine:
             blacklisted_handles = {t['handle'].lower() for t in all_targets if t['status'] == 'blacklisted'}
             
             if current_active_count >= max_active_targets:
-                logger.warning(f"⚠️ Total active targets limit reached ({current_active_count}/{max_active_targets}). Skipping expansion.")
-                return
+                logger.info(f"🔄 Reached limit ({current_active_count}/{max_active_targets}). Attempting to recycle low-performers...")
+                # 寻找活跃账号中分数最低且产出已达标的“平庸者”
+                # 排除 probation 状态（新秀保护）
+                recyclable = [t for t in all_targets if t['is_active'] and t['status'] != 'probation' and (t['avg_score'] or 0) < 55]
+                if recyclable:
+                    # 按分数升序，取分最低的一个
+                    worst = min(recyclable, key=lambda x: (x['avg_score'] or 0))
+                    logger.warning(f"♻️ Recycling low-performer @{worst['handle']} (Avg: {worst['avg_score']}) to make room.")
+                    requests.patch(f"{self.api_url}/targets/{worst['id']}", json={"is_active": False, "status": "deactivated"})
+                    current_active_count -= 1
+                else:
+                    logger.warning(f"⚠️ No recyclable targets found. Skipping expansion.")
+                    return
 
             # 2. 获取待验证的用户
             max_vetting = int(os.getenv("DISCOVERY_MAX_VETTING", 100))

@@ -14,6 +14,8 @@ import {
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { formatDistanceToNow } from 'date-fns';
+import { zhCN } from 'date-fns/locale';
 
 const props = defineProps<{
   apiUrl: string;
@@ -51,7 +53,17 @@ const fetchSidebarData = async () => {
       .sort((a: any, b: any) => (b.avg_score || 0) - (a.avg_score || 0))
       .slice(0, 15);
       
-    discoveryItems.value = discoveryRes.data.slice(0, 10);
+    // 智能混合：展示最近 5 条 + 随机 5 条（来自剩余池）
+    const allPending = discoveryRes.data;
+    if (allPending.length > 10) {
+      const recent = allPending.slice(0, 5);
+      const remaining = allPending.slice(5);
+      // 随机打乱剩余部分并取 5 条
+      const shuffled = [...remaining].sort(() => 0.5 - Math.random()).slice(0, 5);
+      discoveryItems.value = [...recent, ...shuffled];
+    } else {
+      discoveryItems.value = allPending;
+    }
   } catch (err) {
     console.error('Failed to fetch sidebar data', err);
   } finally {
@@ -210,7 +222,7 @@ const getStatusColor = (status: string) => {
               <TrendingUp v-else class="w-3 h-3 text-purple-400" />
               <span class="text-[10px] font-black uppercase text-white/40">{{ item.type }}</span>
             </div>
-            <span class="text-[9px] text-white/20">{{ new Date(item.created_at).toLocaleDateString() }}</span>
+            <span class="text-[9px] text-white/20">{{ formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: zhCN }) }}</span>
           </div>
           <p class="text-xs font-bold text-slate-200">
             {{ item.type === 'user' ? '@' : '#' }}{{ item.value }}
