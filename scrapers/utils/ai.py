@@ -6,7 +6,20 @@ from typing import Dict, Any, Tuple, Optional, List
 from google import genai
 from dotenv import load_dotenv
 
-load_dotenv()
+# 加载 .env 文件
+def load_env_robust():
+    # 尝试加载当前目录的 .env
+    load_dotenv()
+    if not os.getenv("GEMINI_API_KEY"):
+        # 尝试加载 scrapers 目录下的 .env
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        load_dotenv(os.path.join(base_dir, ".env"))
+    if not os.getenv("GEMINI_API_KEY"):
+        # 尝试加载父目录（项目根目录）下的 .env
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        load_dotenv(os.path.join(root_dir, ".env"))
+
+load_env_robust()
 
 class GeminiEvaluator:
     def __init__(self):
@@ -134,12 +147,11 @@ class GeminiEvaluator:
 
         要求遵循“信息金字塔”结构：
 
-        1. **今日头条 (Headline Summary)**：用 3 个极其犀利、抓人眼球的标题总结今日最劲爆或最具争议的 3 件事。
-        2. **情报快览 (Quick-Look)**：用 5-8 条极简的 Bullet Points 罗列今日必读的硬核动态，每条不超过 30 字，追求极致信息密度。
-        3. **深度拆解 (Thematic Deep Dives)**：识别 6-10 个“大事件”板块，自行拟定讽刺标题。覆盖必须涵盖：
-           - **底层基座**：芯片、算力焦虑、能源困局。
-           - **模型暗战**：刷榜套路、技术套壳、真实的架构突破。
-           - **应用遮羞布**：AI Agent 的真实落地 vs 营销噱头、基础设施的变现压力。
+        1. **今日头条 (Headline Summary)**：用 3 个极其犀利、抓人眼球的标题总结今日最劲爆或最具争议的 3 件事。**如果数据中有重大模型发布 (如 Claude 4.8, GPT-5等)，必须占据头条之一。**
+        2. **情报快览 (Quick-Look)**：用 5-8 条极简的 Bullet Points 罗列今日必读的硬核动态，追求极致信息密度。
+        3. **深度拆解 (Thematic Deep Dives)**：识别 6-10 个“大事件”板块，自行拟定讽刺标题。
+           - **核心原则**：如果某个聚类中有评分较高的重大发布，**必须为其设立独立的深度拆解章节**，详细对比其技术参数、社区反应和背后的画饼逻辑。
+           - 覆盖板块需包含：基座模型进展、芯片算力焦虑、Agent 落地现状、基础设施变现等。
         4. **叙事要求**：每一个板块下必须包含 3 个以上的深度分析段落。不仅要说发生了什么，更要撕开它“画饼”的表象，揭露其背后的真实目的。
         5. **极致毒舌**：直接、犀利、幽默。严禁流水账。
         6. **篇幅与格式**：总字数 3000 字左右。使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。

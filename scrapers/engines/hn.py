@@ -64,8 +64,13 @@ class HNScraper(BaseScraper):
                     text = story.get("text", "")
                     
                     # Simple AI keyword check
-                    keywords = ["ai ", "llm", "gpt", "neural", "machine learning", "deepseek", "openai", "claude"]
+                    keywords = [
+                        "ai ", "llm", "gpt", "neural", "machine learning", "deepseek", 
+                        "openai", "claude", "anthropic", "mistral", "llama", "sora", 
+                        "gemini", "groq", "opus", "sonnet", "haiku"
+                    ]
                     if any(k in title.lower() for k in keywords):
+
                         # 🧵 获取深度评论
                         comments_text = self._get_top_comments(story)
                         

@@ -11,7 +11,7 @@ class LabsScraper(BaseScraper):
         # 官方实验室 RSS/Atom 配置表 (优先使用官方，无官方则使用可靠的第三方聚合)
         self.feeds = {
             "OpenAI": "https://openai.com/news/rss.xml",
-            "Anthropic": "https://rsshub.app/anthropic/news", 
+            "Anthropic": "https://www.anthropic.com/news", 
             "Google DeepMind": "https://deepmind.google/blog/rss.xml",
             "Mistral AI": "https://raw.githubusercontent.com/alan-turing-institute/ai-rss-feeds/main/feeds/mistral-news.xml",
             "DeepSeek": "https://rsshub.app/deepseek/news",
