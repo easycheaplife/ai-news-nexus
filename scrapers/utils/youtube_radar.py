@@ -22,7 +22,8 @@ class YouTubeDiscoveryRadar:
             if res.status_code != 200:
                 return []
             
-            all_news = res.json()
+            resp_json = res.json()
+            all_news = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
             keywords = []
             for item in all_news:
                 # 仅统计高分资讯的关键词

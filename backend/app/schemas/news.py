@@ -22,6 +22,14 @@ class NewsItemBase(BaseModel):
 class NewsItemCreate(NewsItemBase):
     pass
 
+class NewsItemUpdate(BaseModel):
+    score: Optional[int] = None
+    reason: Optional[str] = None
+    takeaways: Optional[List[str]] = None
+    cluster_id: Optional[str] = None
+    mentioned_users: Optional[List[str]] = None
+    trending_keywords: Optional[List[str]] = None
+
 class NewsItem(NewsItemBase):
     id: int
     scraped_at: datetime

@@ -31,7 +31,8 @@ class SourceCurator:
             logger.info(f"🧐 Phase 1: Batch scanning {len(targets)} targets against 1000 recent items...")
             news_res = requests.get(f"{self.api_url}/news/", params={"limit": 1000}, timeout=15)
             if news_res.status_code == 200:
-                all_news = news_res.json()
+                resp_json = news_res.json()
+                all_news = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
                 author_data_map = defaultdict(list)
                 for n in all_news:
                     author = n.get('metadata_json', {}).get('author')
@@ -55,7 +56,8 @@ class SourceCurator:
                         # 请求后端：获取该作者最新的 10 条数据
                         spec_res = requests.get(f"{self.api_url}/news/", params={"author": handle, "limit": 10}, timeout=10)
                         if spec_res.status_code == 200:
-                            recent_news = spec_res.json()
+                            s_json = spec_res.json()
+                            recent_news = s_json.get("items", []) if isinstance(s_json, dict) else s_json
                     except Exception as e:
                         logger.warning(f"Targeted check failed for @{handle}: {e}")
 

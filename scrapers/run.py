@@ -51,7 +51,10 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
             logging.error(f"❌ Failed to fetch news for analysis: {response.text}")
             return
 
-        all_news = response.json()
+        resp_json = response.json()
+        # 处理新的 API 结构 { "items": [...], "total": 123 }
+        all_news = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
+        
         if not all_news:
             logging.warning("⚠️ No news found to analyze.")
             return

@@ -7,7 +7,7 @@ from datetime import datetime
 from app.db.session import get_db
 from app.core.config import settings
 from app.models.news import NewsItem
-from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate, NewsListResponse
+from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate, NewsListResponse, NewsItemUpdate
 from fastapi_cache.decorator import cache
 
 router = APIRouter()
@@ -110,3 +110,21 @@ async def read_news(
         "items": items,
         "total": total_count
     }
+
+@router.patch("/{item_id}", response_model=NewsSchema)
+def update_news_item(item_id: int, item: NewsItemUpdate, db: Session = Depends(get_db)):
+    db_item = db.query(NewsItem).filter(NewsItem.id == item_id).first()
+    if not db_item:
+        raise HTTPException(status_code=404, detail="News item not found")
+    
+    update_data = item.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_item, key, value)
+    
+    try:
+        db.commit()
+        db.refresh(db_item)
+        return db_item
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))

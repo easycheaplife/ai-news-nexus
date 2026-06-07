@@ -26,7 +26,9 @@ class ClusteringEngine:
                 logger.error(f"Failed to fetch news: {response.text}")
                 return
 
-            news_items = response.json()
+            resp_json = response.json()
+            news_items = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
+            
             if not news_items:
                 logger.info("No news items found for clustering.")
                 return
