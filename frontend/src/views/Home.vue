@@ -263,7 +263,7 @@ const handleSearch = () => {
 
 // 📈 提取核心议题 Narratives (多维混合：聚类 + 孤立高分项 + 关键词)
 const coreNarratives = computed(() => {
-  const narratives = [];
+  const narratives: any[] = [];
   
   // 1. 优先提取最火的 2 个话题聚类 (共振)
   if (trendingClusters.value && trendingClusters.value.length > 0) {
