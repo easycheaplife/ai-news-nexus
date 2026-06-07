@@ -38,10 +38,11 @@ const fetchReportData = async () => {
   try {
     const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
     const today = format(new Date(), 'yyyy-MM-dd');
+    const timestamp = Date.now();
     const [newsRes, insightRes] = await Promise.all([
-      axios.get(`${base}/api/news/`, { params: { limit: 20 } }),
-      axios.get(`${base}/api/insights/${today}`).catch(() => 
-        axios.get(`${base}/api/insights/latest`).catch(() => ({ data: null }))
+      axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
+      axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
+        axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
       )
     ]);
     

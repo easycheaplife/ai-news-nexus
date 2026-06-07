@@ -7,10 +7,19 @@ from app.models.news import DailyInsight
 from app.schemas.news import DailyInsight as InsightSchema, DailyInsightCreate, DailyInsightUpdate
 from fastapi_cache.decorator import cache
 
+from fastapi_cache import FastAPICache
+
 router = APIRouter()
 
+async def clear_insights_cache():
+    """清除简报相关的缓存"""
+    await FastAPICache.clear(namespace="insights")
+
 @router.post("/", response_model=InsightSchema)
-def create_daily_insight(insight: DailyInsightCreate, db: Session = Depends(get_db)):
+async def create_daily_insight(insight: DailyInsightCreate, db: Session = Depends(get_db)):
+    # 1. 清除缓存以确保后续 GET 能拿到最新数据
+    await clear_insights_cache()
+    
     # 检查是否已存在该日期的简报
     db_insight = db.query(DailyInsight).filter(DailyInsight.date == insight.date).first()
     
@@ -36,7 +45,10 @@ def create_daily_insight(insight: DailyInsightCreate, db: Session = Depends(get_
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.patch("/{insight_date}", response_model=InsightSchema)
-def update_daily_insight(insight_date: date, insight: DailyInsightUpdate, db: Session = Depends(get_db)):
+async def update_daily_insight(insight_date: date, insight: DailyInsightUpdate, db: Session = Depends(get_db)):
+    # 清除缓存
+    await clear_insights_cache()
+    
     db_insight = db.query(DailyInsight).filter(DailyInsight.date == insight_date).first()
     if not db_insight:
         raise HTTPException(status_code=404, detail="Insight not found")
@@ -50,17 +62,17 @@ def update_daily_insight(insight_date: date, insight: DailyInsightUpdate, db: Se
     return db_insight
 
 @router.get("/", response_model=List[InsightSchema])
-@cache(expire=600)
+@cache(expire=600, namespace="insights")
 async def list_insights(request: Request, limit: int = 100, db: Session = Depends(get_db)):
     return db.query(DailyInsight).order_by(DailyInsight.date.desc()).limit(limit).all()
 
 @router.get("/latest", response_model=Optional[InsightSchema])
-@cache(expire=600)
+@cache(expire=600, namespace="insights")
 async def get_latest_insight(request: Request, db: Session = Depends(get_db)):
     return db.query(DailyInsight).order_by(DailyInsight.date.desc()).first()
 
 @router.get("/{target_date}", response_model=InsightSchema)
-@cache(expire=600)
+@cache(expire=600, namespace="insights")
 async def get_insight_by_date(request: Request, target_date: date, db: Session = Depends(get_db)):
     db_insight = db.query(DailyInsight).filter(DailyInsight.date == target_date).first()
     if not db_insight:
