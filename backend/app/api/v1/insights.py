@@ -6,18 +6,20 @@ from app.db.session import get_db
 from app.models.news import DailyInsight
 from app.schemas.news import DailyInsight as InsightSchema, DailyInsightCreate, DailyInsightUpdate
 from fastapi_cache.decorator import cache
-
 from fastapi_cache import FastAPICache
 
 router = APIRouter()
 
 async def clear_insights_cache():
     """清除简报相关的缓存"""
-    await FastAPICache.clear(namespace="insights")
+    try:
+        await FastAPICache.clear(namespace="insights")
+    except Exception:
+        pass
 
 @router.post("/", response_model=InsightSchema)
 async def create_daily_insight(insight: DailyInsightCreate, db: Session = Depends(get_db)):
-    # 1. 清除缓存以确保后续 GET 能拿到最新数据
+    # 1. 强制立即清除所有简报相关的缓存
     await clear_insights_cache()
     
     # 检查是否已存在该日期的简报
@@ -46,7 +48,7 @@ async def create_daily_insight(insight: DailyInsightCreate, db: Session = Depend
 
 @router.patch("/{insight_date}", response_model=InsightSchema)
 async def update_daily_insight(insight_date: date, insight: DailyInsightUpdate, db: Session = Depends(get_db)):
-    # 清除缓存
+    # 2. 强制清除缓存
     await clear_insights_cache()
     
     db_insight = db.query(DailyInsight).filter(DailyInsight.date == insight_date).first()
