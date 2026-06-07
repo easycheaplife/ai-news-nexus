@@ -7,7 +7,7 @@ from datetime import datetime
 from app.db.session import get_db
 from app.core.config import settings
 from app.models.news import NewsItem
-from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate
+from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate, NewsListResponse
 from fastapi_cache.decorator import cache
 
 router = APIRouter()
@@ -45,7 +45,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
             return existing
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/", response_model=List[NewsSchema])
+@router.get("/", response_model=NewsListResponse)
 @cache(expire=300) # 缓存 5 分钟
 async def read_news(
     request: Request,
@@ -106,11 +106,7 @@ async def read_news(
     total_count = db_query.count()
     items = db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
     
-    from fastapi import Response
-    response = request.scope.get("response") # This is not reliable in FastAPI async
-    # Use direct return with header instead
-    return Response(
-        content=json.dumps([NewsSchema.from_orm(i).dict() for i in items], default=str),
-        media_type="application/json",
-        headers={"X-Total-Count": str(total_count)}
-    )
+    return {
+        "items": items,
+        "total": total_count
+    }

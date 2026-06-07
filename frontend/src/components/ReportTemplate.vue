@@ -45,7 +45,7 @@ const fetchReportData = async () => {
       )
     ]);
     
-    news.value = newsRes.data;
+    news.value = newsRes.data.items || [];
     latestInsight.value = insightRes.data;
   } catch (err) {
     console.error('Failed to fetch report data:', err);

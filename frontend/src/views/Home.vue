@@ -139,9 +139,9 @@ const fetchNews = async (isLoadMore = false) => {
       const response = await axios.get(`${apiUrl}/news/`, { params });
       if (fetchId !== currentFetchId) return; // Ignore stale request
       
-      const newItems = response.data;
+      const { items: newItems, total } = response.data;
       news.value = [...news.value, ...newItems];
-      totalCount.value = parseInt(response.headers['x-total-count'] || '0');
+      totalCount.value = total;
       hasMore.value = news.value.length < totalCount.value;
     } else {
       const [newsRes, insightRes, clustersRes] = await Promise.all([
@@ -152,8 +152,9 @@ const fetchNews = async (isLoadMore = false) => {
       
       if (fetchId !== currentFetchId) return; // Ignore stale request
       
-      news.value = newsRes.data;
-      totalCount.value = parseInt(newsRes.headers['x-total-count'] || '0');
+      const { items: newsItems, total } = newsRes.data;
+      news.value = newsItems;
+      totalCount.value = total;
       latestInsight.value = insightRes.data;
       trendingClusters.value = clustersRes.data || [];
       hasMore.value = news.value.length < totalCount.value;
@@ -812,7 +813,7 @@ const extractBriefingPreview = (content: string) => {
                 {{ formatDateHeader(date) }}
               </h2>
               <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
-              <span class="text-xs font-medium text-text-muted italic">{{ totalCount }} 条资讯</span>
+              <span class="text-xs font-medium text-text-muted italic">{{ totalCount || news.length }} 条资讯</span>
             </div>
           </div>
 

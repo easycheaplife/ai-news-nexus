@@ -29,6 +29,10 @@ class NewsItem(NewsItemBase):
     class Config:
         from_attributes = True
 
+class NewsListResponse(BaseModel):
+    items: List[NewsItem]
+    total: int
+
 class DailyInsightBase(BaseModel):
     date: date
     content: str
