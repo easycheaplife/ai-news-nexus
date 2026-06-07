@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu, Newspaper, Zap, Landmark, Shield } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu, Newspaper, Zap, Globe, BookText } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -88,7 +88,10 @@ const platformIcons: Record<string, any> = {
   ithome: Newspaper,
   aiera: Globe,
   paperweekly: BookText,
-  founderpark: Building,
+  founderpark: Building2,
+  synced: Building2,
+  zhihu_ai: MessageSquare,
+  guizang: Zap,
 };
 
 const platformColors: Record<string, string> = {
@@ -111,6 +114,9 @@ const platformColors: Record<string, string> = {
   aiera: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30',
   paperweekly: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
   founderpark: 'bg-orange-500/10 text-orange-500 border-orange-500/30',
+  synced: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
+  zhihu_ai: 'bg-blue-600/10 text-blue-400 border-blue-600/30',
+  guizang: 'bg-lime-500/10 text-lime-500 border-lime-500/30',
 };
 
 const decodeUrl = (url: string) => {
