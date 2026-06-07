@@ -10,6 +10,7 @@ import DOMPurify from 'dompurify';
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 const news = ref<any[]>([]);
+const totalCount = ref(0);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
 const ready = ref(false);
@@ -32,27 +33,33 @@ const renderMarkdown = (text: string) => {
     gfm: true, 
     breaks: true 
   });
-  const news = ref<any[]>([]);
-  const totalCount = ref(0);
-  const latestInsight = ref<any>(null);
-  ...
-  const fetchReportData = async () => {
-    try {
-      const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
-      const today = format(new Date(), 'yyyy-MM-dd');
-      const timestamp = Date.now();
-      const [newsRes, insightRes] = await Promise.all([
-        axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
-        axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
-          axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
-        )
-      ]);
+  return DOMPurify.sanitize(html as string);
+};
 
-      const { items, total } = newsRes.data;
-      news.value = items || [];
-      totalCount.value = total || 0;
-      latestInsight.value = insightRes.data;
-    } catch (err) {
+const fetchReportData = async () => {
+  try {
+    const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
+    const today = format(new Date(), 'yyyy-MM-dd');
+    const timestamp = Date.now();
+    
+    const [newsRes, insightRes] = await Promise.all([
+      axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
+      axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
+        axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
+      )
+    ]);
+    
+    // 适配新的 API 结构 { items: [], total: 123 }
+    if (newsRes.data && typeof newsRes.data === 'object' && 'items' in newsRes.data) {
+      news.value = newsRes.data.items || [];
+      totalCount.value = newsRes.data.total || 0;
+    } else {
+      news.value = newsRes.data || [];
+      totalCount.value = news.value.length;
+    }
+    
+    latestInsight.value = insightRes.data;
+  } catch (err) {
     console.error('Failed to fetch report data:', err);
   } finally {
     loading.value = false;
