@@ -18,12 +18,13 @@ from scrapers.engines.youtube import YouTubeScraper
 from scrapers.engines.labs import LabsScraper
 from scrapers.engines.huggingface import HuggingFaceScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
+from scrapers.engines.domestic_media import DomesticMediaScraper
 from scrapers.engines.aihot import AIHotScraper
 from scrapers.engines.qbitai import QbitAIScraper
 from scrapers.engines.kr36 import Kr36Scraper
 from scrapers.engines.juejin import JuejinScraper
-from scrapers.engines.infoq import InfoQScraper
 from scrapers.engines.ithome import ITHomeScraper
+from scrapers.engines.caict import CAICTScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
 from scrapers.utils.clustering import ClusteringEngine
@@ -215,13 +216,14 @@ def run_scrapers(target_platform: str = None,
             ArxivScraper(api_url=api_url),
             YouTubeScraper(api_url=api_url),
             LabsScraper(api_url=api_url),
+            DomesticMediaScraper(api_url=api_url),
             HuggingFaceScraper(api_url=api_url),
             AIHotScraper(api_url=api_url),
             QbitAIScraper(api_url=api_url),
             Kr36Scraper(api_url=api_url),
             JuejinScraper(api_url=api_url),
-            InfoQScraper(api_url=api_url),
-            ITHomeScraper(api_url=api_url)
+            ITHomeScraper(api_url=api_url),
+            CAICTScraper(api_url=api_url)
         ]
         
         engines = all_engines

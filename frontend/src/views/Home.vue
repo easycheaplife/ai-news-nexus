@@ -94,7 +94,7 @@ const filters = ref({
 
 const platforms = [
   { label: '全部来源', value: '' },
-  { label: '智涌中国', value: 'aihot,qbitai,36kr,juejin,infoq,ithome' },
+  { label: '智涌中国', value: 'aihot,qbitai,36kr,juejin,infoq,ithome,tmtpost,caict,synced,aiera,paperweekly,founderpark,zhihu_ai,guizang' },
   { label: '官方实验室', value: 'labs' },
   { label: 'Twitter / X', value: 'twitter' },
   { label: 'GitHub', value: 'github' },

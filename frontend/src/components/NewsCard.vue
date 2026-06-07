@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu, Newspaper, Zap } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu, Newspaper, Zap, Landmark, Shield } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -64,7 +64,7 @@ const contentParts = computed(() => {
 // 🏆 平台显示映射
 const platformDisplayName = computed(() => {
   const p = props.item.platform.toLowerCase();
-  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome'];
+  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'aiera', 'paperweekly', 'founderpark'];
   if (domesticPlatforms.includes(p)) return '智涌中国';
   return props.item.platform;
 });
@@ -86,6 +86,9 @@ const platformIcons: Record<string, any> = {
   juejin: MessageSquare,
   infoq: Layers,
   ithome: Newspaper,
+  aiera: Globe,
+  paperweekly: BookText,
+  founderpark: Building,
 };
 
 const platformColors: Record<string, string> = {
@@ -105,6 +108,9 @@ const platformColors: Record<string, string> = {
   juejin: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30',
   infoq: 'bg-red-500/10 text-red-500 border-red-500/30',
   ithome: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
+  aiera: 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30',
+  paperweekly: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
+  founderpark: 'bg-orange-500/10 text-orange-500 border-orange-500/30',
 };
 
 const decodeUrl = (url: string) => {
@@ -195,13 +201,19 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
           <div :class="['px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted border-white/10']">
             <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-2.5 h-2.5" />
             {{ platformDisplayName }}
-            <span v-if="['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome'].includes(item.platform.toLowerCase())" class="ml-1 opacity-60 normal-case font-bold">
+            <span v-if="['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'aiera', 'paperweekly', 'founderpark', 'synced', 'zhihu_ai', 'guizang'].includes(item.platform.toLowerCase())" class="ml-1 opacity-60 normal-case font-bold">
               · {{ 
                 item.platform === 'qbitai' ? '量子位' : 
                 item.platform === '36kr' ? '36氪' : 
                 item.platform === 'juejin' ? '掘金' : 
                 item.platform === 'infoq' ? 'InfoQ' : 
-                item.platform === 'ithome' ? 'IT之家' : 'AI HOT' 
+                item.platform === 'ithome' ? 'IT之家' : 
+                item.platform === 'aiera' ? '新智元' : 
+                item.platform === 'paperweekly' ? 'PaperWeekly' : 
+                item.platform === 'founderpark' ? 'Founder Park' : 
+                item.platform === 'synced' ? '机器之心' : 
+                item.platform === 'zhihu_ai' ? '知乎' : 
+                item.platform === 'guizang' ? '归藏' : 'AI HOT' 
               }}
             </span>
           </div>
