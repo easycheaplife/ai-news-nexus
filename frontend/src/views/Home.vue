@@ -261,23 +261,46 @@ const handleSearch = () => {
   searchTimeout = setTimeout(() => fetchNews(false), 500);
 };
 
-// 📈 提取核心议题 Narratives (优先从共振聚类获取)
+// 📈 提取核心议题 Narratives (多维混合：聚类 + 孤立高分项 + 关键词)
 const coreNarratives = computed(() => {
+  const narratives = [];
+  
+  // 1. 优先提取最火的 2 个话题聚类 (共振)
   if (trendingClusters.value && trendingClusters.value.length > 0) {
-    return trendingClusters.value.map(c => ({
+    const topClusters = trendingClusters.value.slice(0, 2).map(c => ({
       id: c.id,
       title: c.title,
       type: 'cluster'
-    })).slice(0, 4);
+    }));
+    narratives.push(...topClusters);
   }
   
-  // 降级：如果没聚类，使用提取的热词
+  // 2. 提取今日评分最高、且没有被聚类的单篇“重磅”新闻
+  const heavyweights = news.value
+    .filter(n => !n.cluster_id && n.score >= 85)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 2)
+    .map(n => ({
+      id: null,
+      title: n.title,
+      type: 'news',
+      originalItem: n // 用于点击直接跳转
+    }));
+  narratives.push(...heavyweights);
+  
+  // 3. 补充今日最热的 2 个技术关键词 (上下文)
   const topics = latestInsight.value?.hot_topics || [];
-  return topics.slice(0, 6).map((t: string) => ({
-    id: null,
-    title: t,
-    type: 'keyword'
-  }));
+  const topKeywords = topics
+    .filter((t: string) => !narratives.some(n => n.title.includes(t))) // 避免重复
+    .slice(0, 2)
+    .map((t: string) => ({
+      id: null,
+      title: t,
+      type: 'keyword'
+    }));
+  narratives.push(...topKeywords);
+
+  return narratives.slice(0, 6);
 });
 
 // 📊 计算各平台分布 (优先使用存档数据)
@@ -612,14 +635,18 @@ const extractBriefingPreview = (content: string) => {
                 核心议题 · Core Narratives
               </h4>
               <div class="flex flex-col gap-2">
-                <button 
-                  v-for="n in coreNarratives" 
+                <button
+                  v-for="n in coreNarratives"
                   :key="n.title"
-                  @click="n.type === 'cluster' ? handleFilterCluster(n.id) : handleFilterKeyword(n.title)"
+                  @click="n.type === 'cluster' ? handleFilterCluster(n.id) : (n.type === 'news' ? handleFilterKeyword(n.title) : handleFilterKeyword(n.title))"
                   class="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl text-left transition-all active:scale-[0.98] group/n"
                 >
-                  <div class="shrink-0 w-6 h-6 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500 text-[10px] font-black">
-                    {{ n.type === 'cluster' ? '叙' : '#' }}
+                  <div :class="[
+                    'shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black',
+                    n.type === 'cluster' ? 'bg-orange-500/10 text-orange-500' : 
+                    n.type === 'news' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-400'
+                  ]">
+                    {{ n.type === 'cluster' ? '叙' : (n.type === 'news' ? '榜' : '#') }}
                   </div>
                   <span class="text-xs font-bold text-slate-400 group-hover/n:text-white truncate">{{ n.title }}</span>
                 </button>
