@@ -11,6 +11,7 @@ import { zhCN } from 'date-fns/locale';
 const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/$/, '');
 
 const news = ref<any[]>([]);
+const totalCount = ref(0);
 const trendingClusters = ref<any[]>([]);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
@@ -93,7 +94,7 @@ const filters = ref({
 
 const platforms = [
   { label: '全部来源', value: '' },
-  { label: '智涌中国', value: 'aihot,qbitai' },
+  { label: '智涌中国', value: 'aihot,qbitai,36kr,juejin,infoq,ithome' },
   { label: '官方实验室', value: 'labs' },
   { label: 'Twitter / X', value: 'twitter' },
   { label: 'GitHub', value: 'github' },
@@ -140,7 +141,8 @@ const fetchNews = async (isLoadMore = false) => {
       
       const newItems = response.data;
       news.value = [...news.value, ...newItems];
-      hasMore.value = newItems.length === filters.value.limit;
+      totalCount.value = parseInt(response.headers['x-total-count'] || '0');
+      hasMore.value = news.value.length < totalCount.value;
     } else {
       const [newsRes, insightRes, clustersRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
@@ -151,9 +153,10 @@ const fetchNews = async (isLoadMore = false) => {
       if (fetchId !== currentFetchId) return; // Ignore stale request
       
       news.value = newsRes.data;
+      totalCount.value = parseInt(newsRes.headers['x-total-count'] || '0');
       latestInsight.value = insightRes.data;
       trendingClusters.value = clustersRes.data || [];
-      hasMore.value = news.value.length === filters.value.limit;
+      hasMore.value = news.value.length < totalCount.value;
     }
     
     error.value = null;
@@ -336,8 +339,16 @@ const platformBarColors: Record<string, string> = {
 const extractBriefingPreview = (content: string) => {
   if (!content) return { headlines: [], summary: '' };
   
+  // 🧹 预处理：剔除 AI 幻觉出的撰写人信息
+  const lines = content.split('\n');
+  const cleanedLines = lines.filter(line => {
+    const l = line.trim();
+    return !l.includes('撰写人：') && !l.includes('报告人：') && !l.includes('日期：') && !l.includes('撰写日期：');
+  });
+  const cleanedContent = cleanedLines.join('\n');
+
   // 1. 提取所有 ## 标题
-  const headlineMatches = content.match(/^##\s+(.+)$/gm) || [];
+  const headlineMatches = cleanedContent.match(/^##\s+(.+)$/gm) || [];
   const headlines = headlineMatches
     .map(m => m.replace(/^##\s+/, '').trim())
     .filter(m => !m.includes('监控指标') && !m.includes('指南'))
@@ -345,7 +356,7 @@ const extractBriefingPreview = (content: string) => {
 
   // 2. 提取第一段话作为“执行摘要” (Executive Summary)
   // 找到第一个 ## 标题后的内容，直到下一个标题或段落结束
-  const paragraphs = content.split('\n').filter(p => p.trim() && !p.startsWith('#'));
+  const paragraphs = cleanedLines.filter(p => p.trim() && !p.startsWith('#'));
   const summary = paragraphs.length > 0 ? paragraphs[0].slice(0, 120) + '...' : '';
 
   return { headlines, summary };
@@ -801,7 +812,7 @@ const extractBriefingPreview = (content: string) => {
                 {{ formatDateHeader(date) }}
               </h2>
               <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
-              <span class="text-xs font-medium text-text-muted italic">{{ items.length }} 条资讯</span>
+              <span class="text-xs font-medium text-text-muted italic">{{ totalCount }} 条资讯</span>
             </div>
           </div>
 

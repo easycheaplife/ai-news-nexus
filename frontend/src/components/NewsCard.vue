@@ -64,7 +64,8 @@ const contentParts = computed(() => {
 // 🏆 平台显示映射
 const platformDisplayName = computed(() => {
   const p = props.item.platform.toLowerCase();
-  if (['aihot', 'qbitai'].includes(p)) return '智涌中国';
+  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome'];
+  if (domesticPlatforms.includes(p)) return '智涌中国';
   return props.item.platform;
 });
 
@@ -81,6 +82,10 @@ const platformIcons: Record<string, any> = {
   huggingface: Cpu,
   aihot: Newspaper,
   qbitai: Zap,
+  '36kr': Star,
+  juejin: MessageSquare,
+  infoq: Layers,
+  ithome: Newspaper,
 };
 
 const platformColors: Record<string, string> = {
@@ -96,6 +101,10 @@ const platformColors: Record<string, string> = {
   huggingface: 'bg-[#FFD21E]/10 text-[#eab308] border-[#FFD21E]/30',
   aihot: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
   qbitai: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
+  '36kr': 'bg-blue-500/10 text-blue-500 border-blue-500/30',
+  juejin: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/30',
+  infoq: 'bg-red-500/10 text-red-500 border-red-500/30',
+  ithome: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
 };
 
 const decodeUrl = (url: string) => {
@@ -186,8 +195,14 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
           <div :class="['px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted border-white/10']">
             <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-2.5 h-2.5" />
             {{ platformDisplayName }}
-            <span v-if="['aihot', 'qbitai'].includes(item.platform.toLowerCase())" class="ml-1 opacity-60 normal-case font-bold">
-              · {{ item.platform === 'qbitai' ? '量子位' : 'AI HOT' }}
+            <span v-if="['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome'].includes(item.platform.toLowerCase())" class="ml-1 opacity-60 normal-case font-bold">
+              · {{ 
+                item.platform === 'qbitai' ? '量子位' : 
+                item.platform === '36kr' ? '36氪' : 
+                item.platform === 'juejin' ? '掘金' : 
+                item.platform === 'infoq' ? 'InfoQ' : 
+                item.platform === 'ithome' ? 'IT之家' : 'AI HOT' 
+              }}
             </span>
           </div>
           <span class="text-[10px] font-bold text-text-muted uppercase">

@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, String
 from typing import List, Optional
+import json
 from datetime import datetime
 from app.db.session import get_db
 from app.core.config import settings
@@ -102,4 +103,14 @@ async def read_news(
             (NewsItem.metadata_json.isnot(None)) & (func.lower(cast(NewsItem.metadata_json, String)).like(f"%{clean_query}%"))
         ))
     
-    return db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
+    total_count = db_query.count()
+    items = db_query.order_by(NewsItem.published_at.desc(), NewsItem.id.desc()).offset(skip).limit(limit).all()
+    
+    from fastapi import Response
+    response = request.scope.get("response") # This is not reliable in FastAPI async
+    # Use direct return with header instead
+    return Response(
+        content=json.dumps([NewsSchema.from_orm(i).dict() for i in items], default=str),
+        media_type="application/json",
+        headers={"X-Total-Count": str(total_count)}
+    )

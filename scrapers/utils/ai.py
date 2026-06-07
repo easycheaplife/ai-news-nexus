@@ -155,7 +155,8 @@ class GeminiEvaluator:
         4. **叙事要求**：每一个板块下必须包含 3 个以上的深度分析段落。不仅要说发生了什么，更要撕开它“画饼”的表象，揭露其背后的真实目的。
         5. **极致毒舌**：直接、犀利、幽默。严禁流水账。
         6. **篇幅与格式**：总字数 3000 字左右。使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。
-        7. **结尾**：以“## 【明日看戏指南：重点防忽悠指标】”给出 5 条监控指标。
+        7. **禁止事项**：严禁在正文末尾添加任何“撰写人”、“作者”、“日期”或落款签名信息。直接以监控指标结束。
+        8. **结尾**：以“## 【明日看戏指南：重点防忽悠指标】”给出 5 条监控指标。
         """
 
         # 🏛️ 正经战略版 Prompt
@@ -181,14 +182,27 @@ class GeminiEvaluator:
         4. **逻辑整合**：每一个事件下必须包含 3-4 个深度段落，结合数据和事实，分析其对未来 3-6 个月行业演进的本质影响。
         5. **智库口吻**：专业、客观、严谨，追求“洞察”而非“新闻”。
         6. **篇幅与格式**：总字数 3000 字左右。使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。
-        7. **结尾**：以“## 【核心情报雷达：下阶段重点监控指标】”给出 5 条监控指标。
+        7. **禁止事项**：严禁在正文末尾添加任何“撰写人”、“报告人”、“日期”或落款签名信息。直接以监控指标结束。
+        8. **结尾**：以“## 【核心情报雷达：下阶段重点监控指标】”给出 5 条监控指标。
         """
 
         prompt = toxic_prompt if style == "toxic" else official_prompt
 
         try:
             response = self._generate_content_with_fallback(prompt)
-            return response.text.strip() if response else "深度综述生成失败。"
+            if not response:
+                return "深度综述生成失败。"
+            
+            text = response.text.strip()
+            # 🧹 后置处理：二次清洗掉 AI 可能幻觉出的元数据行
+            cleaned_text = []
+            for line in text.split('\n'):
+                # 排除包含关键字的行
+                if any(kw in line for k in ["撰写人：", "报告人：", "日期：", "撰写日期："]):
+                    continue
+                cleaned_text.append(line)
+            
+            return '\n'.join(cleaned_text).strip()
         except Exception as e:
             self.logger.error(f"❌ Summary generation failed: {e}")
             return "深度综述生成失败，请稍后重试。"

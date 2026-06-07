@@ -20,6 +20,10 @@ from scrapers.engines.huggingface import HuggingFaceScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
 from scrapers.engines.aihot import AIHotScraper
 from scrapers.engines.qbitai import QbitAIScraper
+from scrapers.engines.kr36 import Kr36Scraper
+from scrapers.engines.juejin import JuejinScraper
+from scrapers.engines.infoq import InfoQScraper
+from scrapers.engines.ithome import ITHomeScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
 from scrapers.utils.clustering import ClusteringEngine
@@ -161,11 +165,20 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
 
         if res.status_code in (200, 201):
             logging.info(f"✅ Daily Strategic Briefing ({today_str}) successfully archived.")
+            
             # 自动生成日报图片 (传递明确的日期)
+            report_url = None
             try:
-                run_report_generation(today_str)
+                report_url = run_report_generation(today_str)
             except Exception as e:
                 logging.error(f"❌ Failed to generate automated report: {e}")
+
+            # 🚀 触发推送通知
+            from scrapers.utils.notifier import notifier
+            try:
+                notifier.notify_all(today_str, briefing_content, report_url)
+            except Exception as e:
+                logging.error(f"❌ Notification failed: {e}")
         else:
             logging.error(f"❌ Failed to archive briefing: {res.text}")
 
@@ -206,7 +219,11 @@ def run_scrapers(target_platform: str = None,
             LabsScraper(api_url=api_url),
             HuggingFaceScraper(api_url=api_url),
             AIHotScraper(api_url=api_url),
-            QbitAIScraper(api_url=api_url)
+            QbitAIScraper(api_url=api_url),
+            Kr36Scraper(api_url=api_url),
+            JuejinScraper(api_url=api_url),
+            InfoQScraper(api_url=api_url),
+            ITHomeScraper(api_url=api_url)
         ]
         
         engines = all_engines
