@@ -32,24 +32,27 @@ const renderMarkdown = (text: string) => {
     gfm: true, 
     breaks: true 
   });
-  return DOMPurify.sanitize(html as string);
-};
+  const news = ref<any[]>([]);
+  const totalCount = ref(0);
+  const latestInsight = ref<any>(null);
+  ...
+  const fetchReportData = async () => {
+    try {
+      const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
+      const today = format(new Date(), 'yyyy-MM-dd');
+      const timestamp = Date.now();
+      const [newsRes, insightRes] = await Promise.all([
+        axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
+        axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
+          axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
+        )
+      ]);
 
-const fetchReportData = async () => {
-  try {
-    const base = apiUrl.endsWith('/api') ? apiUrl.slice(0, -4) : apiUrl;
-    const today = format(new Date(), 'yyyy-MM-dd');
-    const timestamp = Date.now();
-    const [newsRes, insightRes] = await Promise.all([
-      axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
-      axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
-        axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
-      )
-    ]);
-    
-    news.value = newsRes.data.items || [];
-    latestInsight.value = insightRes.data;
-  } catch (err) {
+      const { items, total } = newsRes.data;
+      news.value = items || [];
+      totalCount.value = total || 0;
+      latestInsight.value = insightRes.data;
+    } catch (err) {
     console.error('Failed to fetch report data:', err);
   } finally {
     loading.value = false;
@@ -105,7 +108,7 @@ onMounted(fetchReportData);
         <div class="grid grid-cols-3 gap-6 border-t border-slate-100 pt-10">
           <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Intelligence Count</div>
-            <div class="text-3xl font-black text-primary">{{ latestInsight?.stats_json?.Total || news.length }}+</div>
+            <div class="text-3xl font-black text-primary">{{ totalCount || latestInsight?.stats_json?.Total || news.length }}+</div>
             <div class="text-[11px] text-slate-400 font-bold mt-1">Processed globally</div>
           </div>
           <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">

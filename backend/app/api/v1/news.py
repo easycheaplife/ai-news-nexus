@@ -9,11 +9,19 @@ from app.core.config import settings
 from app.models.news import NewsItem
 from app.schemas.news import NewsItem as NewsSchema, NewsItemCreate, NewsListResponse, NewsItemUpdate
 from fastapi_cache.decorator import cache
+from fastapi_cache import FastAPICache
 
 router = APIRouter()
 
+async def clear_news_cache():
+    """清除新闻列表相关的缓存"""
+    try:
+        await FastAPICache.clear(namespace="news")
+    except Exception:
+        pass
+
 @router.post("/", response_model=NewsSchema)
-def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
+async def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
     # 1. 严格查重：平台 + 外部ID
     db_item = db.query(NewsItem).filter(
         NewsItem.platform == item.platform,
@@ -32,6 +40,8 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
 
     # 3. 只有不存在时才执行插入
     try:
+        # 清除列表缓存，确保新数据立即可见
+        await clear_news_cache()
         new_item = NewsItem(**item.dict())
         db.add(new_item)
         db.commit()
@@ -46,7 +56,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=NewsListResponse)
-@cache(expire=300) # 缓存 5 分钟
+@cache(expire=300, namespace="news") # 使用命名空间以便清理
 async def read_news(
     request: Request,
     platform: Optional[str] = None,
@@ -112,7 +122,10 @@ async def read_news(
     }
 
 @router.patch("/{item_id}", response_model=NewsSchema)
-def update_news_item(item_id: int, item: NewsItemUpdate, db: Session = Depends(get_db)):
+async def update_news_item(item_id: int, item: NewsItemUpdate, db: Session = Depends(get_db)):
+    # 更新数据时也要清除缓存，确保评分补课结果可见
+    await clear_news_cache()
+    
     db_item = db.query(NewsItem).filter(NewsItem.id == item_id).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="News item not found")

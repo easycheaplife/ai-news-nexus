@@ -38,14 +38,22 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-def generate_daily_insights(api_url: str, style: str = "toxic"):
+def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bool = False):
     """
     抓取后分析逻辑：从后端获取今日资讯，进行聚类分析并生成 AI 战略简报
     """
     logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
-        # 1. 获取近期资讯用于分析
-        response = requests.get(f"{api_url}/news/", params={"limit": 1000})
+        # 1. 仅获取今天发布的内容进行分析 (从今日凌晨 00:00:00 开始)
+        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        response = requests.get(
+            f"{api_url}/news/", 
+            params={
+                "limit": 1000, 
+                "start_date": today_start.isoformat()
+            }
+        )
             
         if response.status_code != 200:
             logging.error(f"❌ Failed to fetch news for analysis: {response.text}")
@@ -56,39 +64,41 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
         all_news = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
         
         if not all_news:
-            logging.warning("⚠️ No news found to analyze.")
+            logging.warning(f"⚠️ No news found since {today_start.date()} to analyze.")
             return
         
         # --- 🚀 核心优化：补偿性评价 ---
-        # 如果某些条目没有评分（比如来自国内节点），在此处进行“后置评价”
+        # 如果未跳过评分，且 API 已经过滤了日期，这里对 score 为 0 的条目进行补课评价
         from scrapers.utils.ai import evaluator
         evaluated_count = 0
-        for item in all_news:
-            # 只有 score 为 0 且 evaluator 可用的情况下才进行评价
-            if item.get('score') == 0 and evaluator.enabled:
-                logging.info(f"🤖 Late-evaluating item: {item['title'][:30]}...")
-                score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(item['title'], item['content'])
-                
-                # 回传更新评分和聚类信息
-                update_payload = {
-                    "score": score,
-                    "reason": reason,
-                    "takeaways": takeaways,
-                    "cluster_id": cluster_id,
-                    "mentioned_users": users,
-                    "trending_keywords": keywords
-                }
-                try:
-                    # 假设后端支持 PATCH /news/{id} 更新，或者通过 POST /news/ 幂等覆盖
-                    requests.patch(f"{api_url}/news/{item['id']}", json=update_payload)
-                    # 同步更新本地内存数据以便后续聚类
-                    item.update(update_payload)
-                    evaluated_count += 1
-                except Exception as e:
-                    logging.error(f"Failed to update evaluated item: {e}")
+        if not skip_scoring:
+            for item in all_news:
+                if item.get('score') == 0 and evaluator.enabled:
+                    logging.info(f"🤖 Late-evaluating today's item: {item['title'][:30]}...")
+                    score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(item['title'], item['content'])
+                    
+                    # 回传更新评分和聚类信息
+                    update_payload = {
+                        "score": score,
+                        "reason": reason,
+                        "takeaways": takeaways,
+                        "cluster_id": cluster_id,
+                        "mentioned_users": users,
+                        "trending_keywords": keywords
+                    }
+                    try:
+                        # 假设后端支持 PATCH /news/{id} 更新，或者通过 POST /news/ 幂等覆盖
+                        requests.patch(f"{api_url}/news/{item['id']}", json=update_payload)
+                        # 同步更新本地内存数据以便后续聚类
+                        item.update(update_payload)
+                        evaluated_count += 1
+                    except Exception as e:
+                        logging.error(f"Failed to update evaluated item: {e}")
         
         if evaluated_count > 0:
             logging.info(f"✅ Completed catch-up evaluation for {evaluated_count} items.")
+        elif skip_scoring:
+            logging.info("⏩ Skipping individual item scoring phase as requested.")
         # --- 优化结束 ---
 
         # 2. 按 cluster_id 聚合
@@ -115,26 +125,22 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
             if item.get('reason'):
                 clusters[cid]["reasons"].append(item['reason'])
 
-        # 3. 提取最高频的 12 个关键词作为 hot_topics (替代 UUID)
+        # 3. 提取最高频的 12 个关键词作为 hot_topics
         from collections import Counter
         import re
 
         normalized_keywords = []
         for kw in all_keywords:
             if not kw or len(kw) < 2: continue
-            # 基础归一化：小写 -> 去空格 -> 去掉结尾的 's' (简单的单复数合并) -> 去掉连字符
             norm = kw.lower().strip().rstrip('s').replace('-', '')
-            normalized_keywords.append((norm, kw)) # 记录归一化后的词和原始词
+            normalized_keywords.append((norm, kw))
 
-        # 统计频次
         kw_counts = Counter([n[0] for n in normalized_keywords])
 
-        # 映射回最常见的原始写法
         final_kws = []
         seen_norms = set()
         for norm, count in kw_counts.most_common(15):
             if norm in seen_norms: continue
-            # 找到这个归一化词对应的最原始写法（比如取最长的一个，通常更准确）
             original_variations = [n[1] for n in normalized_keywords if n[0] == norm]
             best_original = max(set(original_variations), key=original_variations.count)
             final_kws.append(best_original)
@@ -142,34 +148,23 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
 
         # 4. 排序并取前 25 个热点进行总结
         sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
+        briefing_content = evaluator.summarize_clusters(sorted_clusters[:25], style=style)
 
-        if not sorted_clusters:
-            logging.warning("⚠️ No topic clusters found to summarize.")
-            return
-
-        # 5. 调用 AI 生成简报
-        briefing_content = evaluator.summarize_clusters(sorted_clusters, style=style)
-
-        # 6. 获取今日处理的全量总数
-        total_count = len(all_news)
-        try:
-            platform_counts['Total'] = total_count
-        except: pass
-        # 7. 回传到后端存储 (统一使用本地日期，确保与截图引擎对齐)
-        today_str = datetime.now().strftime('%Y-%m-%d')
+        # 5. 上传简报到后端
+        today_str = datetime.now().strftime("%Y-%m-%d")
         insight_data = {
             "date": today_str,
             "content": briefing_content,
-            "hot_topics": final_kws[:8], # 这里现在存的是去重后的真关键词
+            "hot_topics": final_kws[:8],
             "stats_json": platform_counts
         }
         
-        res = requests.post(f"{api_url}/insights/", json=insight_data)
+        res = requests.post(f"{api_url}/api/insights/", json=insight_data)
 
         if res.status_code in (200, 201):
             logging.info(f"✅ Daily Strategic Briefing ({today_str}) successfully archived.")
             
-            # 自动生成日报图片 (传递明确的日期)
+            # 自动生成日报图片
             report_url = None
             try:
                 report_url = run_report_generation(today_str)
@@ -197,12 +192,12 @@ def run_scrapers(target_platform: str = None,
                  do_curation: bool = True,
                  do_insights: bool = True,
                  do_report: bool = True,
-                 style: str = "toxic"):
+                 style: str = "toxic",
+                 skip_scoring: bool = False):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
     # 1. 运行信源自动发现与扩张 (Expansion)
-    # 目前发现引擎主要针对 Twitter，属于 global 范畴
     if do_discovery and not target_platform and (not target_region or target_region.lower() == "global"):
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
@@ -230,10 +225,8 @@ def run_scrapers(target_platform: str = None,
         ]
         
         engines = all_engines
-        
         if target_platform:
             engines = [e for e in engines if e.platform.lower() == target_platform.lower()]
-            
         if target_region:
             engines = [e for e in engines if e.region.lower() == target_region.lower()]
 
@@ -250,24 +243,21 @@ def run_scrapers(target_platform: str = None,
     else:
         logging.info("⏩ Skipping account scraping phase")
 
-    # 3. 运行语义聚类 (Clustering) - 在抓取完成后 (两端数据都要聚类)
+    # 3. 运行语义聚类
     if do_clustering and not target_platform:
         clustering_engine = ClusteringEngine(api_url)
         clustering_engine.run_clustering()
     else:
         logging.info("⏩ Skipping clustering phase")
             
-    # 4. 运行信源质量评价与汰换 (Curation)
-    # 评价体系目前主要基于 Global 互动，属于 global 范畴
+    # 4. 运行信源质量评价与汰换
     if do_curation and not target_platform and (not target_region or target_region.lower() == "global"):
         curator = SourceCurator(api_url)
         curator.run_curation()
     else:
         logging.info("⏩ Skipping curation phase")
         
-    # 5. 运行 YouTube 发现雷达 (YouTube Radar)
-    # 只有在全局运行或者显式指定 youtube 平台时才运行雷达，且必须开启了 scrape 开关
-    # 同时必须满足地域要求（YouTube 属于 global）
+    # 5. 运行 YouTube 发现雷达
     if do_scrape and (not target_platform or target_platform.lower() == "youtube") and (not target_region or target_region.lower() == "global"):
         yt_radar = YouTubeDiscoveryRadar(api_url)
         yt_radar.run()
@@ -276,17 +266,16 @@ def run_scrapers(target_platform: str = None,
 
     # 6. 抓取结束后自动生成今日 AI 深度洞察
     if do_insights and not target_platform:
-        # 如果未指定风格，随机选择毒舌或正经版
         actual_style = style
         if not actual_style:
             actual_style = random.choice(["toxic", "official"])
             logging.info(f"🎲 No style specified. Randomly selected: {actual_style}")
             
-        generate_daily_insights(api_url, style=actual_style)
+        generate_daily_insights(api_url, style=actual_style, skip_scoring=skip_scoring)
     else:
         logging.info("⏩ Skipping insights generation phase")
 
-    # 7. 生成日报图片 (仅当手动指定 --report 且不跑 insights 时)
+    # 7. 生成日报图片
     if do_report and not target_platform and not do_insights:
         logging.info("📸 Manually triggering report generation...")
         try:
@@ -299,7 +288,6 @@ def run_scrapers(target_platform: str = None,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AI News Nexus Scraper Runner")
     
-    # 功能开关 (默认不设置，通过后续逻辑判断)
     parser.add_argument("--discovery", action="store_true", help="Run discovery engine")
     parser.add_argument("--scrape", "-s", action="store_true", help="Run scraping engines")
     parser.add_argument("--clustering", action="store_true", help="Run clustering engine")
@@ -307,7 +295,6 @@ if __name__ == "__main__":
     parser.add_argument("--insights", action="store_true", help="Run insights generation")
     parser.add_argument("--report", action="store_true", help="Run report image generation")
     
-    # 禁用特定功能的便捷开关
     parser.add_argument("--no-discovery", action="store_true", help="Explicitly disable discovery engine")
     parser.add_argument("--no-scrape", action="store_true", help="Explicitly disable scraping engines")
     parser.add_argument("--no-clustering", action="store_true", help="Explicitly disable clustering engine")
@@ -315,17 +302,16 @@ if __name__ == "__main__":
     parser.add_argument("--no-insights", action="store_true", help="Explicitly disable insights generation")
     parser.add_argument("--no-report", action="store_true", help="Explicitly disable report generation")
 
-    parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
-    parser.add_argument("--region", "-r", choices=["cn", "global"], help="Filter engines by region (cn, global)")
-    parser.add_argument("--style", choices=["toxic", "official"], help="Report style: toxic or official (default: random)")
+    parser.add_argument("--platform", "-p", help="Specific platform to scrape")
+    parser.add_argument("--region", "-r", choices=["cn", "global"], help="Filter engines by region")
+    parser.add_argument("--skip-scoring", action="store_true", help="Skip catch-up AI scoring for raw items")
+    parser.add_argument("--style", choices=["toxic", "official"], help="Report style")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
-    parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
+    parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval in seconds")
     
     args = parser.parse_args()
     
-    # 逻辑判断：如果用户显式指定了任何正向功能参数，则只运行指定的。否则，默认全部开启。
     any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights or args.report
-    
     do_discovery = args.discovery if any_positive_flag_set else True
     do_scrape = args.scrape if any_positive_flag_set else True
     do_clustering = args.clustering if any_positive_flag_set else True
@@ -333,7 +319,6 @@ if __name__ == "__main__":
     do_insights = args.insights if any_positive_flag_set else True
     do_report = args.report if any_positive_flag_set else True
 
-    # 显式禁用的优先级最高
     if args.no_discovery: do_discovery = False
     if args.no_scrape: do_scrape = False
     if args.no_clustering: do_clustering = False
@@ -344,8 +329,8 @@ if __name__ == "__main__":
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
+            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
+        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring)
