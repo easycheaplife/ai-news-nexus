@@ -19,9 +19,10 @@ const renderMarkdown = (text: string) => {
   
   // 🩹 鲁棒性增强：移除多余的元数据行（撰写人、日期等），并修复标题格式
   const cleanedText = text
-    .replace(/^撰写人：.*$/gm, '')
-    .replace(/^日期：.*$/gm, '')
-    .replace(/^报告人：.*$/gm, '')
+    .replace(/^.*撰写人[:：].*$/gm, '')
+    .replace(/^.*日期[:：].*$/gm, '')
+    .replace(/^.*报告人[:：].*$/gm, '')
+    .replace(/^.*撰写日期[:：].*$/gm, '')
     .replace(/^##\s+##\s+/gm, '## ')
     .replace(/^###\s+###\s+/gm, '### ')
     .replace(/([^ \n])\n(##|###)\s+/g, '$1\n\n$2 ');

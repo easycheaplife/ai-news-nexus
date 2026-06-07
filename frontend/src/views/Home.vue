@@ -340,11 +340,12 @@ const platformBarColors: Record<string, string> = {
 const extractBriefingPreview = (content: string) => {
   if (!content) return { headlines: [], summary: '' };
   
-  // 🧹 预处理：剔除 AI 幻觉出的撰写人信息
+  // 🧹 预处理：剔除 AI 幻觉出的撰写人信息 (更加激进的匹配)
   const lines = content.split('\n');
   const cleanedLines = lines.filter(line => {
     const l = line.trim();
-    return !l.includes('撰写人：') && !l.includes('报告人：') && !l.includes('日期：') && !l.includes('撰写日期：');
+    const blacklist = ["撰写人", "报告人", "日期", "撰写日期"];
+    return !blacklist.some(kw => l.includes(kw) && (l.includes(':') || l.includes('：')));
   });
   const cleanedContent = cleanedLines.join('\n');
 

@@ -194,11 +194,14 @@ class GeminiEvaluator:
                 return "深度综述生成失败。"
             
             text = response.text.strip()
-            # 🧹 后置处理：二次清洗掉 AI 可能幻觉出的元数据行
+            # 🧹 后置处理：二次清洗掉 AI 可能幻觉出的元数据行 (更加激进，只要包含关键词且有冒号就剔除)
             cleaned_text = []
+            blacklist = ["撰写人", "报告人", "日期", "撰写日期"]
             for line in text.split('\n'):
-                # 排除包含关键字的行
-                if any(kw in line for k in ["撰写人：", "报告人：", "日期：", "撰写日期："]):
+                l_strip = line.strip()
+                # 检查是否包含黑名单词汇，且包含中文或英文冒号
+                is_metadata = any(kw in l_strip for kw in blacklist) and (":" in l_strip or "：" in l_strip)
+                if is_metadata:
                     continue
                 cleaned_text.append(line)
             
