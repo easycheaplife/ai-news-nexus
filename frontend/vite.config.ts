@@ -4,7 +4,7 @@ import vue from '@vitejs/plugin-vue'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const apiUrl = env.VITE_API_URL || 'http://localhost:8000';
+  const backendUrl = env.BACKEND_URL || 'http://localhost:8000';
 
   return {
     plugins: [
@@ -12,7 +12,7 @@ export default defineConfig(({ mode }) => {
       {
         name: 'log-api-url',
         configureServer(_server) {
-          console.log('\n  \x1b[32m➜\x1b[0m  \x1b[1mAPI URL:\x1b[0m \x1b[36m' + apiUrl + '\x1b[0m\n');
+          console.log('\n  \x1b[32m➜\x1b[0m  \x1b[1mBackend URL:\x1b[0m \x1b[36m' + backendUrl + '\x1b[0m\n');
         }
       }
     ],
@@ -27,9 +27,9 @@ export default defineConfig(({ mode }) => {
       },
       // 🛡️ Custom security middleware to intercept malicious path traversal attempts
       proxy: {
-        '/api': { target: 'http://localhost:8000', changeOrigin: true },
-        '/f': { target: 'http://localhost:8000', changeOrigin: true },
-        '/media': { target: 'http://localhost:8000', changeOrigin: true },
+        '/api': { target: backendUrl, changeOrigin: true },
+        '/f': { target: backendUrl, changeOrigin: true },
+        '/media': { target: backendUrl, changeOrigin: true },
         '/etc/passwd': { 
           target: 'http://localhost', 
           bypass: (_req, res) => { 
