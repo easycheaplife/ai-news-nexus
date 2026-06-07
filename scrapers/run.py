@@ -18,6 +18,8 @@ from scrapers.engines.youtube import YouTubeScraper
 from scrapers.engines.labs import LabsScraper
 from scrapers.engines.huggingface import HuggingFaceScraper
 from scrapers.engines.trend_hunter import TrendHunterScraper
+from scrapers.engines.aihot import AIHotScraper
+from scrapers.engines.qbitai import QbitAIScraper
 from scrapers.discovery_run import DiscoveryEngine
 from scrapers.curation_run import SourceCurator
 from scrapers.utils.clustering import ClusteringEngine
@@ -38,7 +40,7 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
     """
     logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
-        # 1. 获取近期资讯用于分析 (进一步增加到 1000 条以获得极致深度的关联)
+        # 1. 获取近期资讯用于分析
         response = requests.get(f"{api_url}/news/", params={"limit": 1000})
             
         if response.status_code != 200:
@@ -50,6 +52,38 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
             logging.warning("⚠️ No news found to analyze.")
             return
         
+        # --- 🚀 核心优化：补偿性评价 ---
+        # 如果某些条目没有评分（比如来自国内节点），在此处进行“后置评价”
+        from scrapers.utils.ai import evaluator
+        evaluated_count = 0
+        for item in all_news:
+            # 只有 score 为 0 且 evaluator 可用的情况下才进行评价
+            if item.get('score') == 0 and evaluator.enabled:
+                logging.info(f"🤖 Late-evaluating item: {item['title'][:30]}...")
+                score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(item['title'], item['content'])
+                
+                # 回传更新评分和聚类信息
+                update_payload = {
+                    "score": score,
+                    "reason": reason,
+                    "takeaways": takeaways,
+                    "cluster_id": cluster_id,
+                    "mentioned_users": users,
+                    "trending_keywords": keywords
+                }
+                try:
+                    # 假设后端支持 PATCH /news/{id} 更新，或者通过 POST /news/ 幂等覆盖
+                    requests.patch(f"{api_url}/news/{item['id']}", json=update_payload)
+                    # 同步更新本地内存数据以便后续聚类
+                    item.update(update_payload)
+                    evaluated_count += 1
+                except Exception as e:
+                    logging.error(f"Failed to update evaluated item: {e}")
+        
+        if evaluated_count > 0:
+            logging.info(f"✅ Completed catch-up evaluation for {evaluated_count} items.")
+        # --- 优化结束 ---
+
         # 2. 按 cluster_id 聚合
         clusters = {}
         platform_counts = {}
@@ -140,6 +174,7 @@ def generate_daily_insights(api_url: str, style: str = "toxic"):
 
 
 def run_scrapers(target_platform: str = None, 
+                 target_region: str = None,
                  do_discovery: bool = True,
                  do_scrape: bool = True,
                  do_clustering: bool = True,
@@ -151,7 +186,8 @@ def run_scrapers(target_platform: str = None,
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
     # 1. 运行信源自动发现与扩张 (Expansion)
-    if do_discovery and not target_platform:
+    # 目前发现引擎主要针对 Twitter，属于 global 范畴
+    if do_discovery and not target_platform and (not target_region or target_region.lower() == "global"):
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
     else:
@@ -168,19 +204,25 @@ def run_scrapers(target_platform: str = None,
             ArxivScraper(api_url=api_url),
             YouTubeScraper(api_url=api_url),
             LabsScraper(api_url=api_url),
-            HuggingFaceScraper(api_url=api_url)
+            HuggingFaceScraper(api_url=api_url),
+            AIHotScraper(api_url=api_url),
+            QbitAIScraper(api_url=api_url)
         ]
         
+        engines = all_engines
+        
         if target_platform:
-            engines = [e for e in all_engines if e.platform.lower() == target_platform.lower()]
-            if not engines:
-                logging.error(f"❌ Platform '{target_platform}' not found. Available: {[e.platform for e in all_engines]}")
-                return
-        else:
-            engines = all_engines
+            engines = [e for e in engines if e.platform.lower() == target_platform.lower()]
+            
+        if target_region:
+            engines = [e for e in engines if e.region.lower() == target_region.lower()]
+
+        if not engines:
+            logging.error(f"❌ No engines found for platform='{target_platform}' region='{target_region}'.")
+            return
         
         for engine in engines:
-            logging.info(f"🚀 Starting {engine.platform} engine...")
+            logging.info(f"🚀 Starting {engine.platform} ({engine.region}) engine...")
             try:
                 engine.scrape()
             except Exception as e:
@@ -188,7 +230,7 @@ def run_scrapers(target_platform: str = None,
     else:
         logging.info("⏩ Skipping account scraping phase")
 
-    # 3. 运行语义聚类 (Clustering) - 在抓取完成后
+    # 3. 运行语义聚类 (Clustering) - 在抓取完成后 (两端数据都要聚类)
     if do_clustering and not target_platform:
         clustering_engine = ClusteringEngine(api_url)
         clustering_engine.run_clustering()
@@ -196,7 +238,8 @@ def run_scrapers(target_platform: str = None,
         logging.info("⏩ Skipping clustering phase")
             
     # 4. 运行信源质量评价与汰换 (Curation)
-    if do_curation and not target_platform:
+    # 评价体系目前主要基于 Global 互动，属于 global 范畴
+    if do_curation and not target_platform and (not target_region or target_region.lower() == "global"):
         curator = SourceCurator(api_url)
         curator.run_curation()
     else:
@@ -204,7 +247,8 @@ def run_scrapers(target_platform: str = None,
         
     # 5. 运行 YouTube 发现雷达 (YouTube Radar)
     # 只有在全局运行或者显式指定 youtube 平台时才运行雷达，且必须开启了 scrape 开关
-    if do_scrape and (not target_platform or target_platform.lower() == "youtube"):
+    # 同时必须满足地域要求（YouTube 属于 global）
+    if do_scrape and (not target_platform or target_platform.lower() == "youtube") and (not target_region or target_region.lower() == "global"):
         yt_radar = YouTubeDiscoveryRadar(api_url)
         yt_radar.run()
     else:
@@ -252,6 +296,7 @@ if __name__ == "__main__":
     parser.add_argument("--no-report", action="store_true", help="Explicitly disable report generation")
 
     parser.add_argument("--platform", "-p", help="Specific platform to scrape (hn, reddit, twitter, ph)")
+    parser.add_argument("--region", "-r", choices=["cn", "global"], help="Filter engines by region (cn, global)")
     parser.add_argument("--style", choices=["toxic", "official"], help="Report style: toxic or official (default: random)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval between loops in seconds (default: 3600)")
@@ -279,8 +324,8 @@ if __name__ == "__main__":
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
+            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)
+        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style)

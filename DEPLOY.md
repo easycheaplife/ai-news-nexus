@@ -66,54 +66,71 @@ python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 ## 4. 采集引擎配置 (Scrapers)
 
-采集器是系统的“心脏”，负责抓取和 AI 分析。**注意：请务必在项目根目录下运行采集命令。**
+采集器是系统的“心脏”，负责抓取和 AI 分析。系统现支持 **“全球分布式采集”** 架构，建议根据服务器所在地选择不同的部署方案。
 
-1.  **配置环境**: 在项目根目录下创建 `.env` 文件：
-    ```env
-    # 后端 API 地址 (本地开发)
-    SCRAPER_API_URL=http://localhost:8000
+### 4.1 环境配置
+在项目根目录下创建 `.env` 文件：
+```env
+# 后端 API 地址 (本地开发或内网地址)
+SCRAPER_API_URL=http://your-backend-ip:8000
 
-    # Gemini AI 配置 (支持以逗号分隔的模型列表，按优先级自动降级)
-    GEMINI_API_KEY=your_gemini_api_key_here
-    GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
+# Gemini AI 配置 (海外节点必需)
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash
 
-    # 截图与报表配置
-    REPORT_FRONTEND_URL=http://localhost:5173/report # 截图访问的前端地址
-    
-    # 采集控制
-    SCRAPE_WINDOW_HOURS=72         # 抓取过去多少小时内的内容
-    TWITTER_MAX_429_ERRORS=10      # 允许的最大 Twitter 429 报错次数
-    PRODUCTHUNT_TOKEN=your_token   # 可选：ProductHunt API Token
+# 采集控制
+SCRAPE_WINDOW_HOURS=72         # 抓取过去多少小时内的内容
+```
 
-    # 发现引擎限制
-    MAX_ACTIVE_TARGETS=100
-    DISCOVERY_MAX_VETTING=50
+### 4.2 方案 A：国内节点部署 (CN Node)
+适用于阿里云、腾讯云等国内服务器。主要抓取国内信源（智涌中国），无需科学上网。
 
-    # 网络代理 (国内环境访问 Twitter/Google 通常需要)
-    # HTTP_PROXY=http://127.0.0.1:7890
-    # HTTPS_PROXY=http://127.0.0.1:7890
-    ```
+- **核心特点**：不直接调用 Gemini API（规避网络限制），只负责“原始数据采集”。
+- **运行命令**：
+  ```bash
+  # 运行国内专属脚本 (自动跳过海外发现、评价与雷达阶段)
+  python3 -m scrapers.run_cn --loop --interval 600
+  ```
 
-2.  **初始化采集目标**: 首次运行前需将初始 KOL 名单导入数据库：
-    ```bash
-    python3 -m scrapers.seed_targets
-    ```
+### 4.3 方案 B：海外节点部署 (Global Node)
+适用于 AWS、Google Cloud、Vultr 等海外服务器。作为系统的“大脑”。
 
-3.  **执行核心流程**:
-    ```bash
-    # 1. 运行全量抓取与分析 (推荐使用 -m 模式运行，避免包引入错误)
-    python3 -m scrapers.run --scrape --insights
-
-    # 2. 运行信源自动扩张 (发现新大咖)
-    python3 -m scrapers.run --discovery
-
-    # 3. 运行跨源话题聚类 (生成“共振”卡片)
-    python3 -m scrapers.utils.clustering
-    ```
+- **核心特点**：抓取全球信源 + 执行 **“全局补偿评价”**（帮国内节点抓取的数据补齐 AI 评分）。
+- **运行命令**：
+  ```bash
+  # 运行海外专属脚本 (包含发现、评价、聚类与每日简报生成)
+  python3 -m scrapers.run_global --loop --interval 3600
+  ```
 
 ---
 
-## 5. 跨源互证 (Resonance) 展示条件
+## 5. 智涌中国 (CN AI Pulse) 统一命名
+系统已将国内 AI 数据源（AI HOT、量子位等）统一命名为 **“智涌中国”**。
+
+- **数据流向**：国内节点抓取 -> 后端 (Score: 0) -> 海外节点读取 (自动识别 Score 0) -> 调用 Gemini 补齐评价 -> 后端更新 -> 前端展示。
+- **前端展示**：在“智涌中国”分类下可一览国内精华资讯。
+
+---
+
+## 6. 自动化运维 (Crontab)
+
+建议根据节点角色配置不同的 Cron 任务：
+
+### 国内节点 (CN Node)
+```bash
+# 每 10 分钟高频抓取国内实时资讯
+*/10 * * * * cd /path/to/ai-news-nexus && /path/to/venv/bin/python3 -m scrapers.run_cn >> logs/run_cn.log 2>&1
+```
+
+### 海外节点 (Global Node)
+```bash
+# 每 1 小时运行一次全球抓取与全局 AI 分析
+0 * * * * cd /path/to/ai-news-nexus && /path/to/venv/bin/python3 -m scrapers.run_global >> logs/run_global.log 2>&1
+```
+
+---
+
+## 7. 跨源互证 (Resonance) 展示条件
 
 要让前端首页显示“跨源互证”卡片，必须同时满足：
 1.  **后端有数据**：已成功运行过 `python3 -m scrapers.utils.clustering`。

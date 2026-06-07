@@ -49,6 +49,7 @@ def create_news_item(item: NewsItemCreate, db: Session = Depends(get_db)):
 async def read_news(
     request: Request,
     platform: Optional[str] = None,
+    platforms: Optional[str] = Query(None, description="Comma-separated list of platforms"),
     author: Optional[str] = None,
     cluster_id: Optional[str] = None,
     start_date: Optional[datetime] = None,
@@ -64,6 +65,10 @@ async def read_news(
     
     if platform:
         db_query = db_query.filter(NewsItem.platform == platform)
+    elif platforms:
+        p_list = [p.strip() for p in platforms.split(",") if p.strip()]
+        if p_list:
+            db_query = db_query.filter(NewsItem.platform.in_(p_list))
     
     if author:
         # 在 metadata_json JSON 字段中搜索作者名 (兼容 MySQL JSON 处理)

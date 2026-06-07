@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
+const templatePath = path.resolve('public/_redirects.template');
 const redirectsPath = path.resolve('public/_redirects');
 
 // Attempt to load from .env or .env.local files if process.env.BACKEND_URL is missing
@@ -28,7 +29,7 @@ if (!backendUrl) {
 }
 
 try {
-  let content = fs.readFileSync(redirectsPath, 'utf8');
+  let content = fs.readFileSync(templatePath, 'utf8');
   // Handle both with and without trailing slash
   const sanitizedUrl = backendUrl.replace(/\/$/, '');
   content = content.replace(/BACKEND_URL/g, sanitizedUrl);

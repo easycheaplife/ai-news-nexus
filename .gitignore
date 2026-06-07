@@ -21,5 +21,6 @@ scrapers/.env
 .vscode/
 .idea/
 frontend/netlify.toml
+frontend/public/_redirects
 backend/data/reports/
 design-md

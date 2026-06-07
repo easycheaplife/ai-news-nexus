@@ -7,9 +7,10 @@ import re
 from ..utils.media_mirror import MediaMirror
 
 class BaseScraper:
-    def __init__(self, platform: str, api_url: str = "http://localhost:8000"):
+    def __init__(self, platform: str, api_url: str = "http://localhost:8000", region: str = "global"):
         self.platform = platform
         self.api_url = api_url
+        self.region = region  # 'global' or 'cn'
         self.logger = logging.getLogger(f"scraper.{platform}")
         # 抓取时间窗口 (默认 72 小时)
         self.scrape_window_hours = int(os.getenv("SCRAPE_WINDOW_HOURS", 72))

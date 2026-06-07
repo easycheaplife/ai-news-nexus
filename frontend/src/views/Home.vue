@@ -93,6 +93,7 @@ const filters = ref({
 
 const platforms = [
   { label: '全部来源', value: '' },
+  { label: '智涌中国', value: 'aihot,qbitai' },
   { label: '官方实验室', value: 'labs' },
   { label: 'Twitter / X', value: 'twitter' },
   { label: 'GitHub', value: 'github' },
@@ -117,13 +118,21 @@ const fetchNews = async (isLoadMore = false) => {
 
   try {
     const params: any = {
-      platform: filters.value.platform || undefined,
       query: filters.value.query || undefined,
       cluster_id: filters.value.cluster_id || undefined,
       limit: filters.value.limit,
       skip: filters.value.skip,
       _t: Date.now() // Cache buster
     };
+
+    // 🏆 智能平台过滤：支持单平台或多平台并集 (如智涌中国)
+    if (filters.value.platform) {
+      if (filters.value.platform.includes(',')) {
+        params.platforms = filters.value.platform;
+      } else {
+        params.platform = filters.value.platform;
+      }
+    }
     
     if (isLoadMore) {
       const response = await axios.get(`${apiUrl}/news/`, { params });

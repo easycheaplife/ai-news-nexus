@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { formatDistanceToNow } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
-import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu } from 'lucide-vue-next';
+import { Twitter, Youtube, Hash, Box, Terminal, Star, User, Github, BookOpen, CheckCircle2, Layers, MessageSquare, Building2, Play, Cpu, Newspaper, Zap } from 'lucide-vue-next';
 
 const props = defineProps<{
   item: {
@@ -61,6 +61,13 @@ const contentParts = computed(() => {
   return { postBody, comments };
 });
 
+// 🏆 平台显示映射
+const platformDisplayName = computed(() => {
+  const p = props.item.platform.toLowerCase();
+  if (['aihot', 'qbitai'].includes(p)) return '智涌中国';
+  return props.item.platform;
+});
+
 const platformIcons: Record<string, any> = {
   twitter: Twitter,
   x: Twitter,
@@ -72,6 +79,8 @@ const platformIcons: Record<string, any> = {
   arxiv: BookOpen,
   labs: Building2,
   huggingface: Cpu,
+  aihot: Newspaper,
+  qbitai: Zap,
 };
 
 const platformColors: Record<string, string> = {
@@ -85,6 +94,8 @@ const platformColors: Record<string, string> = {
   arxiv: 'bg-[#B31B1B]/10 text-[#B31B1B] border-[#B31B1B]/30',
   labs: 'bg-[#6366f1]/10 text-[#818cf8] border-[#6366f1]/30',
   huggingface: 'bg-[#FFD21E]/10 text-[#eab308] border-[#FFD21E]/30',
+  aihot: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
+  qbitai: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
 };
 
 const decodeUrl = (url: string) => {
@@ -174,7 +185,10 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
         <div class="flex items-center gap-3 mb-2">
           <div :class="['px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 border', platformColors[item.platform.toLowerCase()] || 'bg-white/5 text-text-muted border-white/10']">
             <component :is="platformIcons[item.platform.toLowerCase()] || Hash" class="w-2.5 h-2.5" />
-            {{ item.platform }}
+            {{ platformDisplayName }}
+            <span v-if="['aihot', 'qbitai'].includes(item.platform.toLowerCase())" class="ml-1 opacity-60 normal-case font-bold">
+              · {{ item.platform === 'qbitai' ? '量子位' : 'AI HOT' }}
+            </span>
           </div>
           <span class="text-[10px] font-bold text-text-muted uppercase">
             {{ formatDistanceToNow(new Date(item.published_at), { locale: zhCN, addSuffix: true }) }}
