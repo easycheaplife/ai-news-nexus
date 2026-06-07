@@ -646,7 +646,7 @@ const extractBriefingPreview = (content: string) => {
                     n.type === 'cluster' ? 'bg-orange-500/10 text-orange-500' : 
                     n.type === 'news' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-400'
                   ]">
-                    {{ n.type === 'cluster' ? '叙' : (n.type === 'news' ? '榜' : '#') }}
+                    {{ n.type === 'cluster' ? '聚' : (n.type === 'news' ? '精' : '#') }}
                   </div>
                   <span class="text-xs font-bold text-slate-400 group-hover/n:text-white truncate">{{ n.title }}</span>
                 </button>
