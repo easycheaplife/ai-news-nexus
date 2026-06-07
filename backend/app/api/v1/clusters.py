@@ -3,21 +3,36 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import List
 import uuid
+from datetime import datetime, timedelta
 
 from app.db.session import get_db
 from app.models.news import TopicCluster, ClusterNewsMapping, NewsItem
 from app.schemas.cluster import TopicCluster as TopicClusterSchema, ClusterBatchCreate
 from fastapi_cache.decorator import cache
+from fastapi_cache import FastAPICache
 
 router = APIRouter()
 
+async def clear_clusters_cache():
+    """清除聚类相关的缓存"""
+    try:
+        await FastAPICache.clear(namespace="clusters")
+    except Exception:
+        pass
+
 @router.get("/trending", response_model=List[TopicClusterSchema])
-@cache(expire=300)
+@cache(expire=300, namespace="clusters")
 async def get_trending_clusters(request: Request, limit: int = 10, db: Session = Depends(get_db)):
     """
-    Get top trending topic clusters.
+    Get top trending topic clusters from the last 48 hours.
     """
-    clusters = db.query(TopicCluster).order_by(desc(TopicCluster.resonance_score), desc(TopicCluster.created_at)).limit(limit).all()
+    # 🕒 只获取最近 48 小时生成的聚类，确保时效性，避免旧话题霸榜
+    time_window = datetime.now() - timedelta(hours=48)
+    
+    clusters = db.query(TopicCluster)\
+        .filter(TopicCluster.created_at >= time_window)\
+        .order_by(desc(TopicCluster.resonance_score), desc(TopicCluster.created_at))\
+        .limit(limit).all()
     
     # Pre-fetch news mapping manually or just rely on relationship if it was defined.
     # We didn't define relationship in SQLAlchemy model, so we attach manually for schema
@@ -33,7 +48,7 @@ async def get_trending_clusters(request: Request, limit: int = 10, db: Session =
     return result
 
 @router.get("/{cluster_id}", response_model=TopicClusterSchema)
-@cache(expire=600)
+@cache(expire=600, namespace="clusters")
 async def get_cluster(request: Request, cluster_id: str, db: Session = Depends(get_db)):
     """
     Get specific cluster by ID.
@@ -49,10 +64,13 @@ async def get_cluster(request: Request, cluster_id: str, db: Session = Depends(g
     return c
 
 @router.post("/batch")
-def create_clusters_batch(batch: ClusterBatchCreate, db: Session = Depends(get_db)):
+async def create_clusters_batch(batch: ClusterBatchCreate, db: Session = Depends(get_db)):
     """
     Create a batch of clusters from AI clustering engine.
     """
+    # 🚀 强制立即清除聚类缓存，确保前端能看到最新共振话题
+    await clear_clusters_cache()
+    
     created_clusters_count = 0
     try:
         for item in batch.clusters:

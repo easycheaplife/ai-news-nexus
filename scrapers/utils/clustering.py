@@ -14,13 +14,21 @@ class ClusteringEngine:
 
     def run_clustering(self):
         """
-        Fetches recent high-value news and uses AI to group them into topic clusters.
+        Fetches recent high-value news (published today) and uses AI to group them into topic clusters.
         """
-        logger.info("🧠 Starting AI News Clustering phase...")
+        logger.info("🧠 Starting AI News Clustering phase (Today's news only)...")
         
         try:
-            # 1. Fetch recent news items (e.g., last 100 items with good scores)
-            response = requests.get(f"{self.api_url}/news/", params={"limit": 100}, timeout=15)
+            # 🕒 核心优化：只对今天发布的新闻进行聚类，确保共振话题的实时性
+            from datetime import datetime
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            
+            # 1. Fetch recent news items (limit to items published today)
+            response = requests.get(
+                f"{self.api_url}/news/", 
+                params={"limit": 200, "start_date": today_start}, 
+                timeout=15
+            )
                 
             if response.status_code != 200:
                 logger.error(f"Failed to fetch news: {response.text}")
@@ -30,17 +38,16 @@ class ClusteringEngine:
             news_items = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
             
             if not news_items:
-                logger.info("No news items found for clustering.")
+                logger.info("No fresh news items found today for clustering.")
                 return
 
-            # Filter items that are somewhat relevant (score > 50) and have no cluster mapping yet if possible,
-            # but for now we cluster the top recent news.
-            target_news = [n for n in news_items if n.get('score', 0) >= 50]
-            if len(target_news) < 3:
-                logger.info("Not enough high-quality news to perform clustering.")
+            # Filter items that are relevant (score >= 60)
+            target_news = [n for n in news_items if n.get('score', 0) >= 60]
+            if len(target_news) < 2:
+                logger.info("Not enough fresh high-quality news to perform resonance clustering.")
                 return
 
-            logger.info(f"📊 Found {len(target_news)} candidate news items. Preparing AI prompt...")
+            logger.info(f"📊 Found {len(target_news)} fresh candidate news items. Preparing AI prompt...")
 
             # 2. Prepare payload for AI
             news_payload = []
