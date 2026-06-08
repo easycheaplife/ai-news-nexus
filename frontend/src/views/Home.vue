@@ -12,6 +12,7 @@ const apiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace
 
 const news = ref<any[]>([]);
 const totalCount = ref(0);
+const todayCount = ref(0);
 const trendingClusters = ref<any[]>([]);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
@@ -88,7 +89,7 @@ const filters = ref({
   platform: '',
   query: '',
   cluster_id: '',
-  limit: 20,
+  limit: 40,
   skip: 0
 });
 
@@ -144,10 +145,15 @@ const fetchNews = async (isLoadMore = false) => {
       totalCount.value = total;
       hasMore.value = news.value.length < totalCount.value;
     } else {
-      const [newsRes, insightRes, clustersRes] = await Promise.all([
+      // 🕒 获取今日起始时间
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const [newsRes, insightRes, clustersRes, todayRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
         axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] }))
+        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] })),
+        axios.get(`${apiUrl}/news/`, { params: { limit: 1, start_date: startOfToday.toISOString() } }).catch(() => ({ data: { total: 0 } }))
       ]);
       
       if (fetchId !== currentFetchId) return; // Ignore stale request
@@ -155,6 +161,7 @@ const fetchNews = async (isLoadMore = false) => {
       const { items: newsItems, total } = newsRes.data;
       news.value = newsItems;
       totalCount.value = total;
+      todayCount.value = todayRes.data.total;
       latestInsight.value = insightRes.data;
       trendingClusters.value = Array.isArray(clustersRes.data) ? clustersRes.data : [];
       hasMore.value = news.value.length < totalCount.value;
@@ -306,7 +313,7 @@ const coreNarratives = computed(() => {
   return narratives.sort((a, b) => b.score - a.score).slice(0, 8);
 });
 
-// 📊 计算各平台分布 (优先使用存档数据)
+// 📊 计算各平台分布 (仅统计今日：True Daily Pulse)
 const platformStats = computed(() => {
   const stats: Record<string, number> = {};
   const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'tmtpost', 'caict', 'synced', 'aiera', 'paperweekly', 'founderpark', 'zhihu_ai', 'guizang'];
@@ -315,21 +322,26 @@ const platformStats = computed(() => {
   // 1. 初始化所有平台
   platforms_list.forEach(p => stats[p] = 0);
   
-  // 2. 统计当前页面的 news 列表 (实时数据)
+  // 2. 仅统计当前页面中日期为“今天”的资讯
   if (news.value && Array.isArray(news.value)) {
     news.value.forEach(item => {
-      const p = item.platform?.toLowerCase();
-      if (domesticPlatforms.includes(p)) {
-        stats['domestic']++;
-      } else if (stats[p] !== undefined) {
-        stats[p]++;
+      const pubDate = new Date(item.published_at);
+      if (isToday(pubDate)) {
+        const p = item.platform?.toLowerCase();
+        if (domesticPlatforms.includes(p)) {
+          stats['domestic']++;
+        } else if (stats[p] !== undefined) {
+          stats[p]++;
+        }
       }
     });
   }
 
-  // 3. 合并后端归档数据 (如果存在)
+  // 3. 合并后端今日归档数据 (如果后端返回的是今日统计)
   const rawStats = latestInsight.value?.stats_json;
-  if (rawStats) {
+  const isInsightToday = latestInsight.value?.date === format(new Date(), 'yyyy-MM-dd');
+  
+  if (isInsightToday && rawStats) {
     let statsData = rawStats;
     if (typeof statsData === 'string') {
       try { statsData = JSON.parse(statsData); } catch (e) { statsData = {}; }
@@ -907,7 +919,9 @@ const extractBriefingPreview = (content: string) => {
                 {{ formatDateHeader(date) }}
               </h2>
               <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
-              <span class="text-xs font-medium text-text-muted italic">{{ totalCount || news.length }} 条资讯</span>
+              <span class="text-xs font-medium text-text-muted italic">
+                {{ isToday(new Date(date)) ? todayCount : items.length }} 条资讯
+              </span>
             </div>
           </div>
 
@@ -924,7 +938,7 @@ const extractBriefingPreview = (content: string) => {
         </section>
 
         <!-- 🚀 Load More -->
-        <div v-if="hasMore" class="flex justify-center pt-10 pb-20">
+        <div v-if="hasMore" class="flex flex-col items-center pt-10 pb-20 gap-4">
           <button 
             type="button"
             @click.stop="loadMore"
@@ -935,6 +949,9 @@ const extractBriefingPreview = (content: string) => {
             <ChevronDown v-else class="w-4 h-4 group-hover:translate-y-0.5 transition-transform" />
             {{ loadingMore ? '正在加载...' : '加载更多资讯 · Load More' }}
           </button>
+          <p class="text-[10px] font-bold text-text-muted/30 uppercase tracking-[0.1em]">
+            已检索全站 {{ totalCount }} 条情报储备
+          </p>
         </div>
       </div>
     </main>
