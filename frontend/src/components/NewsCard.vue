@@ -64,7 +64,7 @@ const contentParts = computed(() => {
 // 🏆 平台显示映射
 const platformDisplayName = computed(() => {
   const p = props.item.platform.toLowerCase();
-  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'aiera', 'paperweekly', 'founderpark'];
+  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'tmtpost', 'caict', 'synced', 'aiera', 'paperweekly', 'founderpark', 'zhihu_ai', 'guizang'];
   if (domesticPlatforms.includes(p)) return '智涌中国';
   return props.item.platform;
 });

@@ -146,8 +146,8 @@ const fetchNews = async (isLoadMore = false) => {
     } else {
       const [newsRes, insightRes, clustersRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
-        axios.get(`${apiUrl}/insights/latest`, { params: { _t: params._t } }).catch(() => ({ data: null })),
-        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4, _t: params._t } }).catch(() => ({ data: [] }))
+        axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null })),
+        axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] }))
       ]);
       
       if (fetchId !== currentFetchId) return; // Ignore stale request
@@ -156,7 +156,7 @@ const fetchNews = async (isLoadMore = false) => {
       news.value = newsItems;
       totalCount.value = total;
       latestInsight.value = insightRes.data;
-      trendingClusters.value = clustersRes.data || [];
+      trendingClusters.value = Array.isArray(clustersRes.data) ? clustersRes.data : [];
       hasMore.value = news.value.length < totalCount.value;
     }
     
@@ -265,12 +265,13 @@ const handleSearch = () => {
 const coreNarratives = computed(() => {
   const narratives: any[] = [];
   
-  // 1. 优先提取最火的 2 个话题聚类 (共振)
+  // 1. 优先提取最火的 3 个话题聚类 (共振)
   if (trendingClusters.value && trendingClusters.value.length > 0) {
-    const topClusters = trendingClusters.value.slice(0, 2).map(c => ({
+    const topClusters = trendingClusters.value.slice(0, 3).map(c => ({
       id: c.id,
       title: c.title,
-      type: 'cluster'
+      type: 'cluster',
+      score: c.resonance_score || 0
     }));
     narratives.push(...topClusters);
   }
@@ -284,49 +285,74 @@ const coreNarratives = computed(() => {
       id: null,
       title: n.title,
       type: 'news',
+      score: n.score,
       originalItem: n // 用于点击直接跳转
     }));
   narratives.push(...heavyweights);
   
-  // 3. 补充今日最热的 2 个技术关键词 (上下文)
+  // 3. 补充今日最热的技术关键词 (上下文)
   const topics = latestInsight.value?.hot_topics || [];
   const topKeywords = topics
     .filter((t: string) => !narratives.some(n => n.title.includes(t))) // 避免重复
-    .slice(0, 2)
+    .slice(0, 3)
     .map((t: string) => ({
       id: null,
       title: t,
-      type: 'keyword'
+      type: 'keyword',
+      score: 70 + Math.floor(Math.random() * 20) // 模拟权重
     }));
   narratives.push(...topKeywords);
 
-  return narratives.slice(0, 6);
+  return narratives.sort((a, b) => b.score - a.score).slice(0, 8);
 });
 
 // 📊 计算各平台分布 (优先使用存档数据)
 const platformStats = computed(() => {
   const stats: Record<string, number> = {};
-  const platforms_list = ['twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph', 'labs'];
+  const domesticPlatforms = ['aihot', 'qbitai', '36kr', 'juejin', 'infoq', 'ithome', 'tmtpost', 'caict', 'synced', 'aiera', 'paperweekly', 'founderpark', 'zhihu_ai', 'guizang'];
+  const platforms_list = ['domestic', 'twitter', 'github', 'arxiv', 'youtube', 'reddit', 'hn', 'ph', 'labs'];
   
-  // 1. 初始化所有平台，确保不会缺失
+  // 1. 初始化所有平台
   platforms_list.forEach(p => stats[p] = 0);
   
-  // 2. 如果有后端归档数据，合并进去
-  if (latestInsight.value?.stats_json) {
-    Object.assign(stats, latestInsight.value.stats_json);
-    return stats;
+  // 2. 统计当前页面的 news 列表 (实时数据)
+  if (news.value && Array.isArray(news.value)) {
+    news.value.forEach(item => {
+      const p = item.platform?.toLowerCase();
+      if (domesticPlatforms.includes(p)) {
+        stats['domestic']++;
+      } else if (stats[p] !== undefined) {
+        stats[p]++;
+      }
+    });
+  }
+
+  // 3. 合并后端归档数据 (如果存在)
+  const rawStats = latestInsight.value?.stats_json;
+  if (rawStats) {
+    let statsData = rawStats;
+    if (typeof statsData === 'string') {
+      try { statsData = JSON.parse(statsData); } catch (e) { statsData = {}; }
+    }
+    
+    if (statsData && typeof statsData === 'object') {
+      Object.entries(statsData).forEach(([p, count]) => {
+        const platform = p.toLowerCase();
+        const numCount = Number(count) || 0;
+        if (domesticPlatforms.includes(platform)) {
+          stats['domestic'] += numCount;
+        } else if (stats[platform] !== undefined) {
+          stats[platform] += numCount;
+        }
+      });
+    }
   }
   
-  // 3. 否则根据当前页面的 news 列表实时计算
-  news.value.forEach(item => {
-    if (stats[item.platform] !== undefined) {
-      stats[item.platform]++;
-    }
-  });
   return stats;
 });
 
 const platformFullNames: Record<string, string> = {
+  domestic: '智涌中国',
   twitter: 'Twitter',
   github: 'GitHub',
   arxiv: 'ArXiv',
@@ -334,10 +360,25 @@ const platformFullNames: Record<string, string> = {
   reddit: 'Reddit',
   hn: 'HackerNews',
   ph: 'ProductHunt',
-  labs: 'Official Labs'
+  labs: 'Official Labs',
+  aihot: 'AI HOT',
+  qbitai: '量子位',
+  '36kr': '36Kr',
+  juejin: '稀土掘金',
+  infoq: 'InfoQ',
+  ithome: 'IT之家',
+  tmtpost: '钛媒体',
+  caict: '中国信通院',
+  synced: '机器之心',
+  aiera: 'AI Era',
+  paperweekly: 'PaperWeekly',
+  founderpark: 'Founder Park',
+  zhihu_ai: '知乎 AI',
+  guizang: '归藏'
 };
 
 const platformAbbreviations: Record<string, string> = {
+  domestic: 'CN',
   twitter: 'X',
   github: 'GH',
   arxiv: 'AX',
@@ -345,10 +386,25 @@ const platformAbbreviations: Record<string, string> = {
   reddit: 'RD',
   hn: 'HN',
   ph: 'PH',
-  labs: 'LB'
+  labs: 'LB',
+  aihot: 'AH',
+  qbitai: 'QB',
+  '36kr': '36K',
+  juejin: 'JJ',
+  infoq: 'IQ',
+  ithome: 'IT',
+  tmtpost: 'TM',
+  caict: 'CA',
+  synced: 'SY',
+  aiera: 'AE',
+  paperweekly: 'PW',
+  founderpark: 'FP',
+  zhihu_ai: 'ZH',
+  guizang: 'GZ'
 };
 
 const platformBarColors: Record<string, string> = {
+  domestic: 'bg-emerald-500',
   twitter: 'bg-sky-500',
   github: 'bg-slate-200',
   arxiv: 'bg-red-500',
@@ -356,7 +412,11 @@ const platformBarColors: Record<string, string> = {
   reddit: 'bg-orange-500',
   hn: 'bg-orange-400',
   ph: 'bg-orange-600',
-  labs: 'bg-indigo-500'
+  labs: 'bg-indigo-500',
+  aihot: 'bg-emerald-400',
+  qbitai: 'bg-emerald-500',
+  '36kr': 'bg-emerald-600',
+  juejin: 'bg-emerald-300'
 };
 
 // ✂️ 提取 Markdown 标题和摘要用于预览
@@ -632,23 +692,24 @@ const extractBriefingPreview = (content: string) => {
             <div class="xl:w-1/4 space-y-6">
               <h4 class="text-[10px] font-black text-text-muted uppercase tracking-widest mb-4 flex items-center gap-2">
                 <span class="w-1 h-1 bg-orange-500 rounded-full"></span>
-                核心议题 · Core Narratives
+                情报热值 · Signal Heat
               </h4>
-              <div class="flex flex-col gap-2">
+              <div class="flex flex-wrap gap-2">
                 <button
                   v-for="n in coreNarratives"
                   :key="n.title"
-                  @click="n.type === 'cluster' ? handleFilterCluster(n.id) : (n.type === 'news' ? handleFilterKeyword(n.title) : handleFilterKeyword(n.title))"
-                  class="flex items-center gap-3 px-4 py-3 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-xl text-left transition-all active:scale-[0.98] group/n"
+                  @click="n.type === 'cluster' ? handleFilterCluster(n.id) : handleFilterKeyword(n.title)"
+                  class="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/30 rounded-full text-left transition-all active:scale-[0.98] group/n"
                 >
                   <div :class="[
-                    'shrink-0 w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black',
-                    n.type === 'cluster' ? 'bg-orange-500/10 text-orange-500' : 
-                    n.type === 'news' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-slate-500/10 text-slate-400'
+                    'shrink-0 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-black',
+                    n.type === 'cluster' ? 'bg-orange-500 text-white' : 
+                    n.type === 'news' ? 'bg-emerald-500 text-white' : 'bg-slate-500 text-white'
                   ]">
                     {{ n.type === 'cluster' ? '聚' : (n.type === 'news' ? '精' : '#') }}
                   </div>
-                  <span class="text-xs font-bold text-slate-400 group-hover/n:text-white truncate">{{ n.title }}</span>
+                  <span class="text-[11px] font-bold text-slate-400 group-hover/n:text-white truncate max-w-[120px]">{{ n.title }}</span>
+                  <span class="text-[9px] font-black text-white/20 group-hover/n:text-primary transition-colors">{{ n.score }}</span>
                 </button>
               </div>
             </div>
@@ -728,23 +789,26 @@ const extractBriefingPreview = (content: string) => {
                 <span class="w-1 h-1 bg-primary rounded-full"></span>
                 全平台脉冲 Daily Pulse
               </h4>
-              <div class="flex items-end justify-between gap-2 h-36 pt-4 px-2">
+              <div class="flex items-end justify-between gap-1.5 h-36 pt-4 px-2">
                 <div 
                   v-for="(count, platform) in platformStats" 
                   :key="platform"
                   class="flex-1 flex flex-col items-center group/bar"
                 >
                   <div 
-                    class="w-full relative rounded-t-md transition-all duration-700 hover:brightness-125"
+                    class="w-full relative rounded-t-sm transition-all duration-700 hover:brightness-125"
                     :class="[platformBarColors[platform] || 'bg-primary/20', count === 0 ? 'opacity-20' : 'opacity-80']"
-                    :style="{ height: `${Math.max((count / (Math.max(...(Object.values(platformStats) as number[])) || 1)) * 100, 4)}%`, minHeight: '4px' }"
+                    :style="{ 
+                      height: `${Math.max((Math.sqrt(count) / (Math.sqrt(Math.max(...(Object.values(platformStats) as number[])) || 1))) * 100, 4)}%`, 
+                      minHeight: '4px' 
+                    }"
                   >
-                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-white opacity-0 group-hover/bar:opacity-100 transition-opacity">
+                    <div class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-black text-white opacity-0 group-hover/bar:opacity-100 transition-opacity bg-black/80 px-1.5 py-0.5 rounded backdrop-blur-sm z-10 whitespace-nowrap">
                       {{ count }}
                     </div>
                   </div>
                   <span 
-                    class="text-[9px] font-black uppercase text-text-muted mt-3 opacity-60 hover:text-white transition-colors cursor-help"
+                    class="text-[8px] font-black uppercase text-text-muted mt-3 opacity-60 group-hover/bar:opacity-100 group-hover/bar:text-white transition-all cursor-help"
                     :title="platformFullNames[platform] || platform"
                   >
                     {{ platformAbbreviations[platform] || platform }}
@@ -767,23 +831,25 @@ const extractBriefingPreview = (content: string) => {
         <main class="px-4 md:px-8 py-10 md:py-16">
           
       <!-- 🪐 Cross-Source Resonance Clusters -->
-      <div v-if="trendingClusters.length > 0 && !filters.query && !filters.platform && !filters.cluster_id" class="mb-16">
-        <div class="flex items-center gap-4 mb-8">
-          <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-3">
-            <span class="w-1.5 h-6 bg-orange-500 rounded-full"></span>
-            跨源互证 · Topic Resonance
-          </h2>
-          <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
-          <span class="text-xs font-medium text-text-muted italic">AI 自动聚合的多平台视角</span>
-        </div>
-        
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ResonanceCard 
-            v-for="cluster in trendingClusters" 
-            :key="cluster.id" 
-            :cluster="cluster" 
-            @filter-cluster="handleFilterCluster"
-          />
+      <div v-if="!filters.query && !filters.cluster_id" class="mb-16">
+        <div v-if="trendingClusters.length > 0">
+          <div class="flex items-center gap-4 mb-8">
+            <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-3">
+              <span class="w-1.5 h-6 bg-orange-500 rounded-full"></span>
+              跨源互证 · Topic Resonance
+            </h2>
+            <div class="h-[1px] flex-1 bg-white/5 mx-4"></div>
+            <span class="text-xs font-medium text-text-muted italic">AI 自动聚合的多平台视角</span>
+          </div>
+          
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ResonanceCard 
+              v-for="cluster in trendingClusters" 
+              :key="cluster.id" 
+              :cluster="cluster" 
+              @filter-cluster="handleFilterCluster"
+            />
+          </div>
         </div>
       </div>
 
