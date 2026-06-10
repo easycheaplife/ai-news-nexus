@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional, List
 from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 
 # 加载 .env 文件
@@ -24,8 +25,8 @@ load_env_robust()
 class GeminiEvaluator:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        # 支持以逗号分隔的模型列表，按优先级尝试
-        models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-3.1-flash-lite-preview,gemini-2.5-flash-lite,gemini-2.5-flash,gemini-2.0-flash-lite,gemini-2.0-flash,gemini-flash-latest")
+        # 优先使用支持搜索的模型 (2.0 系列)
+        models_str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
         self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
         self.logger = logging.getLogger("evaluator.gemini")
         
@@ -40,24 +41,43 @@ class GeminiEvaluator:
                 self.logger.error(f"❌ Failed to initialize Gemini client: {e}")
                 self.enabled = False
 
-    def _generate_content_with_fallback(self, prompt: str):
-        """核心生成逻辑：支持模型自动降级 (使用新版 google-genai SDK)"""
-        for model_name in self.model_names:
+    def _generate_content_with_fallback(self, prompt: str, use_search: bool = False):
+        """核心生成逻辑：支持模型自动降级及 Google Search 增强"""
+        # 如果启用搜索，优先使用支持搜索的模型
+        models_to_try = self.model_names
+        if use_search:
+            models_to_try = [m for m in self.model_names if any(v in m for v in ["2.0", "3.1", "pro"])] or ["gemini-2.0-flash"]
+
+        for model_name in models_to_try:
             try:
+                import time
+                config = None
+                if use_search:
+                    config = types.GenerateContentConfig(
+                        tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
+                    )
+                
                 response = self.client.models.generate_content(
                     model=model_name,
-                    contents=prompt
+                    contents=prompt,
+                    config=config
                 )
                 return response
             except Exception as e:
                 error_msg = str(e)
                 if "429" in error_msg or "quota" in error_msg.lower():
-                    self.logger.warning(f"⚠️ Model {model_name} hit quota limit (429). Trying next fallback...")
+                    self.logger.warning(f"⚠️ Model {model_name} hit quota limit (429). Waiting 2s before fallback...")
+                    time.sleep(2) # 增加延迟以规避 RPM 限制
                     continue
                 else:
                     self.logger.error(f"❌ Gemini error with model {model_name}: {e}")
                     continue
         
+        # 🚀 最终降级：如果带搜索的所有尝试都失败了，且当前是带搜索的模式，则尝试一次不带搜索的生成
+        if use_search:
+            self.logger.warning("🔄 All search-enabled models failed. Retrying one last time WITHOUT search...")
+            return self._generate_content_with_fallback(prompt, use_search=False)
+
         self.logger.error("🚫 All Gemini fallback models failed.")
         return None
 
@@ -82,7 +102,7 @@ class GeminiEvaluator:
         标题: {title}
         内容: {content}
 
-        请严格按以下 JSON 格式返回结果，不要包含任何其他文字：
+        请严格按以下 JSON格式返回结果，不要包含任何其他文字：
         {{
             "score": 评分值(数字 0-100),
             "reason": "深度价值分析：请从技术创新性、行业影响力、实际落地价值三个维度进行详细评述 (150字左右)",
@@ -120,86 +140,74 @@ class GeminiEvaluator:
 
     def summarize_clusters(self, clusters_data: List[Dict[str, Any]], style: str = "toxic") -> str:
         """
-        根据今日抓取的聚类簇信息，生成一份深度整合的《全球 AI 行业综述报告》
+        整合最近 48 小时的聚类信息，并结合 Google Search 搜索最新的行业大事件，生成深度综述。
         支持多种风格：'toxic' (毒舌吐槽版), 'official' (正经战略版)
         """
-        if not self.enabled or not clusters_data:
+        if not self.enabled:
             return "今日暂无深度情报分析。"
 
         # 将聚类信息序列化为提示词背景
         summary_payload = ""
-        for i, c in enumerate(clusters_data[:25]): 
-            reasons_text = " | ".join(c['reasons'][:8])
-            summary_payload += f"【主题: {c['cluster_id']} (规模:{c['count']})】\n核心内容: {reasons_text}\n\n"
+        if clusters_data:
+            for i, c in enumerate(clusters_data[:30]): 
+                reasons_text = " | ".join(c['reasons'][:8])
+                summary_payload += f"【主题: {c['cluster_id']} (规模:{c['count']})】\n核心内容: {reasons_text}\n\n"
+        else:
+            summary_payload = "（数据库内暂无最近 48 小时的深度聚类数据，请完全依赖你的联网搜索能力）"
 
         current_date = datetime.now().strftime("%Y年%m月%d日")
         
-        # 🧪 毒舌吐槽版 Prompt
-        toxic_prompt = f"""
-        你现在是硅谷 AI 圈最资深、最不留情面的“毒舌情报官”。你专门为那些厌倦了公关稿、想直戳行业脊梁骨的顶级玩家撰写内参。
+        # 🧪 综合提示词
+        base_instruction = f"""
+        你现在是顶级 AI 情报官。你的任务是根据我提供的数据库聚类信息，并**通过你内置的联网搜索功能 (Google Search)**，
+        整合出过去 48 小时内全球 AI 圈最重要的动态。
 
         当前日期: {current_date}
 
-        请根据以下今日全网 AI 圈的海量聚类数据，撰写一份极高密度的深度内参。
+        🚨 **核心指令：**
+        1. **48小时视野**：你的综述必须覆盖过去 48 小时内的全网动态。
+        2. **重大新闻事件**：必须重点包含发布 2 日内的重大新闻（如：大模型发布、苹果/谷歌/OpenAI 开发布会、重大人事地震、政策剧变等）。
+        3. **联网增强**：除了我提供的数据库数据，请务必使用你内置的联网搜索功能 (Google Search)，补齐我提供的数据库聚类之外的最新遗漏信息。
 
-        原始数据背景:
+        提供的原始数据背景:
         {summary_payload}
 
         要求遵循“信息金字塔”结构：
 
-        1. **今日头条 (Headline Summary)**：用 3 个极其犀利、抓人眼球的标题总结今日最劲爆或最具争议的 3 件事。**如果数据中有重大模型发布 (如 Claude 4.8, GPT-5等)，必须占据头条之一。**
-        2. **情报快览 (Quick-Look)**：用 5-8 条极简的 Bullet Points 罗列今日必读的硬核动态，追求极致信息密度。
-        3. **深度拆解 (Thematic Deep Dives)**：识别 6-10 个“大事件”板块，自行拟定讽刺标题。
-           - **核心原则**：如果某个聚类中有评分较高的重大发布，**必须为其设立独立的深度拆解章节**，详细对比其技术参数、社区反应和背后的画饼逻辑。
+        1. **今日头条 (Headline Summary)**：用 3 个极其犀利、抓人眼球的标题总结过去 48 小时最劲爆或最具争议的 3 件事。
+        2. **情报快览 (Quick-Look)**：用 5-8 条极简的 Bullet Points 罗列 48 小时内必读的硬核动态。
+        3. **深度拆解 (Thematic Deep Dives)**：识别 6-10 个“大事件”板块，自行拟定标题。
+           - **核心原则**：对于 2 日内的重大发布，**必须设立独立的深度拆解章节**。
            - 覆盖板块需包含：基座模型进展、芯片算力焦虑、Agent 落地现状、基础设施变现等。
-        4. **叙事要求**：每一个板块下必须包含 3 个以上的深度分析段落。不仅要说发生了什么，更要撕开它“画饼”的表象，揭露其背后的真实目的。
-        5. **极致毒舌**：直接、犀利、幽默。严禁流水账。
-        6. **篇幅与格式**：总字数 3000 字左右。使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。
-        7. **禁止事项**：严禁在正文末尾添加任何“撰写人”、“作者”、“日期”或落款签名信息。直接以监控指标结束。
-        8. **结尾**：以“## 【明日看戏指南：重点防忽悠指标】”给出 5 条监控指标。
+        4. **叙事要求**：每一个板块下必须包含 3 个以上的深度分析段落。
+        5. **格式**：使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。
+        6. **禁止事项**：严禁在正文末尾添加任何“撰写人”、“作者”、“日期”或落款签名信息。直接以监控指标结束。
+        7. **结尾**：给出 5 条监控指标。
         """
 
-        # 🏛️ 正经战略版 Prompt
-        official_prompt = f"""
-        你是一个顶级 AI 行业智库的首席战略官，参考 36Kr《8点1氪》的高效率情报结构，专门为决策者撰写全维战略综述。
-
-        当前日期: {current_date}
-
-        请根据以下今日全球 AI 圈的海量聚类数据，撰写一份极高密度的战略内参。
-
-        原始数据背景:
-        {summary_payload}
-
-        要求遵循“信息金字塔”结构：
-
-        1. **核心摘要 (Top Headlines)**：提炼今日对全球 AI 格局产生深远影响的 3 大核心里程碑。
-        2. **战略快讯 (Strategic Bullets)**：用 5-8 条精炼的短句总结今日各维度的重要信号，确保高信噪比。
-        3. **全维分析 (Thematic Analysis)**：识别 6-10 个战略板块，自行拟定宏大标题。分析必须涵盖全产业链：
-           - **硬件与基建**：HBM/GPU/算力网络最新动态。
-           - **模型演进**：SOTA 排名变动、底层范式位移（如推理能力突破）。
-           - **工程与应用**：AI Agent 原生支付、垂直领域落地案例、企业级 ROI 评估。
-           - **投融资与地缘**：大厂财报深度拆解、行业并购与监管红线。
-        4. **逻辑整合**：每一个事件下必须包含 3-4 个深度段落，结合数据和事实，分析其对未来 3-6 个月行业演进的本质影响。
-        5. **智库口吻**：专业、客观、严谨，追求“洞察”而非“新闻”。
-        6. **篇幅与格式**：总字数 3000 字左右。使用标准的 Markdown 二级标题 (##) 和三级标题 (###)。
-        7. **禁止事项**：严禁在正文末尾添加任何“撰写人”、“报告人”、“日期”或落款签名信息。直接以监控指标结束。
-        8. **结尾**：以“## 【核心情报雷达：下阶段重点监控指标】”给出 5 条监控指标。
+        toxic_role = """
+        角色风格：硅谷最资深的“毒舌情报官”。直接、犀利、幽默，直戳行业脊脊梁骨。
         """
 
-        prompt = toxic_prompt if style == "toxic" else official_prompt
+        official_role = """
+        角色风格：顶级 AI 智库首席战略官。专业、客观、严谨，追求“洞察”而非单纯的“新闻”。
+        """
+
+        role_prompt = toxic_role if style == "toxic" else official_role
+        prompt = f"{base_instruction}\n{role_prompt}"
 
         try:
-            response = self._generate_content_with_fallback(prompt)
+            # 开启联网搜索
+            response = self._generate_content_with_fallback(prompt, use_search=True)
             if not response:
-                return "深度综述生成失败。"
+                return None # 只有成功才返回内容
             
             text = response.text.strip()
-            # 🧹 后置处理：二次清洗掉 AI 可能幻觉出的元数据行 (更加激进，只要包含关键词且有冒号就剔除)
+            # 🧹 后置处理
             cleaned_text = []
             blacklist = ["撰写人", "报告人", "日期", "撰写日期"]
             for line in text.split('\n'):
                 l_strip = line.strip()
-                # 检查是否包含黑名单词汇，且包含中文或英文冒号
                 is_metadata = any(kw in l_strip for kw in blacklist) and (":" in l_strip or "：" in l_strip)
                 if is_metadata:
                     continue
@@ -208,7 +216,7 @@ class GeminiEvaluator:
             return '\n'.join(cleaned_text).strip()
         except Exception as e:
             self.logger.error(f"❌ Summary generation failed: {e}")
-            return "深度综述生成失败，请稍后重试。"
+            return None # 只有成功才返回内容
 
 # 单例模式
 evaluator = GeminiEvaluator()

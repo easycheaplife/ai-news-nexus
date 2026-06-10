@@ -139,11 +139,25 @@ onMounted(fetchReportData);
 
       <!-- Footer -->
       <div class="bg-slate-50 p-12 border-t border-slate-100 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-primary"></div>
-          <span class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Synthesized by AI News Nexus</span>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <div class="w-2 h-2 rounded-full bg-primary"></div>
+            <span class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Synthesized by AI News Nexus</span>
+          </div>
+          <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Generated at {{ format(new Date(), 'HH:mm') }}</div>
         </div>
-        <div class="text-[11px] font-bold text-slate-300 uppercase tracking-widest">Generated at {{ format(new Date(), 'HH:mm') }}</div>
+        
+        <div class="flex items-center gap-6 border-l border-slate-200 pl-8">
+          <div class="text-right">
+            <div class="text-[11px] font-black text-slate-900 uppercase tracking-wider mb-1">View Full Report</div>
+            <div class="text-[9px] font-bold text-slate-400">ai-news-nexus.netlify.app</div>
+          </div>
+          <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=https://ai-news-nexus.netlify.app/&bgcolor=ffffff&color=000000&margin=0" 
+                 alt="QR Code" 
+                 class="w-12 h-12" />
+          </div>
+        </div>
       </div>
     </div>
 

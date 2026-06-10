@@ -33,39 +33,42 @@ class ITHomeScraper(BaseScraper):
             for entry in feed.entries:
                 title = entry.title.lower()
                 summary = (entry.summary if hasattr(entry, 'summary') else title).lower()
-                
+                text_to_check = title + " " + summary
+
                 # 🚫 强力黑名单：出现这些词基本就是普通数码/数码硬件新闻，直接过滤
-                hardware_blacklist = [
+                noise_blacklist = [
                     "开售", "发售", "上市", "价格", "预约", "预订", "配色", "版本", 
                     "手机", "笔记本", "电脑", "键盘", "鼠标", "耳机", "手表", "空调", 
                     "冰箱", "洗衣机", "电视", "显示器", "处理器", "骁龙", "天玑", 
-                    "游戏", "dlc", "发发行", "公测", "封测", "路由器", "充电器", 
-                    "电池", "续航", "屏", "镜头", "影像"
+                    "游戏", "dlc", "发行", "公测", "封测", "路由器", "充电器", 
+                    "电池", "续航", "屏", "镜头", "影像", "融资", "财报", "股价"
                 ]
-                
-                if any(hw in title for hw in hardware_blacklist):
+
+                if any(noise in text_to_check for noise in noise_blacklist):
                     continue
 
-                # ✅ 核心 AI 关键词：必须包含这些强关联词
-                core_ai_tags = [
-                    "大模型", "llm", "gpt", "deepseek", "sora", "英伟达", "nvidia", 
-                    "智算", "机器之心", "深度学习", "transformer", "claude", "gemini", 
-                    "agent", "智能体", "rag", "通义千问", "文心一言", "智谱", "混元", 
-                    "天工", "字节跳动 ai", "腾讯 ai", "百度 ai", "阿里 ai", "生成式"
+                # ✅ 核心 AI 关键词白名单
+                strict_ai_keywords = [
+                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+                    "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
+                    "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
+                    "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
+                    "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
+                    "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
                 ]
-                
-                # 🏆 严格匹配 "ai" 单词 (前后需有非字母字符)
+
+                # 🏆 严格匹配 "ai" 单词 (前后需有非字母字符，防止误伤 like 'said')
                 import re
-                has_standalone_ai = bool(re.search(r'\bai\b', title)) or bool(re.search(r'\bai\b', summary))
-                
-                # 判定逻辑：没有强 AI 词且没有独立 AI 单词，则过滤
-                if not (any(tag in title or tag in summary for tag in core_ai_tags) or has_standalone_ai):
+                has_standalone_ai = bool(re.search(r'\bai\b', text_to_check))
+
+                # 判定逻辑：必须包含强 AI 词 或 独立 AI 单词
+                if not (any(tag in text_to_check for tag in strict_ai_keywords) or has_standalone_ai):
                     continue
-                
-                # 🛡️ 二次加固：如果标题中包含了一些模糊词（如“机器人”、“智能”），必须伴随其他 AI 关键词
+
+                # 🛡️ 二次加固：如果标题中包含了一些模糊词（如“机器人”、“智能”），必须伴随其他更硬核的 AI 关键词
                 fuzzy_keywords = ["机器人", "智能", "架构"]
                 if any(fk in title for fk in fuzzy_keywords):
-                     if not (any(tag in summary for tag in core_ai_tags) or has_standalone_ai):
+                     if not (any(tag in summary for tag in [k for k in strict_ai_keywords if k != "机器人"]) or has_standalone_ai):
                          continue
 
                 external_id = entry.id if hasattr(entry, 'id') else entry.link

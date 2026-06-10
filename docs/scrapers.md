@@ -102,12 +102,18 @@ GEMINI_MODEL=gemini-3.1-flash-lite,gemini-2.0-flash,gemini-flash-latest
 系统集成了基于 Playwright 的截图引擎，可自动将每日简报转换为视觉排版精美的图片。
 
 - **核心逻辑**: `scrapers/utils/report_engine.py`。
+- **命令行操作**:
+  - **全量运行 (默认)**: `python3 -m scrapers.run --insights --report` (包含 AI 评分与综述生成)。
+  - **仅生成报告**: `python3 -m scrapers.run --report` (跳过抓取与 AI 逻辑，直接渲染现有数据)。
+  - **补发历史报告**: `python3 -m scrapers.run --report --date YYYY-MM-DD`。
+  - **低配模式**: `python3 -m scrapers.run --insights --report --skip-scoring` (生成综述但跳过单条评分，规避 429 错误)。
 - **工作流**:
   1. 采集流程结束后，自动触发 `Insights API` 提交汇总。
   2. 提交成功后，启动无头浏览器访问前端 `/report` 路由。
   3. 等待页面渲染完成（监听 `#report-ready` 信号）后，截取 `#report-content` 区域。
   4. 将生成的 PNG 上传至后端媒体库，并更新 `DailyInsight` 的 `report_url` 字段。
 - **环境依赖**: 需要在运行环境中安装 Playwright 浏览器核心：`playwright install chromium`。
+
 
 ## 10. 异常恢复
 如果 `state.json` 丢失，采集器将回退到全量抓取模式（后端会自动去重），并在完成后重新生成状态文件。

@@ -32,6 +32,27 @@ class AIHotScraper(BaseScraper):
             items = data.get("items", [])
             
             for item in items:
+                title = item.get("title", "")
+                summary = item.get("summary") or title
+                text_to_check = (title + " " + summary).lower()
+
+                # 🛡️ 严格 AI 关键词双重过滤
+                strict_ai_keywords = [
+                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+                    "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
+                    "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
+                    "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
+                    "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
+                    "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
+                ]
+                blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售"]
+
+                is_ai = any(k in text_to_check for k in strict_ai_keywords)
+                is_noise = any(k in text_to_check for k in blacklist)
+
+                if not is_ai or is_noise:
+                    continue
+
                 # 转换格式以匹配后端 schema
                 external_id = item.get("id")
                 published_at_str = item.get("publishedAt")

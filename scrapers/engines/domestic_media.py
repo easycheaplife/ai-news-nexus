@@ -23,52 +23,52 @@ class DomesticMediaScraper(BaseScraper):
             "https://rsshub.rss.tips"
         ]
         
-        # 具体的媒体配置与搜索关键词
+        # 具体的媒体配置与搜索关键词 (增加 AI 指向性)
         self.media_configs = {
             "synced": {
                 "name": "机器之心",
-                "search_query": "机器之心 AI",
-                "site_query": "site:jiqizhixin.com",
+                "search_query": "机器之心 AI 深度学习",
+                "site_query": "site:jiqizhixin.com AI",
                 "rsshub_path": "/wechat/wasi/5b575dd058e5c4583338dbd3",
                 "display_name": "机器之心"
             },
             "aiera": {
                 "name": "新智元",
-                "search_query": "新智元 大模型",
-                "site_query": "site:xinzhiyuan.com",
+                "search_query": "新智元 大模型 机器人",
+                "site_query": "site:xinzhiyuan.com AI",
                 "rsshub_path": "/xinzhiyuan/latest",
                 "display_name": "新智元"
             },
             "paperweekly": {
                 "name": "PaperWeekly",
-                "search_query": "PaperWeekly AI 论文",
+                "search_query": "PaperWeekly AI 论文 算法",
                 "site_query": "site:paperweekly.site",
                 "rsshub_path": "/paperweekly/latest",
                 "display_name": "PaperWeekly"
             },
             "founderpark": {
                 "name": "Founder Park",
-                "search_query": "Founder Park 极客公园",
-                "site_query": "site:geekpark.net",
+                "search_query": "Founder Park 极客公园 AI 应用",
+                "site_query": "site:geekpark.net AI",
                 "display_name": "Founder Park"
             },
             "guizang": {
                 "name": "归藏",
-                "search_query": "归藏 AI",
+                "search_query": "归藏 AI 提示词",
                 "rsshub_path": "/wechat/blog/归藏",
                 "display_name": "归藏"
             },
             "infoq": {
                 "name": "InfoQ",
-                "search_query": "InfoQ AI",
-                "site_query": "site:infoq.cn",
+                "search_query": "InfoQ 机器学习 架构",
+                "site_query": "site:infoq.cn AI",
                 "rsshub_path": "/infoq/topic/AI",
                 "display_name": "InfoQ"
             },
             "tmtpost": {
                 "name": "钛媒体",
-                "search_query": "钛媒体 AI",
-                "site_query": "site:tmtpost.com",
+                "search_query": "钛媒体 AI 数字化",
+                "site_query": "site:tmtpost.com AI",
                 "rsshub_path": "/tmtpost/column/50",
                 "display_name": "钛媒体"
             }
@@ -151,16 +151,34 @@ class DomesticMediaScraper(BaseScraper):
 
     def _process_entries(self, entries, platform_key, config):
         processed_count = 0
-        for entry in entries[:10]: # 每个源只取前 10 条
+        
+        # 🛡️ 极其严格的 AI 关键词白名单
+        strict_ai_keywords = [
+            "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+            "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
+            "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
+            "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
+            "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
+            "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
+        ]
+        
+        # 🚫 关键词黑名单（即便包含 AI 词，只要包含这些词也排除，防止混入科技圈八卦、财报或普通数码）
+        blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售"]
+
+        for entry in entries[:15]: 
             title = entry.title
             url = entry.link
             
             # Google News 的标题通常带有 " - 来源" 后缀，需要清理
             title = re.sub(r'\s-\s.*$', '', title).strip()
+            title_lower = title.lower()
 
-            # 过滤掉非 AI 相关的内容 (Google News 搜索可能引入噪音)
-            ai_keywords = ["ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia"]
-            if not any(k in title.lower() for k in ai_keywords):
+            # 1. 必须包含 AI 相关关键词
+            is_ai = any(k in title_lower for k in strict_ai_keywords)
+            # 2. 排除纯商业/八卦类内容
+            is_business_gossip = any(k in title_lower for k in blacklist)
+
+            if not is_ai or is_business_gossip:
                 continue
 
             dt = None

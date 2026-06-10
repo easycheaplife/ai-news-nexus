@@ -4,7 +4,7 @@ import os
 import time
 import random
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 
 from scrapers.utils.ai import evaluator
@@ -41,18 +41,18 @@ logging.basicConfig(
 
 def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bool = False):
     """
-    抓取后分析逻辑：从后端获取今日资讯，进行聚类分析并生成 AI 战略简报
+    抓取后分析逻辑：从后端获取最近 48 小时资讯，进行聚类分析并生成 AI 战略简报
     """
     logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
-        # 1. 仅获取今天发布的内容进行分析 (从今日凌晨 00:00:00 开始)
-        today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        # 1. 获取最近 48 小时发布的内容进行分析
+        lookback_start = datetime.now() - timedelta(hours=48)
         
         response = requests.get(
             f"{api_url}/news/", 
             params={
                 "limit": 1000, 
-                "start_date": today_start.isoformat()
+                "start_date": lookback_start.isoformat()
             }
         )
             
@@ -151,6 +151,10 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
         sorted_clusters = sorted(clusters.values(), key=lambda x: x['count'], reverse=True)
         briefing_content = evaluator.summarize_clusters(sorted_clusters[:25], style=style)
 
+        if not briefing_content:
+            logging.error("❌ AI Insights generation failed (possibly due to 429). Skipping archival to protect existing data.")
+            return
+
         # 5. 上传简报到后端
         today_str = datetime.now().strftime("%Y-%m-%d")
         insight_data = {
@@ -194,7 +198,8 @@ def run_scrapers(target_platform: str = None,
                  do_insights: bool = True,
                  do_report: bool = True,
                  style: str = "toxic",
-                 skip_scoring: bool = False):
+                 skip_scoring: bool = False,
+                 date_str: str = None):
     # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
@@ -279,9 +284,9 @@ def run_scrapers(target_platform: str = None,
 
     # 7. 生成日报图片
     if do_report and not target_platform and not do_insights:
-        logging.info("📸 Manually triggering report generation...")
+        logging.info(f"📸 Manually triggering report generation for {date_str or 'today'}...")
         try:
-            run_report_generation()
+            run_report_generation(date_str)
         except Exception as e:
             logging.error(f"❌ Report generation failed: {e}")
 
@@ -308,6 +313,7 @@ if __name__ == "__main__":
     parser.add_argument("--region", "-r", choices=["cn", "global"], help="Filter engines by region")
     parser.add_argument("--skip-scoring", action="store_true", help="Skip catch-up AI scoring for raw items")
     parser.add_argument("--style", choices=["toxic", "official"], help="Report style")
+    parser.add_argument("--date", help="Target date for report generation (YYYY-MM-DD)")
     parser.add_argument("--loop", "-l", action="store_true", help="Run in continuous loop mode")
     parser.add_argument("--interval", "-i", type=int, default=3600, help="Wait interval in seconds")
     
@@ -331,8 +337,8 @@ if __name__ == "__main__":
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring)
+            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring)
+        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date)

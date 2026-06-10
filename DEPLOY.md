@@ -102,6 +102,22 @@ SCRAPE_WINDOW_HOURS=72         # 抓取过去多少小时内的内容
   python3 -m scrapers.run_global --loop --interval 3600
   ```
 
+### 4.4 独立报告生成与维护 (Advanced Usage)
+在某些情况下（如 Gemini API 触发 429 限流，或者需要补发历史报告），您可以独立运行报告生成逻辑，而无需重新抓取数据或消耗大量 AI 额度。
+
+- **仅生成今日报告 (跳过抓取与评分)**：
+  ```bash
+  python3 -m scrapers.run --report
+  ```
+- **生成指定日期的报告**：
+  ```bash
+  python3 -m scrapers.run --report --date 2026-06-10
+  ```
+- **生成综述但跳过逐条评分 (大幅减少 Gemini 请求)**：
+  ```bash
+  python3 -m scrapers.run --insights --report --skip-scoring
+  ```
+
 ---
 
 ## 5. 智涌中国 (CN AI Pulse) 统一命名

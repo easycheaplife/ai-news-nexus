@@ -46,14 +46,23 @@ class JuejinScraper(BaseScraper):
                 
                 title = article.get("title", "")
                 content = article.get("brief_content") or title
+                text_to_check = (title + " " + content).lower()
                 
-                # 🛡️ 严格 AI 关键词过滤 (针对掘金这种综合社区)
-                ai_keywords = [
-                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", 
-                    "机器学习", "神经网络", "transformer", "claude", "deepseek", "sora", 
-                    "stable diffusion", "midjourney", "算力", "英伟达", "nvidia", "智算"
+                # 🛡️ 极其严格的 AI 关键词双重过滤
+                strict_ai_keywords = [
+                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+                    "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
+                    "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
+                    "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
+                    "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
+                    "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
                 ]
-                if not any(k in title.lower() or k in content.lower() for k in ai_keywords):
+                blacklist = ["招聘", "求职", "面试题", "面经", "融资", "上市", "财报", "亏损", "裁员"]
+
+                is_ai = any(k in text_to_check for k in strict_ai_keywords)
+                is_noise = any(k in text_to_check for k in blacklist)
+
+                if not is_ai or is_noise:
                     continue
 
                 external_id = str(article.get("article_id"))
