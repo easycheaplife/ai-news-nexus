@@ -41,12 +41,12 @@ logging.basicConfig(
 
 def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bool = False):
     """
-    抓取后分析逻辑：从后端获取最近 48 小时资讯，进行聚类分析并生成 AI 战略简报
+    抓取后分析逻辑：从后端获取最近 24 小时资讯，进行聚类分析并生成 AI 战略简报
     """
     logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
-        # 1. 获取最近 48 小时发布的内容进行分析
-        lookback_start = datetime.now() - timedelta(hours=48)
+        # 1. 获取最近 24 小时发布的内容进行分析
+        lookback_start = datetime.now() - timedelta(hours=24)
         
         response = requests.get(
             f"{api_url}/news/", 

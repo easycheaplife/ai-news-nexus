@@ -73,37 +73,37 @@ onMounted(fetchReportData);
 </script>
 
 <template>
-  <div :class="{ 'opacity-100': !loading, 'opacity-0': loading }" class="min-h-screen bg-[#f0f2f5] p-10 transition-opacity duration-500">
-    <div id="report-content" class="max-w-[800px] mx-auto bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
+  <div :class="{ 'opacity-100': !loading, 'opacity-0': loading }" class="min-h-screen bg-[#f0f2f5] md:p-10 p-4 transition-opacity duration-500">
+    <div id="report-content" class="max-w-[800px] mx-auto bg-white md:rounded-3xl rounded-xl shadow-2xl overflow-hidden border border-slate-200">
       <!-- Header -->
-      <div class="bg-gradient-to-br from-[#1a1a20] to-[#0a0a0c] p-10 text-white relative overflow-hidden">
+      <div class="bg-gradient-to-br from-[#1a1a20] to-[#0a0a0c] md:p-10 p-6 text-white relative overflow-hidden">
         <div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[100px] -mr-32 -mt-32"></div>
         <div class="relative z-10">
           <div class="flex items-center gap-4 mb-6">
             <div class="bg-primary p-3 rounded-2xl shadow-lg shadow-primary/30">
-              <Zap class="w-8 h-8 text-white" />
+              <Zap class="md:w-8 md:h-8 w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 class="text-3xl font-black tracking-tighter uppercase">AI NEWS <span class="text-primary">DAILY</span></h1>
+              <h1 class="md:text-3xl text-2xl font-black tracking-tighter uppercase leading-tight">AI NEWS <span class="text-primary">DAILY</span></h1>
               <p class="text-[10px] font-bold tracking-[0.3em] text-slate-400 uppercase">Global Intelligence Report</p>
             </div>
           </div>
           <div class="flex justify-between items-end border-t border-white/10 pt-6">
-            <div class="text-2xl font-bold">{{ format(new Date(), 'yyyy年MM月dd日', { locale: zhCN }) }}</div>
+            <div class="md:text-2xl text-xl font-bold">{{ format(new Date(), 'yyyy年MM月dd日', { locale: zhCN }) }}</div>
             <div class="text-slate-400 font-bold uppercase tracking-widest text-xs">{{ format(new Date(), 'EEEE', { locale: zhCN }) }}</div>
           </div>
         </div>
       </div>
 
       <!-- Global Intelligence Synthesis -->
-      <div v-if="latestInsight && latestInsight.content" class="p-12 pb-16">
+      <div v-if="latestInsight && latestInsight.content" class="md:p-12 p-6 md:pb-16 pb-10">
         <div class="bg-white relative">
-          <div class="absolute -top-6 right-0 opacity-10">
+          <div class="absolute -top-6 right-0 opacity-10 hidden md:block">
             <Quote class="w-24 h-24 text-slate-400" />
           </div>
           <div class="flex items-center gap-3 mb-10 border-b-2 border-primary/10 pb-6">
-            <Target class="w-7 h-7 text-primary" />
-            <h2 class="text-xl font-black uppercase tracking-[0.2em] text-slate-900">深度战略综述 · Strategic Synthesis</h2>
+            <Target class="w-7 h-7 text-primary shrink-0" />
+            <h2 class="md:text-xl text-lg font-black uppercase tracking-[0.2em] text-slate-900 leading-tight">深度战略综述 · Strategic Synthesis</h2>
           </div>
           
           <div class="synthesis-content" v-html="renderMarkdown(latestInsight.content)"></div>
@@ -111,8 +111,8 @@ onMounted(fetchReportData);
       </div>
 
       <!-- Intelligence Dashboard -->
-      <div class="p-12 pt-0">
-        <div class="grid grid-cols-3 gap-6 border-t border-slate-100 pt-10">
+      <div class="md:p-12 p-6 pt-0">
+        <div class="grid md:grid-cols-3 grid-cols-1 gap-6 border-t border-slate-100 pt-10">
           <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Intelligence Count</div>
             <div class="text-3xl font-black text-primary">{{ totalCount || latestInsight?.stats_json?.Total || news.length }}+</div>
@@ -138,24 +138,24 @@ onMounted(fetchReportData);
       </div>
 
       <!-- Footer -->
-      <div class="bg-slate-50 p-12 border-t border-slate-100 flex justify-between items-center">
-        <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2">
-            <div class="w-2 h-2 rounded-full bg-primary"></div>
-            <span class="text-[11px] font-black text-slate-400 uppercase tracking-widest">Synthesized by AI News Nexus</span>
+      <div class="bg-slate-50 md:p-12 p-8 border-t border-slate-100 flex md:flex-row flex-col gap-10 justify-between items-center text-center md:text-left">
+        <div class="flex flex-col gap-3">
+          <div class="flex items-center gap-2 justify-center md:justify-start">
+            <div class="w-2.5 h-2.5 rounded-full bg-primary"></div>
+            <span class="text-[12px] font-black text-slate-500 uppercase tracking-widest">AI News Nexus Synthesis</span>
           </div>
-          <div class="text-[10px] font-bold text-slate-300 uppercase tracking-widest">Generated at {{ format(new Date(), 'HH:mm') }}</div>
+          <div class="text-[11px] font-bold text-slate-300 uppercase tracking-[0.2em]">Generated at {{ format(new Date(), 'HH:mm') }}</div>
         </div>
         
-        <div class="flex items-center gap-6 border-l border-slate-200 pl-8">
-          <div class="text-right">
-            <div class="text-[11px] font-black text-slate-900 uppercase tracking-wider mb-1">View Full Report</div>
-            <div class="text-[9px] font-bold text-slate-400">ai-news-nexus.netlify.app</div>
+        <div class="flex items-center gap-6 md:border-l border-slate-200 md:pl-10">
+          <div class="flex flex-col md:items-end items-center">
+            <div class="text-[12px] font-black text-slate-900 uppercase tracking-wider mb-1">Explore Full Intelligence</div>
+            <div class="text-[10px] font-bold text-primary tracking-tight px-2 py-0.5 bg-primary/5 rounded">ai-news-nexus.netlify.app</div>
           </div>
-          <div class="bg-white p-2 rounded-xl shadow-sm border border-slate-100">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=https://ai-news-nexus.netlify.app/&bgcolor=ffffff&color=000000&margin=0" 
+          <div class="bg-white p-2.5 rounded-2xl shadow-md border border-slate-100 shrink-0">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=https://ai-news-nexus.netlify.app/&bgcolor=ffffff&color=000000&margin=0" 
                  alt="QR Code" 
-                 class="w-12 h-12" />
+                 class="w-14 h-14" />
           </div>
         </div>
       </div>
