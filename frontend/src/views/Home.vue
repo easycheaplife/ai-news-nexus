@@ -124,6 +124,8 @@ const fetchNews = async (isLoadMore = false) => {
       cluster_id: filters.value.cluster_id || undefined,
       limit: filters.value.limit,
       skip: filters.value.skip,
+      min_score: 71,
+      include_pending: false,
       _t: Date.now() // Cache buster
     };
 

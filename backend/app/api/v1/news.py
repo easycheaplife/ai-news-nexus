@@ -67,7 +67,7 @@ async def read_news(
     end_date: Optional[datetime] = None,
     query: Optional[str] = None,
     min_score: int = Query(settings.MIN_SCORE, description="Minimum AI score to include"),
-    include_pending: bool = Query(True, description="Whether to include items with score 0 (pending analysis)"),
+    include_pending: bool = Query(False, description="Whether to include items with score 0 (pending analysis)"),
     skip: int = 0,
     limit: int = 50,
     db: Session = Depends(get_db)

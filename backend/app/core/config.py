@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     MYSQL_PORT: str = "3306"
     MYSQL_DB: str = "ai_news"
     ENV: str = "development"
-    MIN_SCORE: int = 60
+    MIN_SCORE: int = 70
     
     # Redis
     REDIS_HOST: str = "localhost"

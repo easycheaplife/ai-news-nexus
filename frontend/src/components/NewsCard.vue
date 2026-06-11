@@ -230,6 +230,11 @@ const contentLines = parseInt(import.meta.env.VITE_CONTENT_LINES || '5');
             <Layers class="w-2.5 h-2.5" />
             {{ item.cluster_id }}
           </div>
+          <!-- Mobile Score Badge -->
+          <div v-if="item.score" class="md:hidden flex items-center gap-1.5 px-2 py-1 rounded-lg bg-primary/20 border border-primary/30 ml-auto shadow-[0_0_10px_rgba(37,99,235,0.2)]">
+            <Star class="w-3 h-3 text-primary fill-primary" />
+            <span class="text-[12px] font-black text-white leading-none">{{ item.score }}</span>
+          </div>
         </div>
 
         <!-- Title & Link -->

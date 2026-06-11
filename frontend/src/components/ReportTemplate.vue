@@ -14,6 +14,7 @@ const totalCount = ref(0);
 const latestInsight = ref<any>(null);
 const loading = ref(true);
 const ready = ref(false);
+const styleVariant = ref(1); // 1: Classic Dark, 2: Modern Gradient
 
 const renderMarkdown = (text: string) => {
   if (!text) return '';
@@ -40,8 +41,18 @@ const fetchReportData = async () => {
     const today = format(new Date(), 'yyyy-MM-dd');
     const timestamp = Date.now();
     
+    // 随机选择风格
+    styleVariant.value = Math.random() > 0.5 ? 1 : 2;
+
     const [newsRes, insightRes] = await Promise.all([
-      axios.get(`${base}/api/news/`, { params: { limit: 20, _t: timestamp } }),
+      axios.get(`${base}/api/news/`, { 
+        params: { 
+          limit: 20, 
+          min_score: 71, 
+          include_pending: false,
+          _t: timestamp 
+        } 
+      }),
       axios.get(`${base}/api/insights/${today}`, { params: { _t: timestamp } }).catch(() => 
         axios.get(`${base}/api/insights/latest`, { params: { _t: timestamp } }).catch(() => ({ data: null }))
       )
@@ -74,21 +85,27 @@ onMounted(fetchReportData);
   <div :class="{ 'opacity-100': !loading, 'opacity-0': loading }" class="min-h-screen bg-[#f0f2f5] md:p-10 p-4 transition-opacity duration-500">
     <div id="report-content" class="max-w-[800px] mx-auto bg-white md:rounded-3xl rounded-xl shadow-2xl overflow-hidden border border-slate-200">
       <!-- Header -->
-      <div class="bg-gradient-to-br from-[#1a1a20] to-[#0a0a0c] md:p-10 p-6 text-white relative overflow-hidden">
-        <div class="absolute top-0 right-0 w-64 h-64 bg-primary/20 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+      <div :class="[
+        'md:p-10 p-6 text-white relative overflow-hidden transition-all duration-700',
+        styleVariant === 1 ? 'bg-gradient-to-br from-[#1a1a20] to-[#0a0a0c]' : 'bg-gradient-to-br from-indigo-600 via-primary to-blue-700'
+      ]">
+        <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-[100px] -mr-32 -mt-32"></div>
         <div class="relative z-10">
           <div class="flex items-center gap-4 mb-6">
-            <div class="bg-primary p-3 rounded-2xl shadow-lg shadow-primary/30">
-              <Zap class="md:w-8 md:h-8 w-6 h-6 text-white" />
+            <div :class="[
+              'p-3 rounded-2xl shadow-lg transition-all',
+              styleVariant === 1 ? 'bg-primary shadow-primary/30' : 'bg-white shadow-white/20'
+            ]">
+              <Zap :class="['md:w-8 md:h-8 w-6 h-6', styleVariant === 1 ? 'text-white' : 'text-primary']" />
             </div>
             <div>
-              <h1 class="md:text-3xl text-2xl font-black tracking-tighter uppercase leading-tight">AI NEWS <span class="text-primary">DAILY</span></h1>
-              <p class="text-[10px] font-bold tracking-[0.3em] text-slate-400 uppercase">Global Intelligence Report</p>
+              <h1 class="md:text-3xl text-2xl font-black tracking-tighter uppercase leading-tight">AI NEWS <span :class="styleVariant === 1 ? 'text-primary' : 'text-white/80'">DAILY</span></h1>
+              <p :class="['text-[10px] font-bold tracking-[0.3em] uppercase', styleVariant === 1 ? 'text-slate-400' : 'text-white/60']">Global Intelligence Report</p>
             </div>
           </div>
           <div class="flex justify-between items-end border-t border-white/10 pt-6">
             <div class="md:text-2xl text-xl font-bold">{{ format(new Date(), 'yyyy年MM月dd日', { locale: zhCN }) }}</div>
-            <div class="text-slate-400 font-bold uppercase tracking-widest text-xs">{{ format(new Date(), 'EEEE', { locale: zhCN }) }}</div>
+            <div :class="['font-bold uppercase tracking-widest text-xs', styleVariant === 1 ? 'text-slate-400' : 'text-white/70']">{{ format(new Date(), 'EEEE', { locale: zhCN }) }}</div>
           </div>
         </div>
       </div>
@@ -99,8 +116,11 @@ onMounted(fetchReportData);
           <div class="absolute -top-6 right-0 opacity-10 hidden md:block">
             <Quote class="w-24 h-24 text-slate-400" />
           </div>
-          <div class="flex items-center gap-3 mb-10 border-b-2 border-primary/10 pb-6">
-            <Target class="w-7 h-7 text-primary shrink-0" />
+          <div :class="[
+            'flex items-center gap-3 mb-10 border-b-2 pb-6',
+            styleVariant === 1 ? 'border-primary/10' : 'border-indigo-100'
+          ]">
+            <Target :class="['w-7 h-7 shrink-0', styleVariant === 1 ? 'text-primary' : 'text-indigo-600']" />
             <h2 class="md:text-xl text-lg font-black uppercase tracking-[0.2em] text-slate-900 leading-tight">深度战略综述 · Strategic Synthesis</h2>
           </div>
           
@@ -111,23 +131,25 @@ onMounted(fetchReportData);
       <!-- Intelligence Dashboard -->
       <div class="md:p-12 p-6 pt-0">
         <div class="grid md:grid-cols-3 grid-cols-1 gap-6 border-t border-slate-100 pt-10">
-          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+          <div :class="['rounded-2xl p-5 border transition-all', styleVariant === 1 ? 'bg-slate-50 border-slate-100' : 'bg-indigo-50/30 border-indigo-100']">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Intelligence Count</div>
-            <div class="text-3xl font-black text-primary">{{ totalCount || latestInsight?.stats_json?.Total || news.length }}+</div>
+            <div :class="['text-3xl font-black', styleVariant === 1 ? 'text-primary' : 'text-indigo-600']">{{ totalCount || latestInsight?.stats_json?.Total || news.length }}+</div>
             <div class="text-[11px] text-slate-400 font-bold mt-1">Processed globally</div>
           </div>
-          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+          <div :class="['rounded-2xl p-5 border transition-all', styleVariant === 1 ? 'bg-slate-50 border-slate-100' : 'bg-indigo-50/30 border-indigo-100']">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Trending Tech</div>
             <div class="flex flex-wrap gap-1.5 mt-1">
-              <span v-for="kw in (latestInsight?.hot_topics?.slice(0, 3) || ['LLM', 'Agent', 'Multimodal'])" :key="kw" class="text-[10px] font-bold bg-white text-primary px-2 py-0.5 rounded border border-primary/20 uppercase">
+              <span v-for="kw in (latestInsight?.hot_topics?.slice(0, 3) || ['LLM', 'Agent', 'Multimodal'])" :key="kw" 
+                    :class="['text-[10px] font-bold px-2 py-0.5 rounded border uppercase', 
+                             styleVariant === 1 ? 'bg-white text-primary border-primary/20' : 'bg-white text-indigo-600 border-indigo-200 shadow-sm']">
                 {{ kw }}
               </span>
             </div>
           </div>
-          <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+          <div :class="['rounded-2xl p-5 border transition-all', styleVariant === 1 ? 'bg-slate-50 border-slate-100' : 'bg-indigo-50/30 border-indigo-100']">
             <div class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Pulse Status</div>
             <div class="flex items-center gap-2 mt-1">
-              <div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+              <div :class="['w-2.5 h-2.5 rounded-full animate-pulse', styleVariant === 1 ? 'bg-green-500' : 'bg-indigo-500']"></div>
               <span class="text-[11px] font-black text-slate-700 uppercase">System OK</span>
             </div>
             <div class="text-[11px] text-slate-400 font-bold mt-1">AI Node: Active</div>
