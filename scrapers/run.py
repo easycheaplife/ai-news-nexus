@@ -61,16 +61,13 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
             return
 
         resp_json = response.json()
-        # 处理新的 API 结构 { "items": [...], "total": 123 }
         all_news = resp_json.get("items", []) if isinstance(resp_json, dict) else resp_json
         
         if not all_news:
-            logging.warning(f"⚠️ No news found since {today_start.date()} to analyze.")
+            logging.warning(f"⚠️ No news found since {lookback_start.date()} to analyze.")
             return
         
         # --- 🚀 核心优化：补偿性评价 ---
-        # 如果未跳过评分，且 API 已经过滤了日期，这里对 score 为 0 的条目进行补课评价
-        from scrapers.utils.ai import evaluator
         evaluated_count = 0
         if not skip_scoring:
             for item in all_news:
@@ -78,7 +75,6 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
                     logging.info(f"🤖 Late-evaluating today's item: {item['title'][:30]}...")
                     score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(item['title'], item['content'])
                     
-                    # 回传更新评分和聚类信息
                     update_payload = {
                         "score": score,
                         "reason": reason,
@@ -88,9 +84,7 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
                         "trending_keywords": keywords
                     }
                     try:
-                        # 假设后端支持 PATCH /news/{id} 更新，或者通过 POST /news/ 幂等覆盖
                         requests.patch(f"{api_url}/news/{item['id']}", json=update_payload)
-                        # 同步更新本地内存数据以便后续聚类
                         item.update(update_payload)
                         evaluated_count += 1
                     except Exception as e:
@@ -100,7 +94,6 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
             logging.info(f"✅ Completed catch-up evaluation for {evaluated_count} items.")
         elif skip_scoring:
             logging.info("⏩ Skipping individual item scoring phase as requested.")
-        # --- 优化结束 ---
 
         # 2. 按 cluster_id 聚合
         clusters = {}
@@ -108,11 +101,8 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
         all_keywords = []
         
         for item in all_news:
-            # 统计平台分布
             p = item['platform']
             platform_counts[p] = platform_counts.get(p, 0) + 1
-            
-            # 收集关键词用于统计
             if item.get('trending_keywords'):
                 all_keywords.extend(item['trending_keywords'])
 
@@ -126,10 +116,8 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
             if item.get('reason'):
                 clusters[cid]["reasons"].append(item['reason'])
 
-        # 3. 提取最高频的 12 个关键词作为 hot_topics
+        # 3. 提取关键词
         from collections import Counter
-        import re
-
         normalized_keywords = []
         for kw in all_keywords:
             if not kw or len(kw) < 2: continue
@@ -137,7 +125,6 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
             normalized_keywords.append((norm, kw))
 
         kw_counts = Counter([n[0] for n in normalized_keywords])
-
         final_kws = []
         seen_norms = set()
         for norm, count in kw_counts.most_common(15):
@@ -152,7 +139,7 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
         briefing_content = evaluator.summarize_clusters(sorted_clusters[:25], style=style)
 
         if not briefing_content:
-            logging.error("❌ AI Insights generation failed (possibly due to 429). Skipping archival to protect existing data.")
+            logging.error("❌ AI Insights generation failed. Skipping archival to protect existing data.")
             return
 
         # 5. 上传简报到后端
@@ -168,15 +155,12 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
 
         if res.status_code in (200, 201):
             logging.info(f"✅ Daily Strategic Briefing ({today_str}) successfully archived.")
-            
-            # 自动生成日报图片
             report_url = None
             try:
                 report_url = run_report_generation(today_str)
             except Exception as e:
                 logging.error(f"❌ Failed to generate automated report: {e}")
 
-            # 🚀 触发推送通知
             from scrapers.utils.notifier import notifier
             try:
                 notifier.notify_all(today_str, briefing_content, report_url)
@@ -200,17 +184,14 @@ def run_scrapers(target_platform: str = None,
                  style: str = "toxic",
                  skip_scoring: bool = False,
                  date_str: str = None):
-    # 获取后端 API 地址
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
-    # 1. 运行信源自动发现与扩张 (Expansion)
     if do_discovery and not target_platform and (not target_region or target_region.lower() == "global"):
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
     else:
         logging.info("⏩ Skipping discovery phase")
 
-    # 2. 运行可用采集引擎
     if do_scrape:
         all_engines = [
             HNScraper(api_url=api_url),
@@ -250,39 +231,34 @@ def run_scrapers(target_platform: str = None,
     else:
         logging.info("⏩ Skipping account scraping phase")
 
-    # 3. 运行语义聚类
     if do_clustering and not target_platform:
         clustering_engine = ClusteringEngine(api_url)
         clustering_engine.run_clustering()
     else:
         logging.info("⏩ Skipping clustering phase")
             
-    # 4. 运行信源质量评价与汰换
     if do_curation and not target_platform and (not target_region or target_region.lower() == "global"):
         curator = SourceCurator(api_url)
         curator.run_curation()
     else:
         logging.info("⏩ Skipping curation phase")
         
-    # 5. 运行 YouTube 发现雷达
     if do_scrape and (not target_platform or target_platform.lower() == "youtube") and (not target_region or target_region.lower() == "global"):
         yt_radar = YouTubeDiscoveryRadar(api_url)
         yt_radar.run()
     else:
         logging.info("⏩ Skipping YouTube radar phase")
 
-    # 6. 抓取结束后自动生成今日 AI 深度洞察
     if do_insights and not target_platform:
         actual_style = style
         if not actual_style:
             actual_style = random.choice(["toxic", "official"])
-            logging.info(f"🎲 No style specified. Randomly selected: {actual_style}")
+            logging.info(f"🎲 No style selected. Randomly selected: {actual_style}")
             
         generate_daily_insights(api_url, style=actual_style, skip_scoring=skip_scoring)
     else:
         logging.info("⏩ Skipping insights generation phase")
 
-    # 7. 生成日报图片
     if do_report and not target_platform and not do_insights:
         logging.info(f"📸 Manually triggering report generation for {date_str or 'today'}...")
         try:

@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import re
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional, List
 from google import genai
@@ -25,8 +26,8 @@ load_env_robust()
 class GeminiEvaluator:
     def __init__(self):
         self.api_key = os.getenv("GEMINI_API_KEY")
-        # 优先使用支持搜索的模型 (2.0 系列)
-        models_str = os.getenv("GEMINI_MODEL", "gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
+        # 🚀 优先使用 gemini-3.1 系列，因为其目前额度更充裕
+        models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
         self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
         self.logger = logging.getLogger("evaluator.gemini")
         
@@ -41,26 +42,14 @@ class GeminiEvaluator:
                 self.logger.error(f"❌ Failed to initialize Gemini client: {e}")
                 self.enabled = False
 
-    def _generate_content_with_fallback(self, prompt: str, use_search: bool = False):
-        """核心生成逻辑：支持模型自动降级及 Google Search 增强"""
-        # 如果启用搜索，优先使用支持搜索的模型
-        models_to_try = self.model_names
-        if use_search:
-            models_to_try = [m for m in self.model_names if any(v in m for v in ["2.0", "3.1", "pro"])] or ["gemini-2.0-flash"]
-
-        for model_name in models_to_try:
+    def _generate_content_with_fallback(self, prompt: str):
+        """核心生成逻辑：支持模型自动降级"""
+        for model_name in self.model_names:
             try:
                 import time
-                config = None
-                if use_search:
-                    config = types.GenerateContentConfig(
-                        tools=[types.Tool(google_search=types.GoogleSearchRetrieval())]
-                    )
-                
                 response = self.client.models.generate_content(
                     model=model_name,
-                    contents=prompt,
-                    config=config
+                    contents=prompt
                 )
                 return response
             except Exception as e:
@@ -73,11 +62,6 @@ class GeminiEvaluator:
                     self.logger.error(f"❌ Gemini error with model {model_name}: {e}")
                     continue
         
-        # 🚀 最终降级：如果带搜索的所有尝试都失败了，且当前是带搜索的模式，则尝试一次不带搜索的生成
-        if use_search:
-            self.logger.warning("🔄 All search-enabled models failed. Retrying one last time WITHOUT search...")
-            return self._generate_content_with_fallback(prompt, use_search=False)
-
         self.logger.error("🚫 All Gemini fallback models failed.")
         return None
 
@@ -89,8 +73,7 @@ class GeminiEvaluator:
 
     def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
         """
-        使用 Gemini 对内容进行多维分析：评分、摘要、要点、语义聚类、新账号发现及热词提取
-        返回: (分数, 理由, 核心要点列表, 语义聚类ID, 提到用户列表, 趋势关键词列表)
+        使用 Gemini 对内容进行多维分析
         """
         if not self.enabled:
             return 0, None, None, None, None, None
@@ -118,7 +101,6 @@ class GeminiEvaluator:
             if not response:
                 return 0, None, None, None, None, None
 
-            # 尝试解析返回的 JSON
             text = response.text.strip()
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0].strip()
@@ -140,7 +122,7 @@ class GeminiEvaluator:
 
     def summarize_clusters(self, clusters_data: List[Dict[str, Any]], style: str = "toxic") -> str:
         """
-        整合最近 24 小时的聚类信息，并结合 Google Search 搜索最新的行业大事件，生成深度综述。
+        整合最近 24 小时的聚类信息，生成深度综述。
         支持多种风格：'toxic' (毒舌吐槽版), 'official' (正经战略版)
         """
         if not self.enabled:
@@ -153,21 +135,20 @@ class GeminiEvaluator:
                 reasons_text = " | ".join(c['reasons'][:8])
                 summary_payload += f"【主题: {c['cluster_id']} (规模:{c['count']})】\n核心内容: {reasons_text}\n\n"
         else:
-            summary_payload = "（数据库内暂无最近 24 小时的深度聚类数据，请完全依赖你的联网搜索能力）"
+            summary_payload = "（数据库内暂无最近 24 小时的深度聚类数据）"
 
         current_date = datetime.now().strftime("%Y年%m月%d日")
         
         # 🧪 综合提示词
         base_instruction = f"""
-        你现在是顶级 AI 情报官。你的任务是根据我提供的数据库聚类信息，并**通过你内置的联网搜索功能 (Google Search)**，
-        整合出过去 24 小时内全球 AI 圈最重要的动态。
+        你现在是顶级 AI 情报官。你的任务是根据我提供的数据库聚类信息，整合出过去 24 小时内全球 AI 圈最重要的动态。
 
         当前日期: {current_date}
 
         🚨 **核心指令：**
-        1. **24小时视野**：你的综述必须严格覆盖过去 24 小时内的全网动态。
-        2. **重大新闻事件**：必须重点包含发布 24 小时内的重大新闻（如：大模型发布、开发者大会、重大人事变动等）。
-        3. **联网增强**：除了我提供的数据库数据，请务必使用你内置的联网搜索功能 (Google Search)，补齐我提供的数据库聚类之外的最新遗漏信息。
+        1. **24小时视野**：你的综述必须严格覆盖过去 24 小时内的动态。
+        2. **重大新闻事件**：必须重点包含发布 24 小时内的重大新闻。
+        3. **深度整合**：请完全基于我提供的背景数据进行深度整合，提炼出技术趋势和行业洞察。
 
         提供的原始数据背景:
         {summary_payload}
@@ -197,13 +178,17 @@ class GeminiEvaluator:
         prompt = f"{base_instruction}\n{role_prompt}"
 
         try:
-            # 开启联网搜索
-            response = self._generate_content_with_fallback(prompt, use_search=True)
+            response = self._generate_content_with_fallback(prompt)
             if not response:
-                return None # 只有成功才返回内容
+                return None
             
             text = response.text.strip()
-            # 🧹 后置处理
+            # 🧹 后置处理：剥离 Markdown 代码块标签
+            if text.startswith("```"):
+                text = re.sub(r'^```[a-zA-Z]*\n', '', text)
+                text = re.sub(r'\n```$', '', text)
+            
+            # 🧹 后置处理：移除元数据行
             cleaned_text = []
             blacklist = ["撰写人", "报告人", "日期", "撰写日期"]
             for line in text.split('\n'):
@@ -216,7 +201,7 @@ class GeminiEvaluator:
             return '\n'.join(cleaned_text).strip()
         except Exception as e:
             self.logger.error(f"❌ Summary generation failed: {e}")
-            return None # 只有成功才返回内容
+            return None
 
 # 单例模式
 evaluator = GeminiEvaluator()

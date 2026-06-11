@@ -18,15 +18,13 @@ const ready = ref(false);
 const renderMarkdown = (text: string) => {
   if (!text) return '';
   
-  // 🩹 鲁棒性增强：移除多余的元数据行（撰写人、日期等），并修复标题格式
+  // 🩹 鲁棒性增强：仅移除多余的元数据行（撰写人、日期等）
+  // 移除了破坏 Markdown 标题语法的正则，让 marked 正常工作
   const cleanedText = text
     .replace(/^.*撰写人[:：].*$/gm, '')
     .replace(/^.*日期[:：].*$/gm, '')
     .replace(/^.*报告人[:：].*$/gm, '')
-    .replace(/^.*撰写日期[:：].*$/gm, '')
-    .replace(/^##\s+##\s+/gm, '## ')
-    .replace(/^###\s+###\s+/gm, '### ')
-    .replace(/([^ \n])\n(##|###)\s+/g, '$1\n\n$2 ');
+    .replace(/^.*撰写日期[:：].*$/gm, '');
 
   // 🧩 极致解析配置：确保 GFM 开启且处理换行
   const html = marked.parse(cleanedText, { 
