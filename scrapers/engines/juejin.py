@@ -49,20 +49,27 @@ class JuejinScraper(BaseScraper):
                 text_to_check = (title + " " + content).lower()
                 
                 # 🛡️ 极其严格的 AI 关键词双重过滤
+                import re
                 strict_ai_keywords = [
-                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+                    "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
                     "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
                     "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
                     "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
                     "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
                     "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
                 ]
-                blacklist = ["招聘", "求职", "面试题", "面经", "融资", "上市", "财报", "亏损", "裁员"]
+                # 🚫 噪音黑名单：针对开发者社区，排除普通编程教学和基础架构内容
+                blacklist = [
+                    "融资", "上市", "财报", "股价", "收购", "裁员", "面试题", "面经", "javascript", 
+                    "vue", "react", "css", "html", "mysql", "sql", "redis", "重构", "执行计划", 
+                    "spring boot", "java 基础", "内存视角", "精通指南"
+                ]
 
-                is_ai = any(k in text_to_check for k in strict_ai_keywords)
+                has_standalone_ai = bool(re.search(r'\bai\b', text_to_check))
+                has_core_ai = any(k in text_to_check for k in strict_ai_keywords)
                 is_noise = any(k in text_to_check for k in blacklist)
 
-                if not is_ai or is_noise:
+                if not (has_standalone_ai or has_core_ai) or is_noise:
                     continue
 
                 external_id = str(article.get("article_id"))

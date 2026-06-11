@@ -35,27 +35,31 @@ class Kr36Scraper(BaseScraper):
                 title = entry.title
                 summary = entry.summary if hasattr(entry, 'summary') else title
                 text_to_check = (title + " " + summary).lower()
-                
+
                 # 🛡️ 极其严格的 AI 关键词白名单
+                import re
                 strict_ai_keywords = [
-                    "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+                    "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
                     "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
                     "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
                     "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
                     "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
                     "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
                 ]
-                
-                # 🚫 关键词黑名单（即便包含 AI 词，只要包含这些词也排除）
-                blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售"]
 
-                # 1. 必须包含 AI 相关关键词
-                is_ai = any(k in text_to_check for k in strict_ai_keywords)
-                # 2. 排除纯商业/八卦类内容
-                is_business_gossip = any(k in text_to_check for k in blacklist)
+                # 🚫 噪音黑名单
+                blacklist = [
+                    "融资", "上市", "财报", "股价", "收购", "裁员", "内斗", "手机", "数码", 
+                    "笔记本", "游戏", "发布会", "预订", "开售", "javascript", "vue", "react", "重构"
+                ]
 
-                if not is_ai or is_business_gossip:
+                has_standalone_ai = bool(re.search(r'\bai\b', text_to_check))
+                has_core_ai = any(k in text_to_check for k in strict_ai_keywords)
+                is_noise = any(k in text_to_check for k in blacklist)
+
+                if not (has_standalone_ai or has_core_ai) or is_noise:
                     continue
+
 
                 external_id = entry.id if hasattr(entry, 'id') else entry.link
                 

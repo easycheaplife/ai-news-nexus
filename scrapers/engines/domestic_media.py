@@ -151,10 +151,11 @@ class DomesticMediaScraper(BaseScraper):
 
     def _process_entries(self, entries, platform_key, config):
         processed_count = 0
+        import re
         
         # 🛡️ 极其严格的 AI 关键词白名单
         strict_ai_keywords = [
-            "ai", "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
+            "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
             "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
             "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
             "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
@@ -162,8 +163,13 @@ class DomesticMediaScraper(BaseScraper):
             "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
         ]
         
-        # 🚫 关键词黑名单（即便包含 AI 词，只要包含这些词也排除，防止混入科技圈八卦、财报或普通数码）
-        blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售"]
+        # 🚫 噪音黑名单：即便包含 AI 词，只要包含这些编程或常规工程词也排除
+        blacklist = [
+            "融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", 
+            "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售",
+            "javascript", "vue", "react", "css", "html", "mysql", "sql", "redis", 
+            "架构设计", "设计模式", "单元测试", "执行计划", "性能调优", "组件重构"
+        ]
 
         for entry in entries[:15]: 
             title = entry.title
@@ -173,12 +179,16 @@ class DomesticMediaScraper(BaseScraper):
             title = re.sub(r'\s-\s.*$', '', title).strip()
             title_lower = title.lower()
 
-            # 1. 必须包含 AI 相关关键词
-            is_ai = any(k in title_lower for k in strict_ai_keywords)
-            # 2. 排除纯商业/八卦类内容
-            is_business_gossip = any(k in title_lower for k in blacklist)
+            # 1. 严格匹配 "ai" 单词 (前后需有非字母字符)
+            has_standalone_ai = bool(re.search(r'\bai\b', title_lower))
+            
+            # 2. 匹配其他硬核 AI 关键词
+            has_core_ai = any(k in title_lower for k in strict_ai_keywords)
+            
+            # 3. 排除噪音
+            is_noise = any(k in title_lower for k in blacklist)
 
-            if not is_ai or is_business_gossip:
+            if not (has_standalone_ai or has_core_ai) or is_noise:
                 continue
 
             dt = None
