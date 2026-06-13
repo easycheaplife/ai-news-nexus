@@ -24,3 +24,4 @@ frontend/netlify.toml
 frontend/public/_redirects
 backend/data/reports/
 design-md
+scrapers/cookies.json
