@@ -7,30 +7,6 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import requests
 
-from scrapers.utils.ai import evaluator
-from scrapers.engines.hn import HNScraper
-from scrapers.engines.reddit import RedditScraper
-from scrapers.engines.twitter import TwitterScraper
-from scrapers.engines.ph import ProductHuntScraper
-from scrapers.engines.github import GitHubScraper
-from scrapers.engines.arxiv import ArxivScraper
-from scrapers.engines.youtube import YouTubeScraper
-from scrapers.engines.labs import LabsScraper
-from scrapers.engines.huggingface import HuggingFaceScraper
-from scrapers.engines.trend_hunter import TrendHunterScraper
-from scrapers.engines.domestic_media import DomesticMediaScraper
-from scrapers.engines.aihot import AIHotScraper
-from scrapers.engines.qbitai import QbitAIScraper
-from scrapers.engines.kr36 import Kr36Scraper
-from scrapers.engines.juejin import JuejinScraper
-from scrapers.engines.ithome import ITHomeScraper
-from scrapers.engines.caict import CAICTScraper
-from scrapers.discovery_run import DiscoveryEngine
-from scrapers.curation_run import SourceCurator
-from scrapers.utils.clustering import ClusteringEngine
-from scrapers.utils.report_engine import run_report_generation
-from scrapers.utils.youtube_radar import YouTubeDiscoveryRadar
-
 # 加载 .env 文件
 load_dotenv()
 
@@ -43,6 +19,10 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
     """
     抓取后分析逻辑：从后端获取最近 24 小时资讯，进行聚类分析并生成 AI 战略简报
     """
+    # 🚀 Lazy Load AI Utilities
+    from scrapers.utils.ai import evaluator
+    from scrapers.utils.report_engine import run_report_generation
+    
     logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
     try:
         # 1. 获取最近 24 小时发布的内容进行分析
@@ -187,30 +167,58 @@ def run_scrapers(target_platform: str = None,
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
     if do_discovery and not target_platform and (not target_region or target_region.lower() == "global"):
+        from scrapers.discovery_run import DiscoveryEngine
         discovery_engine = DiscoveryEngine(api_url)
         discovery_engine.run_expansion()
     else:
         logging.info("⏩ Skipping discovery phase")
 
     if do_scrape:
-        all_engines = [
-            HNScraper(api_url=api_url),
-            RedditScraper(api_url=api_url),
-            TwitterScraper(api_url=api_url),
-            ProductHuntScraper(api_url=api_url),
-            GitHubScraper(api_url=api_url),
-            ArxivScraper(api_url=api_url),
-            YouTubeScraper(api_url=api_url),
-            LabsScraper(api_url=api_url),
+        # 🚀 Lazy Load All Scrapers to decouple dependencies like twikit/google-genai
+        all_engines = []
+        
+        # CN / Domestic Engines (Minimal dependencies)
+        from scrapers.engines.domestic_media import DomesticMediaScraper
+        from scrapers.engines.aihot import AIHotScraper
+        from scrapers.engines.qbitai import QbitAIScraper
+        from scrapers.engines.kr36 import Kr36Scraper
+        from scrapers.engines.juejin import JuejinScraper
+        from scrapers.engines.ithome import ITHomeScraper
+        from scrapers.engines.caict import CAICTScraper
+        
+        all_engines.extend([
             DomesticMediaScraper(api_url=api_url),
-            HuggingFaceScraper(api_url=api_url),
             AIHotScraper(api_url=api_url),
             QbitAIScraper(api_url=api_url),
             Kr36Scraper(api_url=api_url),
             JuejinScraper(api_url=api_url),
             ITHomeScraper(api_url=api_url),
             CAICTScraper(api_url=api_url)
-        ]
+        ])
+        
+        # Global Engines (Require proxy/Gemini/twikit)
+        if not target_region or target_region.lower() == "global":
+            from scrapers.engines.hn import HNScraper
+            from scrapers.engines.reddit import RedditScraper
+            from scrapers.engines.twitter import TwitterScraper
+            from scrapers.engines.ph import ProductHuntScraper
+            from scrapers.engines.github import GitHubScraper
+            from scrapers.engines.arxiv import ArxivScraper
+            from scrapers.engines.youtube import YouTubeScraper
+            from scrapers.engines.labs import LabsScraper
+            from scrapers.engines.huggingface import HuggingFaceScraper
+            
+            all_engines.extend([
+                HNScraper(api_url=api_url),
+                RedditScraper(api_url=api_url),
+                TwitterScraper(api_url=api_url),
+                ProductHuntScraper(api_url=api_url),
+                GitHubScraper(api_url=api_url),
+                ArxivScraper(api_url=api_url),
+                YouTubeScraper(api_url=api_url),
+                LabsScraper(api_url=api_url),
+                HuggingFaceScraper(api_url=api_url)
+            ])
         
         engines = all_engines
         if target_platform:
@@ -232,18 +240,21 @@ def run_scrapers(target_platform: str = None,
         logging.info("⏩ Skipping account scraping phase")
 
     if do_clustering and not target_platform:
+        from scrapers.utils.clustering import ClusteringEngine
         clustering_engine = ClusteringEngine(api_url)
         clustering_engine.run_clustering()
     else:
         logging.info("⏩ Skipping clustering phase")
             
     if do_curation and not target_platform and (not target_region or target_region.lower() == "global"):
+        from scrapers.curation_run import SourceCurator
         curator = SourceCurator(api_url)
         curator.run_curation()
     else:
         logging.info("⏩ Skipping curation phase")
         
     if do_scrape and (not target_platform or target_platform.lower() == "youtube") and (not target_region or target_region.lower() == "global"):
+        from scrapers.utils.youtube_radar import YouTubeDiscoveryRadar
         yt_radar = YouTubeDiscoveryRadar(api_url)
         yt_radar.run()
     else:
@@ -260,6 +271,7 @@ def run_scrapers(target_platform: str = None,
         logging.info("⏩ Skipping insights generation phase")
 
     if do_report and not target_platform and not do_insights:
+        from scrapers.utils.report_engine import run_report_generation
         logging.info(f"📸 Manually triggering report generation for {date_str or 'today'}...")
         try:
             run_report_generation(date_str)
