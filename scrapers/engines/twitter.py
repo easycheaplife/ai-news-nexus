@@ -23,7 +23,7 @@ class TwitterScraper(BaseScraper):
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
         }
-        # 增加 Nitter 实例列表作为备份
+        # 恢复原始 Nitter 实例列表
         self.nitter_instances = [
             "https://nitter.net",
             "https://nitter.cz",
@@ -142,6 +142,9 @@ class TwitterScraper(BaseScraper):
 
     def scrape(self):
         self.logger.info(f"🚀 Starting Twitter scraping (Accounts: {len(self.ai_accounts)})...")
+        
+        # 🎲 仅保留账号随机打乱逻辑
+        random.shuffle(self.ai_accounts)
         
         base_wait_min = 5
         base_wait_max = 10
