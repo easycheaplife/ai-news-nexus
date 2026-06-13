@@ -28,7 +28,14 @@ def create_scraping_target(target: ScrapingTargetCreate, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[TargetSchema])
-def list_scraping_targets(platform: str = None, is_active: Optional[bool] = None, status: Optional[str] = None, db: Session = Depends(get_db)):
+def list_scraping_targets(
+    platform: Optional[str] = None, 
+    handle: Optional[str] = None,
+    is_active: Optional[bool] = None, 
+    status: Optional[str] = None, 
+    has_scraped_data: Optional[bool] = None,
+    db: Session = Depends(get_db)
+):
     query = db.query(ScrapingTarget)
     if is_active is not None:
         query = query.filter(ScrapingTarget.is_active == is_active)
@@ -36,6 +43,12 @@ def list_scraping_targets(platform: str = None, is_active: Optional[bool] = None
         query = query.filter(ScrapingTarget.status == status)
     if platform:
         query = query.filter(ScrapingTarget.platform == platform)
+    if handle:
+        query = query.filter(ScrapingTarget.handle == handle)
+    if has_scraped_data is True:
+        query = query.filter(ScrapingTarget.last_scraped_at.isnot(None))
+    elif has_scraped_data is False:
+        query = query.filter(ScrapingTarget.last_scraped_at.is_(None))
     return query.all()
 
 @router.patch("/{target_id}", response_model=TargetSchema)
