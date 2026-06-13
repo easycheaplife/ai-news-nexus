@@ -6,6 +6,7 @@ import time
 import re
 import random
 import urllib.parse
+import hashlib
 
 class DomesticMediaScraper(BaseScraper):
     """
@@ -81,6 +82,16 @@ class DomesticMediaScraper(BaseScraper):
                 "site_query": "site:tmtpost.com AI",
                 "rsshub_path": "/tmtpost/column/50",
                 "display_name": "钛媒体"
+            },
+            "ithome": {
+                "name": "IT之家",
+                "official_rss": "https://www.ithome.com/rss/",
+                "display_name": "IT之家"
+            },
+            "kr36": {
+                "name": "36Kr",
+                "official_rss": "https://36kr.com/feed",
+                "display_name": "36Kr"
             }
         }
         
@@ -188,17 +199,26 @@ class DomesticMediaScraper(BaseScraper):
                 dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
             if dt and not self.is_within_window(dt): continue
 
-            external_id = entry.id if hasattr(entry, 'id') else url
+            # 🛡️ 截断超长 URL (针对 Google News 极端情况)，防止数据库插入报错
+            # 如果 URL 超过 500 字符，通常是带有追踪参数或 base64 编码的 Google News 链接
+            clean_url = url
+            if len(clean_url) > 500:
+                # 尝试剥离 Google News 的冗余参数 (oc=5 等)
+                if '?oc=' in clean_url:
+                    clean_url = clean_url.split('?')[0]
+                # 如果还是太长，则进行截断或保留原始 (后端已改为 TEXT 类型)
+                # 为保险起见，这里做一个 2000 字符的硬截断，或者保留原始链接
+
+            external_id = entry.id if hasattr(entry, 'id') else clean_url
             if len(external_id) > 255:
-                import hashlib
                 external_id = hashlib.md5(external_id.encode()).hexdigest()
             
             self.push_to_backend({
                 "platform": platform_key,
                 "external_id": external_id,
                 "title": f"📰 {title}",
-                "content": title,
-                "url": url,
+                "content": title, 
+                "url": clean_url,
                 "author": config['display_name'],
                 "published_at": dt.isoformat() if dt else datetime.utcnow().isoformat(),
                 "score": 0,
@@ -212,3 +232,4 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     s = DomesticMediaScraper()
     s.scrape()
+EOF
