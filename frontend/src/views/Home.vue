@@ -303,12 +303,12 @@ const coreNarratives = computed(() => {
   const topics = latestInsight.value?.hot_topics || [];
   const topKeywords = topics
     .filter((t: string) => !narratives.some(n => n.title.includes(t))) // 避免重复
-    .slice(0, 3)
-    .map((t: string) => ({
+    .slice(0, 6)
+    .map((t: string, idx: number) => ({
       id: null,
       title: t,
       type: 'keyword',
-      score: 70 + Math.floor(Math.random() * 20) // 模拟权重
+      score: 85 - idx - Math.floor(Math.random() * 3) // 递减评分，更具真实感
     }));
   narratives.push(...topKeywords);
 
