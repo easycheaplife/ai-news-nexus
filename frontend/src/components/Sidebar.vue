@@ -10,7 +10,8 @@ import {
   Flame,
   Zap,
   X,
-  FileImage
+  FileImage,
+  ShieldCheck
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -27,6 +28,7 @@ const router = useRouter();
 
 const targets = ref<any[]>([]);
 const discoveryItems = ref<any[]>([]);
+const totalDiscoveryCount = ref(0);
 const loading = ref(true);
 
 const fetchSidebarData = async () => {
@@ -50,11 +52,11 @@ const fetchSidebarData = async () => {
     });
 
     targets.value = Object.values(uniqueTargetsMap)
-      .sort((a: any, b: any) => (b.avg_score || 0) - (a.avg_score || 0))
-      .slice(0, 15);
+      .sort((a: any, b: any) => (b.avg_score || 0) - (a.avg_score || 0));
       
     // 智能混合：展示最近 5 条 + 随机 5 条（来自剩余池）
     const allPending = discoveryRes.data;
+    totalDiscoveryCount.value = allPending.length;
     if (allPending.length > 10) {
       const recent = allPending.slice(0, 5);
       const remaining = allPending.slice(5);
@@ -116,20 +118,26 @@ const getStatusColor = (status: string) => {
       </button>
     </div>
     
-    <!-- 1. System Pulse (Simplified for now) -->
+    <!-- 1. System Pulse -->
     <section>
       <div class="flex items-center gap-2 mb-4 px-2">
         <Activity class="w-4 h-4 text-primary" />
         <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">系统脉冲 · System Pulse</h3>
       </div>
       <div class="grid grid-cols-2 gap-2 mb-4">
-        <div class="bg-white/5 rounded-xl p-2 flex items-center gap-2 border border-white/5">
-          <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span class="text-[10px] font-bold">Scraper OK</span>
+        <div class="bg-white/5 rounded-xl p-2 flex flex-col items-start gap-1 border border-white/5">
+          <span class="text-[8px] font-black text-white/30 uppercase">Active Sources</span>
+          <div class="flex items-center gap-2">
+            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+            <span class="text-xs font-black">{{ targets.length }}</span>
+          </div>
         </div>
-        <div class="bg-white/5 rounded-xl p-2 flex items-center gap-2 border border-white/5">
-          <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span class="text-[10px] font-bold">AI Node OK</span>
+        <div class="bg-white/5 rounded-xl p-2 flex flex-col items-start gap-1 border border-white/5">
+          <span class="text-[8px] font-black text-white/30 uppercase">Noise Filtered</span>
+          <div class="flex items-center gap-2">
+            <ShieldCheck class="w-3 h-3 text-primary" />
+            <span class="text-xs font-black">99%+</span>
+          </div>
         </div>
       </div>
       
@@ -156,9 +164,9 @@ const getStatusColor = (status: string) => {
         <span class="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">{{ targets.length }}</span>
       </div>
       
-      <div class="space-y-1">
+      <div class="space-y-1 max-h-[300px] overflow-y-auto no-scrollbar">
         <div 
-          v-for="target in targets" 
+          v-for="target in targets.slice(0, 15)" 
           :key="target.id"
           class="group flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
           @click="emit('filter-author', target.handle)"
@@ -200,9 +208,12 @@ const getStatusColor = (status: string) => {
 
     <!-- 3. Discovery Radar -->
     <section>
-      <div class="flex items-center gap-2 mb-4 px-2">
-        <Search class="w-4 h-4 text-purple-400" />
-        <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">新信号侦测 · Signal Discovery</h3>
+      <div class="flex items-center justify-between mb-4 px-2">
+        <div class="flex items-center gap-2">
+          <Search class="w-4 h-4 text-purple-400" />
+          <h3 class="text-[10px] font-black uppercase tracking-widest text-white/50">新信号侦测 · Signal Discovery</h3>
+        </div>
+        <span class="text-[9px] bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded font-bold">{{ totalDiscoveryCount }}</span>
       </div>
       
       <div class="space-y-3">
@@ -244,7 +255,7 @@ const getStatusColor = (status: string) => {
         <div class="w-[1px] h-8 bg-white/5"></div>
         <div class="flex-1">
           <p class="text-[9px] font-black text-white/30 uppercase">Vetting</p>
-          <p class="text-sm font-black text-white">{{ discoveryItems.length }}</p>
+          <p class="text-sm font-black text-white">{{ totalDiscoveryCount }}</p>
         </div>
       </div>
     </section>

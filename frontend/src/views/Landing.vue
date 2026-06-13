@@ -10,32 +10,32 @@ const t = computed(() => {
     zh: {
       nav: { intelligence: '情报能力', curation: '自动化', narrative: '叙事风格', enter: '进入指挥部' },
       hero: {
-        edition: '刊号：2026年5月24日',
-        live: '实时运行中',
+        edition: '刊号：2026年6月13日',
+        live: '系统运行中',
         title_top: 'AI 时代，喧嚣遍地。',
-        title_bottom: '深入本质。',
-        sub: '全球首个全自动 AI 战略情报系统。我们从海量信号中打捞核心，识别语义共振，每日为你递送高价值决策参考。',
+        title_bottom: '只看 70 分以上的干货。',
+        sub: '全球首个全自动 AI 战略情报系统。我们从海量信号中打捞核心，识别语义共振，通过 Strike 信用分实时清洗信源，确保每一条推送都是决策级的资产。',
         cta: '阅读今日情报'
       },
       resonance: {
         title: '全球话题共振',
-        desc: '"通过语义聚类算法，捕捉 AI 生态最真实的脉搏。"',
+        desc: '"通过语义聚类算法，跨源交叉验证 Twitter, GitHub 与 ArXiv，捕捉最真实的行业共鸣。"',
         new_signal: '发现新信源',
         vetted: '已通过 AI 面试'
       },
       synthesis: {
         eyebrow: '01 / 深度合成',
         title: '数据是负担，\n洞察是资产。',
-        p1: '大多数工具只是在向你堆砌更多的噪音。Nexus 不同。我们不仅展示新闻，我们计算新闻。',
-        p2: '我们的共振引擎跨平台交叉验证 Twitter 讨论、GitHub 提交、Hugging Face 模型以及 ArXiv 论文。当一个话题在四个维度同时点亮，我们不仅仅是通知你，我们分析它为何重要。',
-        f1: '全球源头采集',
-        f2: '语义降噪过滤',
-        f3: '深度战略综述',
-        f4: '自动信源汰换',
-        f1_sub: 'Twitter, GitHub, ArXiv, HF',
-        f2_sub: '0.1% 极精炼信号提取',
-        f3_sub: '2000+ 字深度内参',
-        f4_sub: '大咖面试与末位淘汰'
+        p1: '大多数工具只是在向你堆砌更多的噪音。Nexus 不同。我们不仅展示新闻，我们对每一条资讯进行 0-100 分精细化评测。',
+        p2: '我们的采集引擎已全面进化为 Twikit 2.0，通过全真登录态模拟绕过所有封锁，实时抓取 4K 原图、视频及 Thread 线程。低于 70 分的垃圾资讯将被自动拦截在视线之外。',
+        f1: '全真模拟采集',
+        f2: 'Strike 实时清洗',
+        f3: '双重风格简报',
+        f4: '15天沉默清算',
+        f1_sub: 'Twikit 2.0 无视封锁',
+        f2_sub: '低质量信源自动熔断',
+        f3_sub: '毒舌吐槽 vs 正经战略',
+        f4_sub: '彻底告别僵尸号'
       },
       narrative: {
         eyebrow: '02 / 多维叙事',
@@ -64,32 +64,32 @@ const t = computed(() => {
     en: {
       nav: { intelligence: 'Intelligence', curation: 'Curation', narrative: 'Narrative', enter: 'Enter Command Center' },
       hero: {
-        edition: 'Edition: May 24, 2026',
+        edition: 'Edition: June 13, 2026',
         live: 'Live Now',
         title_top: 'AI IS NOISY.',
-        title_bottom: 'NEXUS IS SIGNAL.',
-        sub: "The world's first autonomous intelligence briefing. We harvest thousands of signals, cluster them by resonance, and deliver the strategic core to your desk. Every day.",
+        title_bottom: 'SIGNAL > 70 ONLY.',
+        sub: "The world's first autonomous intelligence briefing. We harvest signals, cluster them by resonance, and purge low-value sources via real-time Strike system. Every day.",
         cta: "Read Today's Report"
       },
       resonance: {
         title: 'Global\nResonance.',
-        desc: '"Real-time semantic clustering identifies the heartbeat of the AI ecosystem."',
+        desc: '"Real-time semantic clustering cross-references Twitter, GitHub and ArXiv for the truest industry heartbeat."',
         new_signal: 'New Signal Found',
         vetted: 'Auto-Vetted'
       },
       synthesis: {
         eyebrow: '01 / Synthesis',
         title: 'Data is a liability.\nInsight is an asset.',
-        p1: "Most tools give you more of what you already have: noise. Nexus is different. We don't just 'show' news; we calculate it.",
-        p2: "Our Resonance Engine cross-references Twitter chatter against GitHub commits, Hugging Face models, and ArXiv pre-prints. When a topic lights up across all four, we analyze why it matters.",
-        f1: 'Global Sourcing',
-        f2: 'Semantic Filter',
-        f3: 'Deep Summary',
-        f4: 'Auto Curation',
-        f1_sub: 'Twitter, GitHub, ArXiv, HF',
-        f2_sub: 'Pure technical signal',
-        f3_sub: '2000+ words deep-dive',
-        f4_sub: 'Autonomous scouting'
+        p1: "Most tools give you noise. Nexus is different. We precisely evaluate every signal with a 0-100 score.",
+        p2: "Our engine evolved into Twikit 2.0, utilizing full-session simulation to bypass all blocks. Real-time 4K media and Thread reconstruction are standard. Trash under 70 points is blocked.",
+        f1: 'True-Sim Scraper',
+        f2: 'Real-time Strike',
+        f3: 'Dual-Style Intel',
+        f4: '15-Day Purge',
+        f1_sub: 'Bypassing all blocks',
+        f2_sub: 'Auto-circuit breaker',
+        f3_sub: 'Toxic vs Strategic',
+        f4_sub: 'Zero zombie accounts'
       },
       narrative: {
         eyebrow: '02 / Narrative',
@@ -124,12 +124,12 @@ const toggleLang = () => {
 };
 
 const liveSignals = [
-  "📡 Scraped @sama: 'Vision model latency halved...'",
-  "✨ Cluster detected: 'LLM Reasoning benchmarks'",
-  "🚀 HF Trending: bytedance-research/Lance",
-  "📄 New Paper: Rule2DRC: Benchmarking Agents",
-  "🛡️ Curation: Deactivated low-signal source @noise_bot",
-  "📸 Daily Briefing Generated (10:45 AM)"
+  "📡 Scraped @karpathy: 'New paradigm in edge reasoning...'",
+  "🛡️ Strike: @low_quality_bot deactivated (Failure Count: 15/15)",
+  "✨ Cluster detected: 'Claude 5.5 vs GPT-6o architecture'",
+  "🍪 Twikit: Session refreshed with manual cookies",
+  "🔄 Sync: 24 new high-value sources followed by @jason_202606",
+  "📸 Daily Briefing: Randomly selected 'Toxic' style today"
 ];
 
 onMounted(() => {
