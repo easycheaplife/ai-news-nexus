@@ -232,4 +232,3 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     s = DomesticMediaScraper()
     s.scrape()
-EOF
