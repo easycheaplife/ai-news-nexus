@@ -16,10 +16,12 @@ class TwitterScraper(BaseScraper):
         self.ai_accounts = self._load_targets()
         
         self.consecutive_failures = 0
-        self.max_failures = 10
+        self.max_failures = 20 # 增加到 20 次，提高大批量抓取的容忍度
+        self.max_account_failures = 15 # 一个账号连续 15 次抓不到有效内容则下线
         self.cookies_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'cookies.json')
         
-        self.client = Client('en-US')
+        # 增加超时配置
+        self.client = Client('en-US', timeout=30) # 增加到 30 秒超时
         self.is_client_ready = False
         
         try:
@@ -124,6 +126,24 @@ class TwitterScraper(BaseScraper):
         except Exception as e:
             self.logger.error(f"Failed to deactivate target @{username}: {e}")
 
+    def _increment_target_failure(self, target_id: int, username: str, reason: str):
+        """增加账号的失败计数，达到上限则自动下线"""
+        if target_id == 0: return
+        
+        try:
+            # 获取当前计数
+            res = requests.get(f"{self.api_url}/targets/{target_id}", timeout=5)
+            if res.status_code == 200:
+                current_fail = res.json().get('failure_count', 0)
+                new_count = current_fail + 1
+                
+                if new_count >= self.max_account_failures:
+                    self._deactivate_target(username, f"Exceeded max low-value threshold ({reason})")
+                else:
+                    requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": new_count}, timeout=5)
+                    self.logger.info(f"📉 @{username} provided no data. Failure count: {new_count}/{self.max_account_failures}")
+        except: pass
+
     def scrape(self):
         if not self.is_client_ready:
             self.logger.error("🛑 Cannot scrape: Twikit client is not initialized with cookies.")
@@ -173,6 +193,7 @@ class TwitterScraper(BaseScraper):
 
                 if not tweets:
                     self.logger.info(f"✅ Found 0 new tweets for @{username}")
+                    self._increment_target_failure(target_id, username, "No tweets returned")
                     self.consecutive_failures = 0
                     continue
 
@@ -190,8 +211,9 @@ class TwitterScraper(BaseScraper):
                     
                     valid_tweets.append(t)
 
-                self.logger.info(f"✅ Found {len(valid_tweets)} new tweets for @{username}")
+                self.logger.info(f"📡 API returned {len(tweets)} tweets, {len(valid_tweets)} are new for @{username}")
 
+                saved_count = 0
                 # 后续处理逻辑：按时间正序处理（从旧到新），确保 newest_id 最终更新正确
                 for tweet in reversed(valid_tweets):
                     tid = str(tweet.id)
@@ -207,9 +229,8 @@ class TwitterScraper(BaseScraper):
                     if dt_obj and not self.is_within_window(dt_obj):
                         continue
 
-                    # 过滤单纯的 Retweets (不包含 Quote Tweets)
+                    # 仅过滤纯转发 (Pure Retweets)，保留引用转发 (Quote Tweets)
                     if content.startswith('RT @'):
-                        self.logger.debug(f"⏩ Skipping Retweet for @{username}")
                         continue
 
                     # AI 评估与推送到后端
@@ -236,6 +257,16 @@ class TwitterScraper(BaseScraper):
                         "metadata_json": {"author": username, "source": "twikit"}
                     }
                     self.push_to_backend(item)
+                    saved_count += 1
+
+                # 🎯 质量反馈逻辑：如果该账号在本次运行中没有产生任何有价值的内容
+                if target_id != 0:
+                    if saved_count > 0:
+                        # 抓到了干货，重置失败计数
+                        requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": 0}, timeout=5)
+                    else:
+                        # 没抓到干货（可能是全在转发，或者分太低），增加失败计数
+                        self._increment_target_failure(target_id, username, "Zero high-value original tweets")
 
                 if newest_id:
                     self.update_last_id(username, newest_id)
