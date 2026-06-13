@@ -1,134 +1,75 @@
-# AI News Nexus API 接口文档
+# AI News Nexus API 接口文档 (V2.0)
 
-本文档详细说明了 AI News Nexus 后端提供的核心 API 接口，用于数据采集、分发、情报分析及动态发现管理。
+本文档详细说明了 AI News Nexus 后端提供的核心 API 接口。V2.0 增加了 **Redis 缓存支持**、**更细粒度的信源过滤** 及 **Strike 自动化治理接口**。
 
-## 1. 资讯分发接口 (News API)
+## 1. 采集目标管理 (Targets API)
 
-### 1.1 获取资讯列表
-- **Endpoint**: `GET /news/`
-- **说明**: 获取聚合后的资讯，按发现时间降序排列。
+### 1.1 获取采集名单
+- **Endpoint**: `GET /targets/`
+- **说明**: 获取当前账号名单，支持质量与状态筛选。已开启 10 分钟 Redis 缓存。
 - **Query 参数**:
-  - `platform` (Optional): 指定平台 (twitter, reddit, github, arxiv, youtube, hn, ph, search)。
-  - `author` (Optional): 按作者（Handle）筛选。支持从 `metadata_json` 中高效检索。
-  - `query` (Optional): 关键词搜索。支持通过 `@handle` 或作者名称进行精确匹配。
-  - `skip` (Default: 0): 分页偏移。
-  - `limit` (Default: 50): 每页数量。
-- **技术备注**: 搜索逻辑已优化，支持对 JSON 字段进行全量匹配，并解决了部分旧版 MySQL 数据库的兼容性问题。
-- **响应示例**:
-  ```json
-  [
-    {
-      "id": 123,
-      "title": "...",
-      "content": "...",
-      "score": 95,
-      "reason": "AI推荐理由",
-      "takeaways": ["要点1", "要点2"],
-      "cluster_id": "语义话题ID",
-      "media_urls": ["url1", "url2"],
-      "scraped_at": "2026-05-15T..."
-    }
-  ]
-  ```
+  - `platform`: 指定平台 (twitter, github, etc.)。
+  - `handle`: (New) 精确匹配用户名。
+  - `is_active`: 是否活跃 (true/false)。
+  - `status`: 过滤状态 (active, probation, deactivated, blacklisted)。
+  - `has_scraped_data`: (New) 过滤是否有历史抓取记录。
 
-### 1.2 上报新资讯
-- **Endpoint**: `POST /news/`
-- **说明**: 采集引擎推送抓取到的资讯，后端自动根据 `(platform, external_id)` 进行去重。
-
----
-
-## 2. 话题聚类接口 (Clusters API)
-
-### 2.1 获取热门话题簇
-- **Endpoint**: `GET /clusters/trending`
-- **说明**: 获取当前最具影响力的跨平台话题簇。
-- **Query 参数**:
-  - `limit` (Default: 10): 返回话题数量。
-
-### 2.2 获取话题关联资讯
-- **Endpoint**: `GET /clusters/{id}/news`
-- **说明**: 获取属于特定话题簇的所有原始资讯项。
-
----
-
-## 3. 深度简报接口 (Insights API)
-
-### 3.1 获取最新战略简报
-- **Endpoint**: `GET /insights/latest`
-- **说明**: 获取由 AI 综合今日所有热点生成的全局总结。
-- **响应示例**:
+### 1.2 更新采集目标
+- **Endpoint**: `PATCH /targets/{id}`
+- **说明**: 更新信源状态、平均分或失败计数。调用后会自动清除 `targets` 缓存空间。
+- **Payload**:
   ```json
   {
-    "id": 45,
-    "date": "2026-05-24",
-    "content": "...",
-    "hot_topics": ["LLM", "Agent"],
-    "stats_json": {"twitter": 15, "github": 8},
-    "report_url": "/f/daily-report-2026-05-24.png",
-    "created_at": "2026-05-24T..."
+    "is_active": false,
+    "status": "deactivated",
+    "failure_count": 15,
+    "last_scraped_at": "2026-06-13T..."
   }
   ```
 
-### 3.2 上报每日简报
-- **Endpoint**: `POST /insights/`
-- **说明**: 供采集调度器在抓取结束后提交汇总分析结果。
+---
+
+## 2. 资讯分发接口 (News API)
+
+### 2.1 获取资讯列表
+- **Endpoint**: `GET /news/`
+- **说明**: 获取聚合后的资讯，按发布时间降序排列。
+- **Query 参数**:
+  - `min_score`: (Default: 0) 最低分过滤。首页推荐设置为 71。
+  - `include_pending`: (Default: true) 是否包含 0 分（待 AI 处理）的内容。
+  - `start_date`: (ISO string) 抓取该日期之后的内容。
+  - `query`: 支持 `@handle` 搜索及关键词匹配。
+  - `limit`: (Default: 50) 单次返回数量。
+
+---
+
+## 3. 话题聚类接口 (Clusters API)
+
+### 3.1 获取共振话题
+- **Endpoint**: `GET /clusters/trending`
+- **说明**: 获取过去 48 小时内 AI 识别出的高共鸣话题。已开启 5 分钟 Redis 缓存。
+
+### 3.2 批量创建聚类
+- **Endpoint**: `POST /clusters/batch`
+- **说明**: 供 AI 聚类引擎上报分析结果。调用后会自动清除 `clusters` 缓存空间。
 
 ---
 
 ## 4. 情报发现接口 (Discovery API)
 
-### 4.1 获取待验证池内容
+### 4.1 获取发现池
 - **Endpoint**: `GET /discovery/`
-- **说明**: 获取发现引擎从高分资讯中挖掘到的新账号（user）或技术热词（keyword）。
-- **Query 参数**:
-  - `status`: 过滤状态 (pending, vetted, rejected)。
+- **说明**: 获取 AI 从资讯中提取的待验证信号。已开启 10 分钟缓存。
+- **Query 参数**: `status` (pending, vetted, rejected)。
 
-### 4.2 提交发现信号
-- **Endpoint**: `POST /discovery/`
-- **说明**: 采集引擎将内容中提取到的 Mentions 或 Keywords 实时存入发现池。
-
-### 4.3 更新发现池状态
-- **Endpoint**: `PATCH /discovery/{id}`
-- **说明**: 发现引擎验证通过后，更新其状态为 `vetted` 或 `rejected`。
-- **Payload 示例**:
-  ```json
-  {
-    "status": "vetted"
-  }
-  ```
+### 4.2 提交/更新信号
+- **Endpoint**: `POST /discovery/` | `PATCH /discovery/{id}`
+- **说明**: 实时同步新发现的 Handle 或关键字。
 
 ---
 
-## 5. 采集目标管理 (Targets API)
+## 5. 开发备注
 
-### 5.1 获取采集白名单
-- **Endpoint**: `GET /targets/`
-- **说明**: 获取当前账号名单，支持质量指标筛选。
-- **Query 参数**:
-  - `platform`: 指定平台。
-  - `is_active`: (Optional) 是否活跃。
-  - `status`: (Optional) 过滤状态 (active, probation, deactivated, blacklisted)。
-
-### 5.2 更新采集目标状态
-- **Endpoint**: `PATCH /targets/{id}`
-- **说明**: 质量评价引擎提交评分、更新状态或下架低质信源。
-- **Payload 示例**:
-  ```json
-  {
-    "avg_score": 75,
-    "total_posts": 45,
-    "status": "active",
-    "is_active": true
-  }
-  ```
-
-### 5.3 注册新采集账号
-- **Endpoint**: `POST /targets/`
-- **说明**: 发现引擎验证（Vetting）通过后，将新牛人账号正式录入采集列表。
-
----
-
-## 6. 开发建议
-
-- **认证**: 目前接口主要面向内部封闭环境，建议在生产环境前端通过 Nginx 限制公网 POST 访问。
-- **并发**: 后端基于异步 FastAPI 框架，但在数据库层面使用了 SQLAlchemy 同步引擎，在高频采集时建议维持合理的连接池配置。
+1. **缓存管理**: 系统采用命名空间缓存。写操作（POST/PATCH/DELETE）后会自动触发 `FastAPICache.clear(namespace="...")`，保证数据最终一致性。
+2. **时区说明**: 所有 API 返回及接收的时间戳均采用 **UTC** 标准 ISO 格式。
+3. **接口版本**: 生产环境建议统一使用 `/api/v1/` 前缀。
