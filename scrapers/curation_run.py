@@ -82,16 +82,16 @@ class SourceCurator:
 
             days_since_added = (datetime.utcnow().replace(tzinfo=None) - added_at.replace(tzinfo=None)).days
             
-            # 🚨 15天沉默期强制下线逻辑
-            if days_since_added >= 15:
-                logger.warning(f"🚨 Deactivating @{handle}: No content found for 15+ days")
+            # 🚨 沉默期强制下线逻辑
+            if days_since_added >= self.max_silence_days:
+                logger.warning(f"🚨 Deactivating @{handle}: No content found for {self.max_silence_days}+ days")
                 requests.patch(f"{self.api_url}/targets/{target_id}", json={
                     "is_active": False,
                     "status": "deactivated",
-                    "description": "Auto-deactivated: No content found for 15+ days"
+                    "description": f"Auto-deactivated: No content found for {self.max_silence_days}+ days"
                 }, timeout=5)
             else:
-                logger.info(f"💤 @{handle} is silent but still within observation window ({days_since_added} days).")
+                logger.info(f"💤 @{handle} is silent but still within observation window ({days_since_added}/{self.max_silence_days} days).")
             return
 
         # 计算质量指标：剔除 0 分内容
