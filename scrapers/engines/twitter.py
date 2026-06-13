@@ -131,17 +131,25 @@ class TwitterScraper(BaseScraper):
         if target_id == 0: return
         
         try:
-            # 获取当前计数
+            # 获取当前信息
             res = requests.get(f"{self.api_url}/targets/{target_id}", timeout=5)
             if res.status_code == 200:
-                current_fail = res.json().get('failure_count', 0)
+                data = res.json()
+                current_fail = data.get('failure_count', 0)
+                avg_score = data.get('avg_score', 0)
                 new_count = current_fail + 1
                 
+                # 🛡️ 保护机制：如果账号历史表现极好（平均分 >= 80），永不下线
+                if avg_score >= 80:
+                    self.logger.info(f"🛡️ @{username} provided low-value content this time, but is protected by high avg_score ({avg_score})")
+                    requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": new_count}, timeout=5)
+                    return
+
                 if new_count >= self.max_account_failures:
                     self._deactivate_target(username, f"Exceeded max low-value threshold ({reason})")
                 else:
                     requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": new_count}, timeout=5)
-                    self.logger.info(f"📉 @{username} provided no data. Failure count: {new_count}/{self.max_account_failures}")
+                    self.logger.info(f"📉 @{username} content rejected. Failure count: {new_count}/{self.max_account_failures}")
         except: pass
 
     def scrape(self):
@@ -192,8 +200,7 @@ class TwitterScraper(BaseScraper):
                     except: pass
 
                 if not tweets:
-                    self.logger.info(f"✅ Found 0 new tweets for @{username}")
-                    self._increment_target_failure(target_id, username, "No tweets returned")
+                    self.logger.info(f"✅ Found 0 new tweets for @{username} (No updates)")
                     self.consecutive_failures = 0
                     continue
 
@@ -210,6 +217,10 @@ class TwitterScraper(BaseScraper):
                         break
                     
                     valid_tweets.append(t)
+
+                if not valid_tweets:
+                    self.logger.info(f"✅ No new updates since last ID for @{username}")
+                    continue
 
                 self.logger.info(f"📡 API returned {len(tweets)} tweets, {len(valid_tweets)} are new for @{username}")
 
@@ -259,14 +270,14 @@ class TwitterScraper(BaseScraper):
                     self.push_to_backend(item)
                     saved_count += 1
 
-                # 🎯 质量反馈逻辑：如果该账号在本次运行中没有产生任何有价值的内容
+                # 🎯 质量反馈逻辑
                 if target_id != 0:
                     if saved_count > 0:
                         # 抓到了干货，重置失败计数
                         requests.patch(f"{self.api_url}/targets/{target_id}", json={"failure_count": 0}, timeout=5)
                     else:
-                        # 没抓到干货（可能是全在转发，或者分太低），增加失败计数
-                        self._increment_target_failure(target_id, username, "Zero high-value original tweets")
+                        # 抓到了新推文，但全是垃圾/转发，增加失败计数
+                        self._increment_target_failure(target_id, username, "New content is all low-value/RT")
 
                 if newest_id:
                     self.update_last_id(username, newest_id)
