@@ -1,119 +1,86 @@
-# AI News Nexus 部署与运行指南 (V2.0)
+# AI News Nexus 部署与运行指南 (V2.0 完整版)
 
-本指南将帮助您完成 AI News Nexus 情报中心的本地搭建与生产部署。V2.0 版本引入了 **Twikit 全真模拟抓取**、**Redis 缓存** 及 **Strike 自动化治理**。
-
-## 1. 环境要求
-
--   **Python**: 3.9+ (生产环境推荐 3.10+)
--   **Node.js**: 18+ (推荐 20+)
--   **MySQL**: 5.7+ (推荐 8.0)
--   **Redis**: 必需。用于加速首页接口及缓存聚类数据。
--   **Google Gemini API Key**: 必须具备有效 Key 才能激活 AI 分析功能。
+本手册涵盖了 AI News Nexus 情报中心的完整部署流程、环境变量配置及自动化运维参数。
 
 ---
 
-## 2. 数据库配置 (MySQL)
+## 1. 核心依赖
 
-1.  **创建数据库**:
-    ```sql
-    CREATE DATABASE ai_news CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    ```
-2.  **初始化表结构**:
-    ```bash
-    # 基础表结构
-    mysql -u root -p ai_news < backend/schema.sql
-    # 同步增量更新
-    mysql -u root -p ai_news < backend/migrations/cross_source_correlation_schema.sql
-    mysql -u root -p ai_news < backend/migrations/update_targets_schema.sql
-    ```
-3.  **配置后端环境**: 在 `backend/` 目录下创建 `.env`：
-    ```env
-    MYSQL_USER=root
-    MYSQL_PASSWORD=your_password
-    MYSQL_HOST=localhost
-    MYSQL_PORT=3306
-    MYSQL_DB=ai_news
-    REDIS_HOST=localhost
-    REDIS_PORT=6379
-    ```
+- **Python 3.9+**: 逻辑支撑。
+- **MySQL 5.7+**: 结构化存储。
+- **Redis 6.0+**: 必需。负责高性能缓存与任务队列。
+- **Node.js 18+**: 前端构建。
 
 ---
 
-## 3. 后端启动 (FastAPI)
+## 2. 环境变量配置 (.env)
 
+系统采用解耦配置，需在 `backend/` 和项目根目录各配置一个 `.env` 文件。
+
+### 2.1 后端环境 (`backend/.env`)
+| 变量名 | 示例值 | 说明 |
+| :--- | :--- | :--- |
+| `MYSQL_USER` | `root` | 数据库用户名。 |
+| `MYSQL_PASSWORD` | `******` | 数据库密码。 |
+| `MYSQL_HOST` | `localhost` | 数据库地址。 |
+| `MYSQL_DB` | `ai_news` | 数据库名称。 |
+| `REDIS_HOST` | `localhost` | Redis 地址，用于缓存首页接口。 |
+| `MIN_SCORE` | `60` | 全局最低分过滤阈值（仅针对普通用户）。 |
+
+### 2.2 采集环境 (`.env` 在根目录)
+| 变量名 | 示例值 | 说明 |
+| :--- | :--- | :--- |
+| `SCRAPER_API_URL` | `http://8.x.x.x:8000` | 后端 API 入口，采集器将数据推送至此。 |
+| `GEMINI_API_KEY` | `AIza...` | Google Gemini API Key。 |
+| `TWITTER_USERNAME` | `jason_202606` | 用于同步关注列表的推特用户名。 |
+| `TWITTER_EMAIL` | `x@mail.com` | 用于自动登录推特的邮箱。 |
+| `TWITTER_PASSWORD` | `******` | 推荐使用推特小号。 |
+| `MAX_SILENCE_DAYS` | `15` | **沉默惩罚期**：连续 X 天无产出则自动下线。 |
+| `TWITTER_SCRAPE_INTERVAL_HOURS` | `1.0` | **抓取冷却期**：同一账号在此时间内不重复抓取。 |
+
+---
+
+## 3. 运维工具链使用
+
+系统内置了多项自动化运维脚本，均在 `scrapers/` 目录下。
+
+### 3.1 权限准备
+V2.0 采用登录态抓取，必须首先获取推特 Cookie：
 ```bash
-cd backend
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# 安装 Playwright 浏览器依赖 (日报生成引擎必需)
-playwright install --with-deps chromium
-
-# 启动服务
-python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
-```
-
----
-
-## 4. 采集引擎配置 (Scrapers)
-
-### 4.1 核心环境配置
-在项目根目录下创建 `.env`：
-```env
-SCRAPER_API_URL=http://localhost:8000
-GEMINI_API_KEY=your_gemini_key
-# Twitter 账号配置 (用于 Twikit 登录，建议使用小号)
-TWITTER_USERNAME=your_handle
-TWITTER_EMAIL=your_email
-TWITTER_PASSWORD=your_password
-```
-
-### 4.2 [重要] 生成 Twitter Cookie
-V2.0 采用登录态抓取，必须先生成 `cookies.json`：
-```bash
+# 自动登录并生成 scrapers/cookies.json
 python3 scrapers/generate_cookies.py
 ```
-*注：如果脚本登录失败，请参考 README 说明进行手动 Cookie 提取。*
 
-### 4.3 自动化同步
-如果您在推特上关注了新大佬，运行此脚本将其同步至系统：
+### 3.2 情报源同步
+通过推特关注动作快速扩充情报网：
 ```bash
+# 将推特小号的关注列表一键同步至系统名单
 python3 scrapers/sync_following.py
 ```
 
-### 4.4 运行模式
-- **全球闭环 (海外节点)**：`python3 -m scrapers.run_global --loop --interval 3600`
-- **国内采集 (国内节点)**：`python3 -m scrapers.run_cn --loop --interval 600`
+---
+
+## 4. 运行参数说明 (run.py)
+
+主调度器支持细粒度的模块化控制：
+
+| 参数 | 示例用法 | 效果 |
+| :--- | :--- | :--- |
+| `--loop` | `-l` | 开启持久化运行模式。 |
+| `--interval` | `-i 3600` | 每次抓取的循环间隔（秒）。 |
+| `--platform` | `-p twitter` | 仅抓取指定的单一平台，适合调试。 |
+| `--style` | `--style official` | 指定生成的简报人格（toxic 或 official）。 |
+| `--no-discovery` | - | 跳过挖掘新账号阶段。 |
+| `--no-curation` | - | 跳过 15 天沉默账号的自动清理。 |
 
 ---
 
-## 5. 前端部署 (Vue 3)
+## 5. 生产环境部署建议 (Best Practices)
 
-```bash
-cd frontend
-npm install
-# 本地开发
-npm run dev
-# 生产构建
-npm run build
-```
-
----
-
-## 6. 自动化运维逻辑 (Strike System)
-
-系统现在会自动执行以下“除草”逻辑：
-- **实时下线**：抓取时发现账号不存在或被封，立即标记为 `deactivated`。
-- **质量惩罚**：连续 15 次抓取无有效原创/高分内容，自动下线。
-- **沉默清理**：运行 `python3 -m scrapers.curation_run` 清理 15 天未发言的僵尸号。
-
----
-
-## 7. 常见问题 (Q&A)
-
-### Q: 首页“核心圈”数据不更新？
-后端开启了 10 分钟缓存。手动修改账号状态后，系统会自动清除缓存。如仍未更新，请检查 Redis 是否正常运行。
-
-### Q: 聚类板块 (Resonance) 消失？
-聚类引擎依赖过去 24 小时的高分资讯。请确保已运行 `python3 -m scrapers.utils.clustering`。
+1. **后台常驻**: 推荐使用 `pm2` 或 `systemd` 管理后端和爬虫进程。
+   ```bash
+   # 使用 pm2 运行全自动爬虫
+   pm2 start "python3 -m scrapers.run --loop" --name nexus-scrapers
+   ```
+2. **CDN 缓存**: 前端静态文件构建后 (`npm run build`) 推荐配合 Cloudflare 或阿里云 OSS 分发，以减轻后端服务器压力。
+3. **安全加固**: 数据库与 Redis 端口严禁公网开放，后端 API 建议仅限 127.0.0.1 访问并由 Nginx 代理。

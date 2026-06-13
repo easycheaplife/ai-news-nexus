@@ -1,75 +1,96 @@
-# AI News Nexus API 接口文档 (V2.0)
+# AI News Nexus API 接口文档 (V2.0 完整版)
 
-本文档详细说明了 AI News Nexus 后端提供的核心 API 接口。V2.0 增加了 **Redis 缓存支持**、**更细粒度的信源过滤** 及 **Strike 自动化治理接口**。
+本文档详述了 AI News Nexus 后端提供的所有 API 接口，包括参数细节、数据结构及缓存行为。
 
-## 1. 采集目标管理 (Targets API)
-
-### 1.1 获取采集名单
-- **Endpoint**: `GET /targets/`
-- **说明**: 获取当前账号名单，支持质量与状态筛选。已开启 10 分钟 Redis 缓存。
-- **Query 参数**:
-  - `platform`: 指定平台 (twitter, github, etc.)。
-  - `handle`: (New) 精确匹配用户名。
-  - `is_active`: 是否活跃 (true/false)。
-  - `status`: 过滤状态 (active, probation, deactivated, blacklisted)。
-  - `has_scraped_data`: (New) 过滤是否有历史抓取记录。
-
-### 1.2 更新采集目标
-- **Endpoint**: `PATCH /targets/{id}`
-- **说明**: 更新信源状态、平均分或失败计数。调用后会自动清除 `targets` 缓存空间。
-- **Payload**:
-  ```json
-  {
-    "is_active": false,
-    "status": "deactivated",
-    "failure_count": 15,
-    "last_scraped_at": "2026-06-13T..."
-  }
-  ```
+**Base URL**: `/api/v1` (推荐) 或 `/` (Legacy 兼容)
 
 ---
 
-## 2. 资讯分发接口 (News API)
+## 1. 资讯分发 (News API)
 
-### 2.1 获取资讯列表
+### 1.1 获取资讯列表
 - **Endpoint**: `GET /news/`
-- **说明**: 获取聚合后的资讯，按发布时间降序排列。
+- **说明**: 获取聚合后的资讯项，支持高性能全文检索与多维过滤。已开启 **5 分钟** 缓存。
 - **Query 参数**:
-  - `min_score`: (Default: 0) 最低分过滤。首页推荐设置为 71。
-  - `include_pending`: (Default: true) 是否包含 0 分（待 AI 处理）的内容。
-  - `start_date`: (ISO string) 抓取该日期之后的内容。
-  - `query`: 支持 `@handle` 搜索及关键词匹配。
-  - `limit`: (Default: 50) 单次返回数量。
+  | 参数 | 类型 | 默认值 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `min_score` | `int` | `0` | 最低 AI 评分过滤（0-100）。首页建议使用 `71`。 |
+  | `include_pending` | `bool` | `false` | 是否包含分数为 0（AI 尚未处理）的项。 |
+  | `platform` | `string` | - | 指定单一平台 (twitter, github, arxiv, hn, ph, etc.)。 |
+  | `platforms` | `string` | - | 逗号分隔的平台列表（用于智涌中国聚合）。 |
+  | `query` | `string` | - | 关键词搜索。支持作者前缀 `@handle` 或正文匹配。 |
+  | `author` | `string` | - | 精确匹配推特用户名。 |
+  | `cluster_id` | `string` | - | 获取属于特定话题共振簇的资讯。 |
+  | `start_date` | `datetime` | - | ISO 格式，仅返回该时间点之后发布的资讯。 |
+  | `limit` | `int` | `50` | 单次返回最大条数。 |
+  | `skip` | `int` | `0` | 分页偏移量。 |
+
+### 1.2 上报新资讯
+- **Endpoint**: `POST /news/`
+- **说明**: 推送新抓取的资讯。后端会根据 `platform` + `external_id` 自动去重。
+
+### 1.3 更新资讯
+- **Endpoint**: `PATCH /news/{id}`
+- **说明**: 用于 AI 后补评价分数、Takeaways 或关联话题 ID。
 
 ---
 
-## 3. 话题聚类接口 (Clusters API)
+## 2. 采集目标 (Targets API)
 
-### 3.1 获取共振话题
+### 2.1 获取信源名单
+- **Endpoint**: `GET /targets/`
+- **说明**: 获取抓取白名单。已开启 **10 分钟** 缓存。
+- **Query 参数**:
+  | 参数 | 类型 | 默认值 | 说明 |
+  | :--- | :--- | :--- | :--- |
+  | `platform` | `string` | - | 过滤平台。 |
+  | `handle` | `string` | - | 精确搜索特定用户名。 |
+  | `is_active` | `bool` | - | 是否活跃（过滤掉已下线的僵尸号）。 |
+  | `has_scraped_data` | `bool` | - | `true`: 仅返回成功抓取过的；`false`: 仅返回从未抓取过的新人。 |
+  | `status` | `string` | - | 状态过滤 (active, probation, deactivated, blacklisted)。 |
+
+### 2.2 更新/下线信源
+- **Endpoint**: `PATCH /targets/{id}`
+- **说明**: 触发 Strike 系统下线或更新最后抓取时间。调用后自动清除 `targets` 缓存。
+
+---
+
+## 3. 话题共振 (Clusters API)
+
+### 3.1 获取趋势话题
 - **Endpoint**: `GET /clusters/trending`
-- **说明**: 获取过去 48 小时内 AI 识别出的高共鸣话题。已开启 5 分钟 Redis 缓存。
+- **说明**: 获取过去 48 小时内最具影响力的共振话题。已开启 **5 分钟** 缓存。
 
-### 3.2 批量创建聚类
-- **Endpoint**: `POST /clusters/batch`
-- **说明**: 供 AI 聚类引擎上报分析结果。调用后会自动清除 `clusters` 缓存空间。
-
----
-
-## 4. 情报发现接口 (Discovery API)
-
-### 4.1 获取发现池
-- **Endpoint**: `GET /discovery/`
-- **说明**: 获取 AI 从资讯中提取的待验证信号。已开启 10 分钟缓存。
-- **Query 参数**: `status` (pending, vetted, rejected)。
-
-### 4.2 提交/更新信号
-- **Endpoint**: `POST /discovery/` | `PATCH /discovery/{id}`
-- **说明**: 实时同步新发现的 Handle 或关键字。
+### 3.2 获取聚类详情
+- **Endpoint**: `GET /clusters/{id}`
+- **说明**: 获取特定话题的背景综述及所有关联资讯项。
 
 ---
 
-## 5. 开发备注
+## 4. 战略简报 (Insights API)
 
-1. **缓存管理**: 系统采用命名空间缓存。写操作（POST/PATCH/DELETE）后会自动触发 `FastAPICache.clear(namespace="...")`，保证数据最终一致性。
-2. **时区说明**: 所有 API 返回及接收的时间戳均采用 **UTC** 标准 ISO 格式。
-3. **接口版本**: 生产环境建议统一使用 `/api/v1/` 前缀。
+### 4.1 获取最新简报
+- **Endpoint**: `GET /insights/latest`
+- **说明**: 获取 AI 针对全网热点生成的深度综述。已开启 **10 分钟** 缓存。
+
+### 4.2 获取历史简报
+- **Endpoint**: `GET /insights/` | `GET /insights/{date}`
+- **说明**: 查阅往期简报记录。
+
+---
+
+## 5. 媒体存储 (Media API)
+
+### 5.1 上传媒体文件
+- **Endpoint**: `POST /media/upload`
+- **Payload**: `Multipart/form-data`
+- **说明**: 接收图片/视频，按 MD5 去重并存入存储目录。
+- **响应**: 返回相对路径（如 `/f/abc.jpg`），需配合 `SCRAPER_API_URL` 使用。
+
+---
+
+## 6. 开发约定
+
+1. **缓存管理**: 写入类接口 (POST/PATCH/DELETE) 成功后会自动执行 `FastAPICache.clear()`。
+2. **错误处理**: 标准 HTTP 状态码。429 表示频率限制，500 表示数据库或 AI 引擎异常。
+3. **安全提示**: API 暂无内建 Token 校验，建议在生产环境通过 Nginx 限制请求来源。
