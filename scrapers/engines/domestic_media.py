@@ -108,28 +108,33 @@ class DomesticMediaScraper(BaseScraper):
 
     def scrape(self):
         self.logger.info(f"🇨🇳 Starting Domestic Media scraping (v4 Strategic Search)...")
+        import os
+        skip_google = os.getenv("SKIP_GOOGLE_SEARCH", "false").lower() == "true"
         
         for platform_key, config in self.media_configs.items():
             try:
                 entries = []
                 
-                # 方案 1: Google News Domain Search (最精准)
-                if config.get("site_query"):
-                    self.logger.info(f"🔍 Searching Google News (Site): {config['name']}")
-                    content = self._fetch_gn_rss(config["site_query"])
-                    if content:
-                        feed = feedparser.parse(content)
-                        entries.extend(feed.entries)
-                
-                # 方案 2: Google News Keyword Search (高信号)
-                if not entries and config.get("search_query"):
-                    self.logger.info(f"🔍 Searching Google News (Keyword): {config['name']}")
-                    content = self._fetch_gn_rss(config["search_query"])
-                    if content:
-                        feed = feedparser.parse(content)
-                        entries.extend(feed.entries)
+                if not skip_google:
+                    # 方案 1: Google News Domain Search (最精准)
+                    if config.get("site_query"):
+                        self.logger.info(f"🔍 Searching Google News (Site): {config['name']}")
+                        content = self._fetch_gn_rss(config["site_query"])
+                        if content:
+                            feed = feedparser.parse(content)
+                            entries.extend(feed.entries)
+                    
+                    # 方案 2: Google News Keyword Search (高信号)
+                    if not entries and config.get("search_query"):
+                        self.logger.info(f"🔍 Searching Google News (Keyword): {config['name']}")
+                        content = self._fetch_gn_rss(config["search_query"])
+                        if content:
+                            feed = feedparser.parse(content)
+                            entries.extend(feed.entries)
+                else:
+                    self.logger.info(f"⏩ Skipping Google Search for {config['name']} (Disabled by config)")
 
-                # 方案 3: RSSHub (作为备份)
+                # 方案 3: RSSHub (作为备份或主推)
                 if not entries and config.get("rsshub_path"):
                     self.logger.info(f"📡 Trying RSSHub: {config['name']}")
                     content = self._fetch_rsshub(config["rsshub_path"])
