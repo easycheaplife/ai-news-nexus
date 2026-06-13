@@ -36,15 +36,35 @@ class TwitterScraper(BaseScraper):
     def _load_targets(self) -> list:
         """从后端获取活跃的抓取账号"""
         default_list = [
-            "OpenAI", "DeepSeek_AI", "MistralAI", "GoogleDeepMind", "ylecun", "karpathy",
-            "AnthropicAI", "sama", "gdb", "demishassabis", "perplexity_ai", "Cohere"
+            {"id": 0, "handle": "OpenAI"}, {"id": 0, "handle": "DeepSeek_AI"}, {"id": 0, "handle": "MistralAI"},
+            {"id": 0, "handle": "GoogleDeepMind"}, {"id": 0, "handle": "ylecun"}, {"id": 0, "handle": "karpathy"}
         ]
         try:
             response = requests.get(f"{self.api_url}/targets/?platform=twitter&is_active=true", timeout=10)
             if response.status_code == 200:
                 targets = response.json()
                 if targets:
-                    return [t['handle'] for t in targets if self._is_valid_twitter_handle(t['handle'])]
+                    valid_targets = []
+                    interval_hours = float(os.getenv("TWITTER_SCRAPE_INTERVAL_HOURS", 1.0))
+                    now = datetime.utcnow()
+                    
+                    for t in targets:
+                        handle = t['handle']
+                        if not self._is_valid_twitter_handle(handle): continue
+                        
+                        last_scraped_str = t.get('last_scraped_at')
+                        if last_scraped_str:
+                            try:
+                                last_scraped = datetime.fromisoformat(last_scraped_str)
+                                hours_since = (now - last_scraped).total_seconds() / 3600.0
+                                if hours_since < interval_hours:
+                                    # 距离上次抓取还不到 1 小时，跳过
+                                    continue
+                            except Exception:
+                                pass
+                        
+                        valid_targets.append({"id": t['id'], "handle": handle})
+                    return valid_targets
         except Exception as e:
             self.logger.warning(f"Failed to load targets from backend, using defaults: {e}")
         return default_list
@@ -79,6 +99,31 @@ class TwitterScraper(BaseScraper):
                 
         return list(set(media_urls))
 
+    def _deactivate_target(self, username: str, reason: str):
+        """当账号异常（如不存在、被封）时，从后端抓取列表中移除"""
+        self.logger.warning(f"🚨 Deactivating target @{username}: {reason}")
+        try:
+            # 1. 查找 target_id
+            response = requests.get(f"{self.api_url}/targets/?platform=twitter&handle={username}", timeout=10)
+            if response.status_code == 200:
+                targets = response.json()
+                if targets:
+                    target_id = targets[0]['id']
+                    # 2. 更新状态为失效
+                    patch_res = requests.patch(
+                        f"{self.api_url}/targets/{target_id}",
+                        json={
+                            "is_active": False,
+                            "status": "deactivated",
+                            "description": f"Auto-deactivated: {reason} (at {datetime.now().strftime('%Y-%m-%d %H:%M')})"
+                        },
+                        timeout=10
+                    )
+                    if patch_res.status_code == 200:
+                        self.logger.info(f"✨ Successfully deactivated @{username} in backend.")
+        except Exception as e:
+            self.logger.error(f"Failed to deactivate target @{username}: {e}")
+
     def scrape(self):
         if not self.is_client_ready:
             self.logger.error("🛑 Cannot scrape: Twikit client is not initialized with cookies.")
@@ -88,10 +133,13 @@ class TwitterScraper(BaseScraper):
         
         # 🎲 随机洗牌账号顺序
         random.shuffle(self.ai_accounts)
-        preview = ", ".join([f"@{a}" for a in self.ai_accounts[:3]])
+        preview = ", ".join([f"@{a['handle']}" for a in self.ai_accounts[:3]])
         self.logger.info(f"🔀 Randomized account order. Starting with: {preview}...")
         
-        for username in self.ai_accounts:
+        for target_info in self.ai_accounts:
+            username = target_info['handle']
+            target_id = target_info['id']
+
             if self.consecutive_failures >= self.max_failures:
                 self.logger.error("🛑 Too many consecutive failures. Skipping remaining Twitter targets.")
                 break
@@ -107,11 +155,22 @@ class TwitterScraper(BaseScraper):
                 user = self.client.get_user_by_screen_name(username)
                 if not user:
                     self.logger.warning(f"⚠️ Could not find user @{username}")
+                    self._deactivate_target(username, "User not found or suspended")
                     continue
 
                 # 获取用户最新推文
                 tweets = self.client.get_user_tweets(user.id, 'Tweets', count=15)
                 
+                # 记录成功抓取时间 (即使有 0 条新推文，也说明访问通畅)
+                if target_id != 0:
+                    try:
+                        requests.patch(
+                            f"{self.api_url}/targets/{target_id}",
+                            json={"last_scraped_at": datetime.utcnow().isoformat()},
+                            timeout=5
+                        )
+                    except: pass
+
                 if not tweets:
                     self.logger.info(f"✅ Found 0 new tweets for @{username}")
                     self.consecutive_failures = 0
