@@ -1,14 +1,25 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.news import ScrapingTarget
 from app.schemas.news import ScrapingTargetCreate, ScrapingTarget as TargetSchema, ScrapingTargetUpdate
 from typing import List, Optional
+from fastapi_cache.decorator import cache
+from fastapi_cache import FastAPICache
 
 router = APIRouter()
 
+async def clear_targets_cache():
+    """清除采集目标相关的缓存"""
+    try:
+        await FastAPICache.clear(namespace="targets")
+    except Exception:
+        pass
+
 @router.post("/", response_model=TargetSchema)
-def create_scraping_target(target: ScrapingTargetCreate, db: Session = Depends(get_db)):
+async def create_scraping_target(target: ScrapingTargetCreate, db: Session = Depends(get_db)):
+    # 🚀 强制清除缓存
+    await clear_targets_cache()
     target.handle = target.handle.strip()
     db_target = db.query(ScrapingTarget).filter(
         ScrapingTarget.platform == target.platform,
@@ -28,7 +39,9 @@ def create_scraping_target(target: ScrapingTargetCreate, db: Session = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/", response_model=List[TargetSchema])
+@cache(expire=600, namespace="targets")
 def list_scraping_targets(
+    request: Request,
     platform: Optional[str] = None, 
     handle: Optional[str] = None,
     is_active: Optional[bool] = None, 
@@ -52,7 +65,9 @@ def list_scraping_targets(
     return query.all()
 
 @router.patch("/{target_id}", response_model=TargetSchema)
-def update_scraping_target(target_id: int, target_update: ScrapingTargetUpdate, db: Session = Depends(get_db)):
+async def update_scraping_target(target_id: int, target_update: ScrapingTargetUpdate, db: Session = Depends(get_db)):
+    # 🚀 强制清除缓存
+    await clear_targets_cache()
     db_target = db.query(ScrapingTarget).filter(ScrapingTarget.id == target_id).first()
     if not db_target:
         raise HTTPException(status_code=404, detail="Target not found")
@@ -73,7 +88,9 @@ def update_scraping_target(target_id: int, target_update: ScrapingTargetUpdate, 
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/{target_id}")
-def delete_scraping_target(target_id: int, db: Session = Depends(get_db)):
+async def delete_scraping_target(target_id: int, db: Session = Depends(get_db)):
+    # 🚀 强制清除缓存
+    await clear_targets_cache()
     db_target = db.query(ScrapingTarget).filter(ScrapingTarget.id == target_id).first()
     if not db_target:
         raise HTTPException(status_code=404, detail="Target not found")
