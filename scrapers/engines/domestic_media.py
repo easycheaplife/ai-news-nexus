@@ -10,8 +10,8 @@ import urllib.parse
 class DomesticMediaScraper(BaseScraper):
     """
     国内头部 AI 媒体聚合引擎 (增强版 v4)
-    利用 Google News Search 作为高可靠的“绕路”方案，
-    同时结合 RSSHub 镜像，确保在官网封锁下依然能获取信号。
+    利用 官方RSS直连、Google News Search、RSSHub 镜像 三位一体，
+    确保在不同网络环境下都能稳定获取信号。
     """
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__(platform="domestic_media", api_url=api_url, region="cn")
@@ -20,13 +20,18 @@ class DomesticMediaScraper(BaseScraper):
             "https://rsshub.rssforever.com",
             "https://hub.slarker.me",
             "https://rsshub.pseudoyu.com",
-            "https://rsshub.rss.tips"
+            "https://rsshub.rss.tips",
+            "https://rsshub.moeyy.cn",
+            "https://rsshub.m-moe.xyz",
+            "https://rsshub.lihaile.biz",
+            "https://rsshub.app"
         ]
         
-        # 具体的媒体配置与搜索关键词 (增加 AI 指向性)
+        # 具体的媒体配置与搜索关键词 (增加官方 RSS)
         self.media_configs = {
             "synced": {
                 "name": "机器之心",
+                "official_rss": "https://www.jiqizhixin.com/rss",
                 "search_query": "机器之心 AI 深度学习",
                 "site_query": "site:jiqizhixin.com AI",
                 "rsshub_path": "/wechat/wasi/5b575dd058e5c4583338dbd3",
@@ -34,6 +39,7 @@ class DomesticMediaScraper(BaseScraper):
             },
             "aiera": {
                 "name": "新智元",
+                "official_rss": "http://www.xinzhiyuan.com/feed",
                 "search_query": "新智元 大模型 机器人",
                 "site_query": "site:xinzhiyuan.com AI",
                 "rsshub_path": "/xinzhiyuan/latest",
@@ -41,6 +47,7 @@ class DomesticMediaScraper(BaseScraper):
             },
             "paperweekly": {
                 "name": "PaperWeekly",
+                "official_rss": "https://www.paperweekly.site/rss",
                 "search_query": "PaperWeekly AI 论文 算法",
                 "site_query": "site:paperweekly.site",
                 "rsshub_path": "/paperweekly/latest",
@@ -48,6 +55,7 @@ class DomesticMediaScraper(BaseScraper):
             },
             "founderpark": {
                 "name": "Founder Park",
+                "official_rss": "https://www.geekpark.net/rss",
                 "search_query": "Founder Park 极客公园 AI 应用",
                 "site_query": "site:geekpark.net AI",
                 "display_name": "Founder Park"
@@ -60,6 +68,7 @@ class DomesticMediaScraper(BaseScraper):
             },
             "infoq": {
                 "name": "InfoQ",
+                "official_rss": "https://www.infoq.cn/feed",
                 "search_query": "InfoQ 机器学习 架构",
                 "site_query": "site:infoq.cn AI",
                 "rsshub_path": "/infoq/topic/AI",
@@ -67,6 +76,7 @@ class DomesticMediaScraper(BaseScraper):
             },
             "tmtpost": {
                 "name": "钛媒体",
+                "official_rss": "https://www.tmtpost.com/rss.xml",
                 "search_query": "钛媒体 AI 数字化",
                 "site_query": "site:tmtpost.com AI",
                 "rsshub_path": "/tmtpost/column/50",
@@ -74,19 +84,13 @@ class DomesticMediaScraper(BaseScraper):
             }
         }
         
-        # Google News Search Base
-        # 使用 zh-CN, CN 确保搜到的是国内媒体内容
         self.gn_base = "https://news.google.com/rss/search?q={query}+when:48h&hl=zh-CN&gl=CN&ceid=CN:zh-Hans"
 
     def _fetch_gn_rss(self, query):
-        """通过 Google News RSS 搜索获取资讯"""
         try:
             encoded_query = urllib.parse.quote(query)
             url = self.gn_base.format(query=encoded_query)
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"}
-            
-            # 搜索建议不走代理，或者直连 Google News (取决于环境)
-            # 在国内环境通常需要代理，但在某些 GitHub Runner 或境外 Server 不需要
+            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
             res = requests.get(url, headers=headers, timeout=12)
             if res.status_code == 200:
                 return res.content
@@ -95,7 +99,6 @@ class DomesticMediaScraper(BaseScraper):
         return None
 
     def _fetch_rsshub(self, path):
-        """通过 RSSHub 镜像轮询"""
         random.shuffle(self.rsshub_instances)
         for instance in self.rsshub_instances:
             try:
@@ -115,8 +118,19 @@ class DomesticMediaScraper(BaseScraper):
             try:
                 entries = []
                 
-                if not skip_google:
-                    # 方案 1: Google News Domain Search (最精准)
+                # 1. 官方 RSS 直连 (优先级最高)
+                if config.get("official_rss"):
+                    self.logger.info(f"📡 Trying Official RSS: {config['name']}")
+                    try:
+                        res = requests.get(config["official_rss"], timeout=10)
+                        if res.status_code == 200:
+                            feed = feedparser.parse(res.content)
+                            if feed.entries:
+                                entries.extend(feed.entries)
+                    except: pass
+                
+                # 2. Google News Search (如果开启)
+                if not entries and not skip_google:
                     if config.get("site_query"):
                         self.logger.info(f"🔍 Searching Google News (Site): {config['name']}")
                         content = self._fetch_gn_rss(config["site_query"])
@@ -124,19 +138,18 @@ class DomesticMediaScraper(BaseScraper):
                             feed = feedparser.parse(content)
                             entries.extend(feed.entries)
                     
-                    # 方案 2: Google News Keyword Search (高信号)
                     if not entries and config.get("search_query"):
                         self.logger.info(f"🔍 Searching Google News (Keyword): {config['name']}")
                         content = self._fetch_gn_rss(config["search_query"])
                         if content:
                             feed = feedparser.parse(content)
                             entries.extend(feed.entries)
-                else:
-                    self.logger.info(f"⏩ Skipping Google Search for {config['name']} (Disabled by config)")
+                elif not entries and skip_google:
+                    self.logger.info(f"⏩ Skipping Google Search for {config['name']}")
 
-                # 方案 3: RSSHub (作为备份或主推)
+                # 3. RSSHub (兜底)
                 if not entries and config.get("rsshub_path"):
-                    self.logger.info(f"📡 Trying RSSHub: {config['name']}")
+                    self.logger.info(f"📡 Trying RSSHub mirrors: {config['name']}")
                     content = self._fetch_rsshub(config["rsshub_path"])
                     if content:
                         feed = feedparser.parse(content)
@@ -157,74 +170,45 @@ class DomesticMediaScraper(BaseScraper):
     def _process_entries(self, entries, platform_key, config):
         processed_count = 0
         import re
-        
-        # 🛡️ 极其严格的 AI 关键词白名单
-        strict_ai_keywords = [
-            "llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", 
-            "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", 
-            "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", 
-            "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", 
-            "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", 
-            "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"
-        ]
-        
-        # 🚫 噪音黑名单：即便包含 AI 词，只要包含这些编程或常规工程词也排除
-        blacklist = [
-            "融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", 
-            "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售",
-            "javascript", "vue", "react", "css", "html", "mysql", "sql", "redis", 
-            "架构设计", "设计模式", "单元测试", "执行计划", "性能调优", "组件重构"
-        ]
+        strict_ai_keywords = ["llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"]
+        blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售", "javascript", "vue", "react", "css", "html", "mysql", "sql", "redis", "架构设计", "设计模式", "单元测试", "执行计划", "性能调优", "组件重构"]
 
         for entry in entries[:15]: 
             title = entry.title
             url = entry.link
-            
-            # Google News 的标题通常带有 " - 来源" 后缀，需要清理
             title = re.sub(r'\s-\s.*$', '', title).strip()
             title_lower = title.lower()
-
-            # 1. 严格匹配 "ai" 单词 (前后需有非字母字符)
             has_standalone_ai = bool(re.search(r'\bai\b', title_lower))
-            
-            # 2. 匹配其他硬核 AI 关键词
             has_core_ai = any(k in title_lower for k in strict_ai_keywords)
-            
-            # 3. 排除噪音
             is_noise = any(k in title_lower for k in blacklist)
-
-            if not (has_standalone_ai or has_core_ai) or is_noise:
-                continue
+            if not (has_standalone_ai or has_core_ai) or is_noise: continue
 
             dt = None
             if hasattr(entry, 'published_parsed') and entry.published_parsed:
                 dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
-            
-            if dt and not self.is_within_window(dt):
-                continue
+            if dt and not self.is_within_window(dt): continue
 
             external_id = entry.id if hasattr(entry, 'id') else url
-            
-            # 🛡️ 兼容性处理：如果 ID 过长（Google News 常见），进行哈希处理以适配数据库 VARCHAR(255)
             if len(external_id) > 255:
                 import hashlib
                 external_id = hashlib.md5(external_id.encode()).hexdigest()
             
-            # 推送到后端
             self.push_to_backend({
                 "platform": platform_key,
                 "external_id": external_id,
                 "title": f"📰 {title}",
-                "content": title, # 搜索结果通常只有标题
+                "content": title,
                 "url": url,
                 "author": config['display_name'],
                 "published_at": dt.isoformat() if dt else datetime.utcnow().isoformat(),
                 "score": 0,
-                "metadata_json": {
-                    "source": config['name'],
-                    "discovery_type": "google_news_search"
-                }
+                "metadata_json": {"source": config['name'], "discovery_type": "official_or_search"}
             })
             processed_count += 1
-        
         self.logger.info(f"📝 Processed {processed_count} relevant items for {config['name']}")
+
+if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    s = DomesticMediaScraper()
+    s.scrape()
