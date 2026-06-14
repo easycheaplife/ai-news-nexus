@@ -163,7 +163,8 @@ def run_scrapers(target_platform: str = None,
                  do_report: bool = True,
                  style: str = "toxic",
                  skip_scoring: bool = False,
-                 date_str: str = None):
+                 date_str: str = None,
+                 force_assets: bool = False):
     api_url = os.getenv("SCRAPER_API_URL", "http://localhost:8000")
     
     if do_discovery and not target_platform and (not target_region or target_region.lower() == "global"):
@@ -272,9 +273,17 @@ def run_scrapers(target_platform: str = None,
         try:
             from scrapers.utils.asset_engine import AssetEngine
             asset_engine = AssetEngine(api_url)
-            asset_engine.process_daily_assets()
+            asset_engine.process_daily_assets(force_report=force_assets)
         except Exception as e:
             logging.error(f"❌ Asset curation failed: {e}")
+    elif force_assets and not target_platform:
+        # 手动强制触发资产生成 (即便跳过了 insights)
+        try:
+            from scrapers.utils.asset_engine import AssetEngine
+            asset_engine = AssetEngine(api_url)
+            asset_engine.process_daily_assets(force_report=True)
+        except Exception as e:
+            logging.error(f"❌ Manual asset curation failed: {e}")
     else:
         logging.info("⏩ Skipping insights generation phase")
 
@@ -297,6 +306,7 @@ if __name__ == "__main__":
     parser.add_argument("--curation", action="store_true", help="Run curation engine")
     parser.add_argument("--insights", action="store_true", help="Run insights generation")
     parser.add_argument("--report", action="store_true", help="Run report image generation")
+    parser.add_argument("--assets", action="store_true", help="Force run knowledge asset curation and whitepaper generation")
     
     parser.add_argument("--no-discovery", action="store_true", help="Explicitly disable discovery engine")
     parser.add_argument("--no-scrape", action="store_true", help="Explicitly disable scraping engines")
@@ -315,13 +325,14 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights or args.report
+    any_positive_flag_set = args.discovery or args.scrape or args.clustering or args.curation or args.insights or args.report or args.assets
     do_discovery = args.discovery if any_positive_flag_set else True
     do_scrape = args.scrape if any_positive_flag_set else True
     do_clustering = args.clustering if any_positive_flag_set else True
     do_curation = args.curation if any_positive_flag_set else True
     do_insights = args.insights if any_positive_flag_set else True
     do_report = args.report if any_positive_flag_set else True
+    do_assets = args.assets
 
     if args.no_discovery: do_discovery = False
     if args.no_scrape: do_scrape = False
@@ -333,8 +344,8 @@ if __name__ == "__main__":
     if args.loop:
         logging.info(f"🔄 Entering continuous loop mode (Interval: {args.interval}s)")
         while True:
-            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date)
+            run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date, force_assets=do_assets)
             logging.info(f"⏳ Sleeping for {args.interval}s before next run...")
             time.sleep(args.interval)
     else:
-        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date)
+        run_scrapers(args.platform, args.region, do_discovery, do_scrape, do_clustering, do_curation, do_insights, do_report, style=args.style, skip_scoring=args.skip_scoring, date_str=args.date, force_assets=do_assets)
