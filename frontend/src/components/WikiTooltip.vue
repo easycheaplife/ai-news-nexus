@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { TrendingUp, BookOpen, Layers } from 'lucide-vue-next';
+import { TrendingUp, BookOpen } from 'lucide-vue-next';
 
 const props = defineProps<{
   term: {
@@ -12,7 +12,6 @@ const props = defineProps<{
 }>();
 
 const isVisible = ref(false);
-const tooltipRef = ref<HTMLElement | null>(null);
 const triggerRef = ref<HTMLElement | null>(null);
 const position = ref({ top: 0, left: 0 });
 
