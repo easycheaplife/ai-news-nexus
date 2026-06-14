@@ -9,6 +9,7 @@ from app.api.v1.discovery import router as discovery_router
 from app.api.v1.targets import router as targets_router
 from app.api.v1.media import router as media_router
 from app.api.v1.clusters import router as clusters_router
+from app.api.v1.assets import router as assets_router
 from app.core.config import settings
 from app.db.session import engine
 from app.models.news import Base
@@ -50,6 +51,7 @@ app.include_router(discovery_router, prefix="/api/discovery", tags=["discovery"]
 app.include_router(targets_router, prefix="/api/targets", tags=["targets"])
 app.include_router(media_router, prefix="/api/media", tags=["media"])
 app.include_router(clusters_router, prefix="/api/clusters", tags=["clusters"])
+app.include_router(assets_router, prefix="/api/assets", tags=["assets"])
 
 
 # Legacy support (optional, if you want both to work)
@@ -59,6 +61,8 @@ app.include_router(discovery_router, prefix="/discovery", tags=["discovery"])
 app.include_router(targets_router, prefix="/targets", tags=["targets"])
 app.include_router(media_router, prefix="/media", tags=["media"])
 app.include_router(clusters_router, prefix="/clusters", tags=["clusters"])
+app.include_router(assets_router, prefix="/assets", tags=["assets"])
+
 # 挂载静态文件分发目录 (/f 开头)
 app.mount("/f", StaticFiles(directory="data/media"), name="media")
 

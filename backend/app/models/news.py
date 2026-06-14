@@ -117,3 +117,27 @@ class ClusterNewsMapping(Base):
     __table_args__ = (
         UniqueConstraint('cluster_id', 'news_id', name='_cluster_news_uc'),
     )
+
+class KnowledgeTerm(Base):
+    __tablename__ = "knowledge_terms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    keyword = Column(String(100), unique=True, index=True, nullable=False)
+    category = Column(String(50), default="general")
+    description = Column(Text)
+    heat_score = Column(Integer, default=1)
+    trend_json = Column(JSON)
+    related_news_ids = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class PeriodicReport(Base):
+    __tablename__ = "periodic_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=False)
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=False)
+    stats_json = Column(JSON)
+    created_at = Column(DateTime, default=datetime.utcnow)

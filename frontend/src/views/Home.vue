@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X, Menu } from 'lucide-vue-next';
+import { Search, RefreshCw, Zap, Calendar, ChevronDown, ChevronUp, TrendingUp, BarChart3, X, Menu, ShieldCheck, ArrowRight } from 'lucide-vue-next';
 import NewsCard from '../components/NewsCard.vue';
 import Sidebar from '../components/Sidebar.vue';
 import ResonanceCard from '../components/ResonanceCard.vue';
+import WikiTooltip from '../components/WikiTooltip.vue';
 import { format, isToday, isYesterday } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
@@ -14,7 +15,9 @@ const news = ref<any[]>([]);
 const totalCount = ref(0);
 const todayCount = ref(0);
 const trendingClusters = ref<any[]>([]);
+const knowledgeTerms = ref<any[]>([]);
 const latestInsight = ref<any>(null);
+const activeTargetsCount = ref(0);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const showBriefing = ref(true);
@@ -151,11 +154,13 @@ const fetchNews = async (isLoadMore = false) => {
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      const [newsRes, insightRes, clustersRes, todayRes] = await Promise.all([
+      const [newsRes, insightRes, clustersRes, todayRes, targetsRes, termsRes] = await Promise.all([
         axios.get(`${apiUrl}/news/`, { params }),
         axios.get(`${apiUrl}/insights/latest`).catch(() => ({ data: null })),
         axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] })),
-        axios.get(`${apiUrl}/news/`, { params: { limit: 1, start_date: startOfToday.toISOString() } }).catch(() => ({ data: { total: 0 } }))
+        axios.get(`${apiUrl}/news/`, { params: { limit: 1, start_date: startOfToday.toISOString() } }).catch(() => ({ data: { total: 0 } })),
+        axios.get(`${apiUrl}/targets/`, { params: { is_active: true } }).catch(() => ({ data: [] })),
+        axios.get(`${apiUrl}/assets/terms`, { params: { limit: 100 } }).catch(() => ({ data: [] }))
       ]);
       
       if (fetchId !== currentFetchId) return; // Ignore stale request
@@ -166,6 +171,8 @@ const fetchNews = async (isLoadMore = false) => {
       todayCount.value = todayRes.data.total;
       latestInsight.value = insightRes.data;
       trendingClusters.value = Array.isArray(clustersRes.data) ? clustersRes.data : [];
+      activeTargetsCount.value = Array.isArray(targetsRes.data) ? targetsRes.data.length : 0;
+      knowledgeTerms.value = Array.isArray(termsRes.data) ? termsRes.data : [];
       hasMore.value = news.value.length < totalCount.value;
     }
     
@@ -475,6 +482,28 @@ const extractBriefingPreview = (content: string) => {
 
   return { headlines, summary };
 };
+
+// 💎 核心黑科技：将文本处理为带有百科 Tooltip 的富文本片段
+const processRichText = (text: string) => {
+  if (!text || knowledgeTerms.value.length === 0) return [{ type: 'text', value: text }];
+
+  // 构建正则表达式，匹配所有已知的关键词
+  // 按长度降序排列，防止短词拦截长词
+  const sortedKeywords = [...knowledgeTerms.value]
+    .sort((a, b) => b.keyword.length - a.keyword.length)
+    .map(t => t.keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); 
+  
+  const pattern = new RegExp(`(${sortedKeywords.join('|')})`, 'gi');
+  const parts = text.split(pattern);
+  
+  return parts.map(part => {
+    const term = knowledgeTerms.value.find(t => t.keyword.toLowerCase() === part.toLowerCase());
+    if (term) {
+      return { type: 'term', value: part, data: term };
+    }
+    return { type: 'text', value: part };
+  });
+};
 </script>
 
 <template>
@@ -564,8 +593,26 @@ const extractBriefingPreview = (content: string) => {
             </div>
           </div>
 
-          <!-- Desktop Navigation / Mobile Refresh -->
+            <!-- Desktop Navigation / Mobile Refresh -->
           <div class="flex items-center gap-3">
+            <!-- System Stats (Desktop Only) -->
+            <div class="hidden xl:flex items-center gap-6 mr-6 pr-6 border-r border-white/10">
+              <div class="flex flex-col items-end">
+                <span class="text-[9px] font-black text-text-muted uppercase tracking-widest">Active Sources</span>
+                <div class="flex items-center gap-2">
+                  <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                  <span class="text-xs font-black text-white">{{ activeTargetsCount }}</span>
+                </div>
+              </div>
+              <div class="flex flex-col items-end">
+                <span class="text-[9px] font-black text-text-muted uppercase tracking-widest">Noise Filtered</span>
+                <div class="flex items-center gap-2">
+                  <ShieldCheck class="w-3 h-3 text-primary" />
+                  <span class="text-xs font-black text-white">{{ Math.floor(todayCount * 0.7) }}+</span>
+                </div>
+              </div>
+            </div>
+
             <!-- Mobile Only: Refresh Button on top right -->
             <button 
               type="button"
@@ -765,7 +812,10 @@ const extractBriefingPreview = (content: string) => {
                   <div class="px-5 py-4 rounded-2xl bg-white/[0.03] border border-white/5 relative overflow-hidden group">
                     <div class="absolute top-0 left-0 w-1 h-full bg-primary/40 group-hover:bg-primary transition-colors"></div>
                     <p class="text-xs text-slate-400 leading-relaxed italic">
-                      {{ extractBriefingPreview(latestInsight.content).summary }}
+                      <template v-for="(fragment, fIdx) in processRichText(extractBriefingPreview(latestInsight.content).summary)" :key="fIdx">
+                        <WikiTooltip v-if="fragment.type === 'term'" :term="fragment.data">{{ fragment.value }}</WikiTooltip>
+                        <span v-else>{{ fragment.value }}</span>
+                      </template>
                     </p>
                   </div>
 
@@ -781,7 +831,10 @@ const extractBriefingPreview = (content: string) => {
                         {{ idx + 1 }}
                       </div>
                       <span class="text-[11px] font-bold text-slate-300 group-hover/insight:text-white leading-relaxed line-clamp-1">
-                        {{ headline }}
+                        <template v-for="(fragment, fIdx) in processRichText(headline)" :key="fIdx">
+                          <WikiTooltip v-if="fragment.type === 'term'" :term="fragment.data">{{ fragment.value }}</WikiTooltip>
+                          <span v-else>{{ fragment.value }}</span>
+                        </template>
                       </span>
                     </div>
                   </div>

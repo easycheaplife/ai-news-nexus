@@ -267,6 +267,14 @@ def run_scrapers(target_platform: str = None,
             logging.info(f"🎲 No style selected. Randomly selected: {actual_style}")
             
         generate_daily_insights(api_url, style=actual_style, skip_scoring=skip_scoring)
+
+        # 🏺 Phase 1: 知识资产沉淀 (Knowledge Asset Curation)
+        try:
+            from scrapers.utils.asset_engine import AssetEngine
+            asset_engine = AssetEngine(api_url)
+            asset_engine.process_daily_assets()
+        except Exception as e:
+            logging.error(f"❌ Asset curation failed: {e}")
     else:
         logging.info("⏩ Skipping insights generation phase")
 
