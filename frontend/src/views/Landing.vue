@@ -26,16 +26,16 @@ const t = computed(() => {
       synthesis: {
         eyebrow: '01 / 深度合成',
         title: '数据是负担，\n洞察是资产。',
-        p1: '大多数工具只是在向你堆砌更多的噪音。Nexus 不同。我们不仅展示新闻，我们对每一条资讯进行 0-100 分精细化评测。',
-        p2: '我们的采集引擎已全面进化为 Twikit 2.0，通过全真登录态模拟绕过所有封锁，实时抓取 4K 原图、视频及 Thread 线程。低于 70 分的垃圾资讯将被自动拦截在视线之外。',
-        f1: '全真模拟采集',
+        p1: 'Nexus 2.0 引入了首发溯源 (First Break) 勋章，利用高精度算法识别全球 AI 资讯的最早源头。我们不仅评估内容，更是在寻找“第一现场”。',
+        p2: '全新的“战略资产库”实现了技术名词 (Wiki) 的自动沉淀与深度研报 (Whitepapers) 的双周自动产出。低于 71 分的垃圾资讯将被自动拦截，确保你只阅读最有价值的情报资产。',
+        f1: '资产库自动沉淀',
         f2: 'Strike 实时清洗',
-        f3: '双重风格简报',
-        f4: '15天沉默清算',
-        f1_sub: 'Twikit 2.0 无视封锁',
+        f3: '双周战略白皮书',
+        f4: '白皮书一键导出',
+        f1_sub: 'Wiki 词条自动生成',
         f2_sub: '低质量信源自动熔断',
-        f3_sub: '毒舌吐槽 vs 正经战略',
-        f4_sub: '彻底告别僵尸号'
+        f3_sub: '从碎片信号到深度综述',
+        f4_sub: '支持 MD/PDF 卷宗下载'
       },
       narrative: {
         eyebrow: '02 / 多维叙事',
@@ -80,16 +80,16 @@ const t = computed(() => {
       synthesis: {
         eyebrow: '01 / Synthesis',
         title: 'Data is a liability.\nInsight is an asset.',
-        p1: "Most tools give you noise. Nexus is different. We precisely evaluate every signal with a 0-100 score.",
-        p2: "Our engine evolved into Twikit 2.0, utilizing full-session simulation to bypass all blocks. Real-time 4K media and Thread reconstruction are standard. Trash under 70 points is blocked.",
-        f1: 'True-Sim Scraper',
+        p1: "Nexus 2.0 introduces 'First Break' sourcing badges, identifying the original origin of global AI news. We don't just evaluate—we find the front line.",
+        p2: "The new 'Asset Hub' enables autonomous Technical Wiki synthesis and Bi-Weekly Whitepaper generation. Content under 71 points is purged, turning noisy feeds into strategic assets.",
+        f1: 'Asset Hub Sync',
         f2: 'Real-time Strike',
-        f3: 'Dual-Style Intel',
-        f4: '15-Day Purge',
-        f1_sub: 'Bypassing all blocks',
+        f3: 'Strategic Dossiers',
+        f4: 'One-Click Export',
+        f1_sub: 'Auto Wiki Generation',
         f2_sub: 'Auto-circuit breaker',
-        f3_sub: 'Toxic vs Strategic',
-        f4_sub: 'Zero zombie accounts'
+        f3_sub: 'Signals to Synthesis',
+        f4_sub: 'MD/PDF Downloads'
       },
       narrative: {
         eyebrow: '02 / Narrative',
@@ -124,12 +124,12 @@ const toggleLang = () => {
 };
 
 const liveSignals = [
-  "📡 Scraped @karpathy: 'New paradigm in edge reasoning...'",
+  "🥇 First Break: @karpathy identified as original source",
+  "📘 Wiki: New term 'MoE' synthesized and cross-referenced",
+  "📜 Whitepaper: '2026 Q2 Trend Report' generated & signed",
   "🛡️ Strike: @low_quality_bot deactivated (Failure Count: 15/15)",
-  "✨ Cluster detected: 'Claude 5.5 vs GPT-6o architecture'",
-  "🍪 Twikit: Session refreshed with manual cookies",
-  "🔄 Sync: 24 new high-value sources followed by @jason_202606",
-  "📸 Daily Briefing: Randomly selected 'Toxic' style today"
+  "🥇 First Break: @bindureddy credited for 'Claude 5.5' leak",
+  "📥 Export: Strategic Dossier downloaded in PDF format"
 ];
 
 onMounted(() => {

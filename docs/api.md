@@ -79,17 +79,27 @@
 
 ---
 
-## 5. 媒体存储 (Media API)
+## 5. 战略资产库 (Assets API)
 
-### 5.1 上传媒体文件
-- **Endpoint**: `POST /media/upload`
-- **Payload**: `Multipart/form-data`
-- **说明**: 接收图片/视频，按 MD5 去重并存入存储目录。
-- **响应**: 返回相对路径（如 `/f/abc.jpg`），需配合 `SCRAPER_API_URL` 使用。
+### 5.1 技术百科 (Wiki Terms)
+- **获取词条列表**: `GET /api/assets/terms`
+  - 参数: `limit` (默认 100), `category` (模型, 算力, 应用等)
+  - 缓存: 30 分钟。
+- **更新词条**: `PATCH /api/assets/terms/{id}`
+  - 用于手动修正定义或调整热度值。
+
+### 5.2 深度白皮书 (Reports)
+- **获取白皮书列表**: `GET /api/assets/reports`
+  - 参数: `limit` (默认 20)
+  - 缓存: 30 分钟。
+- **上报新白皮书**: `POST /api/assets/reports`
+  - **幂等性**: 接口会根据 `end_date` 自动判断。若日期重合则执行 **Upsert** (更新现有内容)，防止重复。
 
 ---
 
-## 6. 开发约定
+## 6. 媒体存储 (Media API)
+...
+## 7. 开发约定
 
 1. **缓存管理**: 写入类接口 (POST/PATCH/DELETE) 成功后会自动执行 `FastAPICache.clear()`。
 2. **错误处理**: 标准 HTTP 状态码。429 表示频率限制，500 表示数据库或 AI 引擎异常。

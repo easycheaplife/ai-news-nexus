@@ -68,9 +68,11 @@ python3 scrapers/sync_following.py
 | :--- | :--- | :--- |
 | `--loop` | `-l` | 开启持久化运行模式。 |
 | `--interval` | `-i 3600` | 每次抓取的循环间隔（秒）。 |
+| `--assets` | `--assets` | [NEW] 强制执行百科词条同步与白皮书合成。 |
 | `--platform` | `-p twitter` | 仅抓取指定的单一平台，适合调试。 |
 | `--style` | `--style official` | 指定生成的简报人格（toxic 或 official）。 |
 | `--no-discovery` | - | 跳过挖掘新账号阶段。 |
+| `--no-scrape` | - | 跳过采集阶段（常与 --assets 配合进行纯资产更新）。 |
 | `--no-curation` | - | 跳过 15 天沉默账号的自动清理。 |
 
 ---
