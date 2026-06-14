@@ -11,7 +11,9 @@ import {
   Zap,
   X,
   FileImage,
-  ShieldCheck
+  ShieldCheck,
+  Book,
+  Scroll
 } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -152,6 +154,30 @@ const getStatusColor = (status: string) => {
           <span class="text-[9px] font-medium text-primary/60 uppercase">Daily Reports Archive</span>
         </div>
       </button>
+    </section>
+
+    <!-- 1.5 Intelligence Assets (New Section) -->
+    <section>
+      <div class="flex items-center gap-2 mb-4 px-2 text-emerald-400">
+        <Book class="w-4 h-4" />
+        <h3 class="text-[10px] font-black uppercase tracking-widest opacity-80">战略资产库 · Intel Assets</h3>
+      </div>
+      <div class="space-y-2">
+        <button 
+          @click="router.push('/wiki')"
+          class="w-full flex items-center gap-3 px-4 py-2.5 bg-emerald-500/5 hover:bg-emerald-500/10 border border-emerald-500/10 rounded-xl text-left transition-all group"
+        >
+          <Book class="w-3.5 h-3.5 text-emerald-400" />
+          <span class="text-xs font-bold text-slate-300 group-hover:text-white">技术百科 · AI Wiki</span>
+        </button>
+        <button 
+          @click="router.push('/whitepapers')"
+          class="w-full flex items-center gap-3 px-4 py-2.5 bg-amber-500/5 hover:bg-amber-500/10 border border-amber-500/10 rounded-xl text-left transition-all group"
+        >
+          <Scroll class="w-3.5 h-3.5 text-amber-400" />
+          <span class="text-xs font-bold text-slate-300 group-hover:text-white">深度白皮书 · Whitepapers</span>
+        </button>
+      </div>
     </section>
 
     <!-- 2. Inner Circle (KOLs) -->
