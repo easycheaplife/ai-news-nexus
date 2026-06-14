@@ -45,6 +45,7 @@ app.add_middleware(
     expose_headers=["X-Total-Count"],
 )
 
+# 🚀 核心 API 路由 (统一使用 /api 前缀，避免与静态资源冲突)
 app.include_router(news_router, prefix="/api/news", tags=["news"])
 app.include_router(insights_router, prefix="/api/insights", tags=["insights"])
 app.include_router(discovery_router, prefix="/api/discovery", tags=["discovery"])
@@ -53,15 +54,14 @@ app.include_router(media_router, prefix="/api/media", tags=["media"])
 app.include_router(clusters_router, prefix="/api/clusters", tags=["clusters"])
 app.include_router(assets_router, prefix="/api/assets", tags=["assets"])
 
-
-# Legacy support (optional, if you want both to work)
+# 🔗 兼容性路由 (无 /api 前缀)
+# 注意：/assets 路由被用于静态资源，故资产接口必须带 /api 或使用其他前缀
 app.include_router(news_router, prefix="/news", tags=["news"])
 app.include_router(insights_router, prefix="/insights", tags=["insights"])
 app.include_router(discovery_router, prefix="/discovery", tags=["discovery"])
 app.include_router(targets_router, prefix="/targets", tags=["targets"])
 app.include_router(media_router, prefix="/media", tags=["media"])
 app.include_router(clusters_router, prefix="/clusters", tags=["clusters"])
-app.include_router(assets_router, prefix="/assets", tags=["assets"])
 
 # 挂载静态文件分发目录 (/f 开头)
 app.mount("/f", StaticFiles(directory="data/media"), name="media")
@@ -74,6 +74,7 @@ if os.path.exists(os.path.join(dist_path, "assets")):
 @app.get("/")
 @app.get("/report")
 @app.get("/reports-list")
+@app.get("/wiki")
 def serve_frontend():
     index_path = os.path.join(dist_path, "index.html")
     if os.path.exists(index_path):

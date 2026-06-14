@@ -160,7 +160,7 @@ const fetchNews = async (isLoadMore = false) => {
         axios.get(`${apiUrl}/clusters/trending`, { params: { limit: 4 } }).catch(() => ({ data: [] })),
         axios.get(`${apiUrl}/news/`, { params: { limit: 1, start_date: startOfToday.toISOString() } }).catch(() => ({ data: { total: 0 } })),
         axios.get(`${apiUrl}/targets/`, { params: { is_active: true } }).catch(() => ({ data: [] })),
-        axios.get(`${apiUrl}/assets/terms`, { params: { limit: 100 } }).catch(() => ({ data: [] }))
+        axios.get(`${apiUrl}/api/assets/terms`, { params: { limit: 100 } }).catch(() => ({ data: [] }))
       ]);
       
       if (fetchId !== currentFetchId) return; // Ignore stale request
