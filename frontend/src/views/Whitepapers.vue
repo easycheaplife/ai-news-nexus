@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { Scroll, ChevronLeft, X, Calendar, BarChart3, ArrowRight } from 'lucide-vue-next';
+import { Scroll, ChevronLeft, X, Calendar, BarChart3, ArrowRight, Download, Printer } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
@@ -45,13 +45,30 @@ const closeReport = () => {
   document.body.style.overflow = 'auto';
 };
 
+// 📥 下载 Markdown
+const downloadMarkdown = () => {
+  if (!selectedReport.value) return;
+  const blob = new Blob([selectedReport.value.content], { type: 'text/markdown' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${selectedReport.value.title}.md`;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+// 🖨️ 打印为 PDF
+const printReport = () => {
+  window.print();
+};
+
 onMounted(fetchReports);
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#050505] text-slate-200 p-6 md:p-10 font-sans">
+  <div class="min-h-screen bg-[#050505] text-slate-200 p-6 md:p-10 font-sans print:p-0">
     <!-- Header -->
-    <header class="max-w-5xl mx-auto mb-20 border-b border-white/5 pb-12 flex justify-between items-end">
+    <header class="max-w-5xl mx-auto mb-20 border-b border-white/5 pb-12 flex justify-between items-end print:hidden">
       <div class="flex items-center gap-6">
         <button 
           @click="router.push('/app')"
@@ -134,22 +151,38 @@ onMounted(fetchReports);
       leave-from-class="opacity-100 scale-100"
       leave-to-class="opacity-0 scale-95"
     >
-      <div v-if="isModalOpen" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-4 md:p-12" @click="closeReport">
-        <div class="max-w-5xl w-full h-full bg-[#fafafa] rounded-[3.5rem] overflow-hidden flex flex-col shadow-[0_0_120px_rgba(99,102,241,0.2)]" @click.stop>
+      <div v-if="isModalOpen" class="fixed inset-0 z-[200] bg-black/95 backdrop-blur-3xl flex items-center justify-center p-4 md:p-12 print:p-0 print:bg-white print:relative print:z-0" @click="closeReport">
+        <div class="max-w-5xl w-full h-full bg-[#fafafa] rounded-[3.5rem] overflow-hidden flex flex-col shadow-[0_0_120px_rgba(99,102,241,0.2)] print:shadow-none print:rounded-none" @click.stop>
           <!-- Modal Header -->
-          <div class="p-10 md:p-16 border-b border-slate-200 flex justify-between items-end bg-white">
+          <div class="p-6 md:p-16 border-b border-slate-200 flex flex-col md:flex-row md:items-end justify-between gap-6 bg-white print:p-10">
             <div>
-              <div class="flex items-center gap-3 mb-4">
+              <div class="flex items-center gap-3 mb-3 md:mb-4">
                 <div class="w-8 h-1 bg-indigo-600"></div>
-                <span class="text-[10px] font-black text-indigo-600 uppercase tracking-[0.3em]">INTERNAL STRATEGIC DOCUMENT</span>
+                <span class="text-[9px] md:text-[10px] font-black text-indigo-600 uppercase tracking-[0.2em] md:tracking-[0.3em]">INTERNAL STRATEGIC DOCUMENT</span>
               </div>
-              <h3 class="text-3xl md:text-4xl font-black text-slate-900 leading-tight tracking-tight">{{ selectedReport.title }}</h3>
+              <h3 class="text-xl md:text-4xl font-black text-slate-900 leading-tight tracking-tight">{{ selectedReport.title }}</h3>
             </div>
-            <div class="text-right hidden sm:block">
-               <button @click="closeReport" class="p-3 rounded-full hover:bg-slate-100 transition-colors mb-6">
-                 <X class="w-8 h-8 text-slate-400" />
-               </button>
-               <div class="mono text-[10px] font-bold text-slate-400 tracking-widest uppercase">Issued: {{ selectedReport.date }}</div>
+            <div class="flex flex-row md:flex-col items-center md:items-end justify-between md:justify-end gap-4 print:hidden">
+               <div class="flex gap-2">
+                 <button 
+                   @click="downloadMarkdown"
+                   class="p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-600 transition-all group"
+                   title="下载 Markdown"
+                 >
+                   <Download class="w-4 h-4 md:w-5 md:h-5" />
+                 </button>
+                 <button 
+                   @click="printReport"
+                   class="p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-600 transition-all group"
+                   title="打印/导出 PDF"
+                 >
+                   <Printer class="w-4 h-4 md:w-5 md:h-5" />
+                 </button>
+                 <button @click="closeReport" class="p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-slate-50 border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-500 transition-all">
+                   <X class="w-4 h-4 md:w-5 md:h-5" />
+                 </button>
+               </div>
+               <div class="mono text-[8px] md:text-[10px] font-bold text-slate-400 tracking-widest uppercase">{{ selectedReport.date }}</div>
             </div>
           </div>
 
@@ -174,6 +207,12 @@ onMounted(fetchReports);
 </template>
 
 <style scoped>
+@media print {
+  .print\:hidden { display: none !important; }
+  body { background: white !important; }
+  .report-reader { overflow: visible !important; height: auto !important; }
+}
+
 .dossier-card {
   background: #0d0d10;
   border-left: 4px solid #6366f1;
