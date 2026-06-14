@@ -86,8 +86,11 @@ CREATE TABLE IF NOT EXISTS `topic_clusters` (
     `title` VARCHAR(500) NOT NULL COMMENT '话题标题',
     `summary` TEXT COMMENT '话题综述',
     `resonance_score` INT DEFAULT 0 COMMENT '共振指数',
+    `first_mover_news_id` INT COMMENT '首发资讯ID',
+    `first_mover_tier` VARCHAR(10) COMMENT '首发者等级 (S/A/B)',
     `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_score` (`resonance_score`)
+    INDEX `idx_score` (`resonance_score`),
+    CONSTRAINT `fk_first_mover` FOREIGN KEY (`first_mover_news_id`) REFERENCES `news_items`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 话题簇与资讯关联表
