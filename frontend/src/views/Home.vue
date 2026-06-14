@@ -437,7 +437,7 @@ const platformBarColors: Record<string, string> = {
 const extractBriefingPreview = (content: string) => {
   if (!content) return { headlines: [], summary: '' };
   
-  // 🧹 预处理：剔除 AI 幻觉出的撰写人信息 (更加激进的匹配)
+  // 🧹 预处理：剔除 AI 幻觉出的撰写人信息
   const lines = content.split('\n');
   const cleanedLines = lines.filter(line => {
     const l = line.trim();
@@ -446,17 +446,32 @@ const extractBriefingPreview = (content: string) => {
   });
   const cleanedContent = cleanedLines.join('\n');
 
-  // 1. 提取所有 ## 标题
-  const headlineMatches = cleanedContent.match(/^##\s+(.+)$/gm) || [];
-  const headlines = headlineMatches
-    .map(m => m.replace(/^##\s+/, '').trim())
-    .filter(m => !m.includes('监控指标') && !m.includes('指南'))
+  // 🚀 方案 A：优先尝试从“今日头条”或“数字列表”中提取具体新闻项
+  // 查找包含 1. 2. 3. 或 * ** 格式的行
+  const listMatches = cleanedContent.match(/^[\d\.\、\*\s]+\s*(.+)$/gm) || [];
+  let headlines = listMatches
+    .map(m => m.replace(/^[\d\.\、\*\s]+/, '').replace(/\*\*/g, '').trim())
+    .filter(m => m.length > 15 && m.length < 250) // 过滤掉分类词和过长的段落
+    .filter(m => !m.includes('监控指标') && !m.includes('指南') && !m.includes('综述'))
     .slice(0, 4);
 
+  // 方案 B：如果列表匹配失败，提取 ## 标题
+  if (headlines.length === 0) {
+    const headlineMatches = cleanedContent.match(/^##\s+(.+)$/gm) || [];
+    headlines = headlineMatches
+      .map(m => m.replace(/^##\s+/, '').trim())
+      .filter(m => !m.includes('监控指标') && !m.includes('指南') && !m.includes('今日头条') && !m.includes('情报快览'))
+      .slice(0, 4);
+  }
+
   // 2. 提取第一段话作为“执行摘要” (Executive Summary)
-  // 找到第一个 ## 标题后的内容，直到下一个标题或段落结束
-  const paragraphs = cleanedLines.filter(p => p.trim() && !p.startsWith('#'));
-  const summary = paragraphs.length > 0 ? paragraphs[0].slice(0, 120) + '...' : '';
+  // 优先寻找非标题的、较长的段落
+  const paragraphs = cleanedLines.filter(p => p.trim() && !p.startsWith('#') && p.length > 20);
+  let summary = paragraphs.length > 0 ? paragraphs[0] : '';
+  
+  // 清理摘要中的 Markdown 加粗等
+  summary = summary.replace(/\*\*/g, '').trim();
+  if (summary.length > 130) summary = summary.slice(0, 130) + '...';
 
   return { headlines, summary };
 };
@@ -755,17 +770,17 @@ const extractBriefingPreview = (content: string) => {
                   </div>
 
                   <!-- 2. 核心看点列表 -->
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div class="grid grid-cols-1 gap-3">
                     <div 
                       v-for="(headline, idx) in extractBriefingPreview(latestInsight.content).headlines" 
                       :key="idx"
-                      class="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10 group/insight cursor-pointer hover:bg-primary/10 transition-all"
+                      class="flex items-center gap-3 p-3.5 rounded-xl bg-primary/5 border border-primary/10 group/insight cursor-pointer hover:bg-primary/10 transition-all overflow-hidden"
                       @click="$router.push('/report')"
                     >
                       <div class="shrink-0 w-5 h-5 rounded-lg bg-primary/20 flex items-center justify-center text-[9px] font-black text-primary">
                         {{ idx + 1 }}
                       </div>
-                      <span class="text-[11px] font-bold text-slate-300 group-hover/insight:text-white leading-tight truncate">
+                      <span class="text-[11px] font-bold text-slate-300 group-hover/insight:text-white leading-relaxed line-clamp-1">
                         {{ headline }}
                       </span>
                     </div>

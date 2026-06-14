@@ -6,10 +6,11 @@ import uuid
 from datetime import datetime, timedelta
 
 from app.db.session import get_db
-from app.models.news import TopicCluster, ClusterNewsMapping, NewsItem
+from app.models.news import TopicCluster, ClusterNewsMapping, NewsItem, ScrapingTarget
 from app.schemas.cluster import TopicCluster as TopicClusterSchema, ClusterBatchCreate
 from fastapi_cache.decorator import cache
 from fastapi_cache import FastAPICache
+from sqlalchemy import func
 
 router = APIRouter()
 
@@ -20,13 +21,68 @@ async def clear_clusters_cache():
     except Exception:
         pass
 
+def resolve_first_mover(db: Session, news_ids: List[int]):
+    """
+    🎯 核心算法：识别并标记首发贡献者 (First Mover)
+    采用权重加权逻辑：Tier S (15m), Tier A (5m), Tier B (Absolute)
+    """
+    if not news_ids:
+        return None, None
+
+    # 1. 获取所有资讯及其作者的分数
+    news_items = db.query(NewsItem).filter(NewsItem.id.in_(news_ids)).all()
+    if not news_items:
+        return None, None
+
+    # 预加载作者分数以减少查询
+    enriched_items = []
+    for item in news_items:
+        author = item.metadata_json.get('author') if item.metadata_json else None
+        avg_score = 50
+        if author:
+            target = db.query(ScrapingTarget).filter(
+                ScrapingTarget.platform == item.platform,
+                ScrapingTarget.handle == author
+            ).first()
+            if target:
+                avg_score = target.avg_score or 50
+        
+        tier = 'B'
+        if avg_score >= 90: tier = 'S'
+        elif avg_score >= 80: tier = 'A'
+        
+        enriched_items.append({
+            'item': item,
+            'published_at': item.published_at,
+            'tier': tier,
+            'score': avg_score
+        })
+
+    # 2. 确定绝对首发基准
+    enriched_items.sort(key=lambda x: x['published_at'])
+    t_start = enriched_items[0]['published_at']
+
+    # 3. 扫描 Tier S (15分钟宽限)
+    s_candidates = [i for i in enriched_items if i['tier'] == 'S' and (i['published_at'] - t_start).total_seconds() <= 900]
+    if s_candidates:
+        s_candidates.sort(key=lambda x: x['published_at'])
+        return s_candidates[0]['item'].id, 'S'
+
+    # 4. 扫描 Tier A (5分钟宽限)
+    a_candidates = [i for i in enriched_items if i['tier'] == 'A' and (i['published_at'] - t_start).total_seconds() <= 300]
+    if a_candidates:
+        a_candidates.sort(key=lambda x: x['published_at'])
+        return a_candidates[0]['item'].id, 'A'
+
+    # 5. 返回绝对首发
+    return enriched_items[0]['item'].id, enriched_items[0]['tier']
+
 @router.get("/trending", response_model=List[TopicClusterSchema])
 @cache(expire=300, namespace="clusters")
 async def get_trending_clusters(request: Request, limit: int = 10, db: Session = Depends(get_db)):
     """
     Get top trending topic clusters from the last 48 hours.
     """
-    # 🕒 只获取最近 48 小时生成的聚类，确保时效性，避免旧话题霸榜
     time_window = datetime.now() - timedelta(hours=48)
     
     clusters = db.query(TopicCluster)\
@@ -34,15 +90,17 @@ async def get_trending_clusters(request: Request, limit: int = 10, db: Session =
         .order_by(desc(TopicCluster.resonance_score), desc(TopicCluster.created_at))\
         .limit(limit).all()
     
-    # Pre-fetch news mapping manually or just rely on relationship if it was defined.
-    # We didn't define relationship in SQLAlchemy model, so we attach manually for schema
     result = []
     for c in clusters:
         mappings = db.query(ClusterNewsMapping).filter(ClusterNewsMapping.cluster_id == c.id).all()
-        # Fetch news items
         for m in mappings:
             m.news = db.query(NewsItem).filter(NewsItem.id == m.news_id).first()
         c.news_items = mappings
+        
+        # 附加 First Mover 详情
+        if c.first_mover_news_id:
+            c.first_mover_news = db.query(NewsItem).filter(NewsItem.id == c.first_mover_news_id).first()
+            
         result.append(c)
         
     return result
@@ -61,6 +119,10 @@ async def get_cluster(request: Request, cluster_id: str, db: Session = Depends(g
     for m in mappings:
         m.news = db.query(NewsItem).filter(NewsItem.id == m.news_id).first()
     c.news_items = mappings
+
+    if c.first_mover_news_id:
+        c.first_mover_news = db.query(NewsItem).filter(NewsItem.id == c.first_mover_news_id).first()
+        
     return c
 
 @router.post("/batch")
@@ -68,58 +130,49 @@ async def create_clusters_batch(batch: ClusterBatchCreate, db: Session = Depends
     """
     Create a batch of clusters from AI clustering engine.
     """
-    # 🚀 强制立即清除聚类缓存，确保前端能看到最新共振话题
     await clear_clusters_cache()
     
     created_clusters_count = 0
     try:
         for item in batch.clusters:
-            # 1. Deduplicate news_ids and check if we have any valid IDs
-            # AI sometimes repeats IDs in the list
             unique_news_ids = list(set(item.news_ids))
             if not unique_news_ids:
                 continue
                 
             cluster_id = str(uuid.uuid4())
             
-            # 2. Heuristic resonance score: base 20 + 10 points per item
+            # 🚀 计算 First Mover
+            fm_id, fm_tier = resolve_first_mover(db, unique_news_ids)
+            
             score = 10 + (len(unique_news_ids) * 10)
             
             new_cluster = TopicCluster(
                 id=cluster_id,
                 title=item.title,
                 summary=item.summary,
-                resonance_score=score
+                resonance_score=score,
+                first_mover_news_id=fm_id,
+                first_mover_tier=fm_tier
             )
             db.add(new_cluster)
-            # Flush to ensure the cluster exists for FK constraints
             db.flush()
             
             # 3. Create mappings
             actual_mapped_count = 0
             for n_id in unique_news_ids:
-                # check if news exists
                 news = db.query(NewsItem).filter(NewsItem.id == n_id).first()
                 if news:
-                    platform_role = news.platform
                     mapping = ClusterNewsMapping(
                         cluster_id=cluster_id,
                         news_id=n_id,
-                        platform_role=platform_role
+                        platform_role=news.platform
                     )
                     db.add(mapping)
-                    # update the news item's cluster_id legacy field
                     news.cluster_id = cluster_id
                     actual_mapped_count += 1
             
-            # 4. Only count as created if we actually mapped at least 2 items (true resonance)
             if actual_mapped_count >= 2:
                 created_clusters_count += 1
-            else:
-                # If only 1 or 0 items were actually valid, the AI made a mistake or news were deleted.
-                # We could roll back this specific cluster or just keep it. 
-                # For now, let's keep it but skip the count.
-                pass
                     
         db.commit()
         return {"message": f"Successfully created {created_clusters_count} clusters."}

@@ -31,6 +31,9 @@ class TopicCluster(TopicClusterBase):
     id: str
     created_at: datetime
     news_items: List[ClusterNewsMapping] = []
+    first_mover_news_id: Optional[int] = None
+    first_mover_tier: Optional[str] = None
+    first_mover_news: Optional[NewsItem] = None
 
     class Config:
         from_attributes = True

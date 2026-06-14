@@ -3,6 +3,21 @@
     <!-- Top Progress Bar Decoration -->
     <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-orange-500/50 to-primary/50 opacity-30 group-hover:opacity-100 transition-opacity"></div>
     
+    <!-- 🏅 First Mover Badge -->
+    <div v-if="cluster.first_mover_news" 
+         class="absolute top-4 right-4 z-20"
+         :title="`首发情报源: @${cluster.first_mover_news.metadata_json?.author || 'Unknown'}`">
+      <div :class="[
+        'flex items-center gap-1.5 px-3 py-1 rounded-lg border text-[9px] font-black uppercase tracking-tighter shadow-lg backdrop-blur-md',
+        cluster.first_mover_tier === 'S' ? 'bg-amber-500/10 border-amber-500/30 text-amber-500 shadow-amber-500/10' :
+        cluster.first_mover_tier === 'A' ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-500 shadow-indigo-500/10' :
+        'bg-slate-500/10 border-slate-500/30 text-slate-400 shadow-slate-500/10'
+      ]">
+        <span class="text-xs">{{ cluster.first_mover_tier === 'S' ? '🏆' : cluster.first_mover_tier === 'A' ? '💎' : '⏱️' }}</span>
+        <span>{{ getTierLabel(cluster.first_mover_tier) }}</span>
+      </div>
+    </div>
+
     <!-- Header with Source Badges -->
     <div class="p-6 pb-4">
       <div class="flex items-center justify-between mb-4">
@@ -19,13 +34,14 @@
           </div>
         </div>
         
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20">
+        <!-- Only show Resonance score if no First Mover (or smaller if both) -->
+        <div v-if="!cluster.first_mover_news" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20">
           <span class="text-orange-500">🔥</span>
           <span class="text-[10px] font-black uppercase tracking-widest text-orange-500">Resonance {{ cluster.resonance_score }}</span>
         </div>
       </div>
 
-      <h3 class="text-xl font-bold text-white leading-tight tracking-tight group-hover:text-primary transition-colors">
+      <h3 class="text-xl font-bold text-white leading-tight tracking-tight group-hover:text-primary transition-colors pr-20">
         {{ cluster.title }}
       </h3>
       <p class="text-slate-400 text-sm mt-3 line-clamp-2 leading-relaxed opacity-80">
@@ -52,6 +68,7 @@
           </div>
           <div class="flex-1 min-w-0">
             <h4 class="text-xs font-bold text-slate-200 truncate group-hover/item:text-primary transition-colors">
+              <span v-if="item.news_id === cluster.first_mover_news_id" class="text-primary mr-1">★</span>
               {{ item.news?.title || 'Unknown Source' }}
             </h4>
             <p class="text-[10px] text-text-muted line-clamp-1 mt-1 opacity-60 italic">
@@ -86,6 +103,7 @@ interface NewsItem {
   url: string;
   reason?: string;
   content?: string;
+  metadata_json?: any;
 }
 
 interface ClusterNewsMapping {
@@ -101,6 +119,9 @@ interface TopicCluster {
   summary: string;
   resonance_score: number;
   news_items: ClusterNewsMapping[];
+  first_mover_news_id?: number;
+  first_mover_tier?: string;
+  first_mover_news?: NewsItem;
 }
 
 const props = defineProps<{
@@ -143,6 +164,12 @@ const getPlatformIcon = (platform: string) => {
   if (p.includes('arxiv')) return '📄';
   if (p.includes('hn')) return 'Y';
   return '🌐';
+};
+
+const getTierLabel = (tier: string | undefined) => {
+  if (tier === 'S') return 'Elite Mover';
+  if (tier === 'A') return 'Core Insight';
+  return 'First Break';
 };
 </script>
 

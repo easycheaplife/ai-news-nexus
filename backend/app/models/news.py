@@ -101,6 +101,8 @@ class TopicCluster(Base):
     title = Column(String(500), nullable=False)
     summary = Column(Text)
     resonance_score = Column(Integer, default=0)
+    first_mover_news_id = Column(Integer, ForeignKey('news_items.id', ondelete="SET NULL"))
+    first_mover_tier = Column(String(10))
     created_at = Column(DateTime, default=datetime.utcnow)
 
 class ClusterNewsMapping(Base):
