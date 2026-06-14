@@ -74,12 +74,27 @@ async def list_periodic_reports(request: Request, limit: int = 20, db: Session =
 @router.post("/reports", response_model=ReportSchema)
 async def create_periodic_report(report: PeriodicReportCreate, db: Session = Depends(get_db)):
     await clear_assets_cache()
+    
+    # 🔍 查重与幂等逻辑：如果已存在同一结束日期的报告，则更新它（Upsert）
+    db_report = db.query(PeriodicReport).filter(PeriodicReport.end_date == report.end_date).first()
+    
     try:
-        new_report = PeriodicReport(**report.dict())
-        db.add(new_report)
-        db.commit()
-        db.refresh(new_report)
-        return new_report
+        if db_report:
+            # 更新现有报告
+            db_report.title = report.title
+            db_report.content = report.content
+            db_report.start_date = report.start_date
+            db_report.stats_json = report.stats_json
+            db.commit()
+            db.refresh(db_report)
+            return db_report
+        else:
+            # 创建新报告
+            new_report = PeriodicReport(**report.dict())
+            db.add(new_report)
+            db.commit()
+            db.refresh(new_report)
+            return new_report
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
