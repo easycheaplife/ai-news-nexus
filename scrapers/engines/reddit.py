@@ -1,175 +1,179 @@
 import requests
 import time
+import feedparser
 import concurrent.futures
 from .base import BaseScraper
 from datetime import datetime
 from ..utils.ai import evaluator
 from ..utils.link_scraper import scrape_link_content
+from bs4 import BeautifulSoup
 
 class RedditScraper(BaseScraper):
+    """
+    Reddit 采集引擎 (RSS 增强版)
+    由于 Reddit 官方 JSON API 对数据中心 IP 进行了严格的 403 封锁，
+    本引擎改用官方 RSS 订阅源 (.rss) 进行抓取，稳定性显著提升。
+    """
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("reddit", api_url)
-        self.reddit_url = "https://www.reddit.com/r/MachineLearning/new.json?limit=50"
-        self.headers = {"User-Agent": "AI News Bot 1.0"}
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
 
-    def _get_top_comments(self, permalink: str, limit: int = 8) -> str:
-        """获取帖子的热门评论 (带质量过滤)"""
-        url = f"https://www.reddit.com{permalink}.json"
-        try:
-            time.sleep(1) # 礼貌延迟
-            response = requests.get(url, headers=self.headers, timeout=10)
-            if response.status_code != 200:
-                return ""
-            
-            # Reddit 评论接口返回一个列表，[0] 是帖子信息，[1] 是评论树
-            comments_data = response.json()[1]['data']['children']
-            qualified_comments = []
-            
-            for comment in comments_data:
-                if comment['kind'] == 't1': # 确保是评论
-                    c_data = comment['data']
-                    body = c_data.get('body', '').strip()
-                    ups = c_data.get('ups', 0)
-                    
-                    # 质量过滤：长度 > 40，点赞 > 2，且不是删除内容
-                    if len(body) > 40 and ups >= 2 and body != '[deleted]' and body != '[removed]':
-                        qualified_comments.append(f"💬 (Ups: {ups}): {body}")
-                
-                if len(qualified_comments) >= limit:
-                    break
-            
-            if qualified_comments:
-                return "\n\n--- Reddit Community Insights ---\n" + "\n\n".join(qualified_comments)
-        except Exception as e:
-            self.logger.warning(f"Failed to fetch comments for {permalink}: {e}")
-        return ""
+    def _extract_post_id(self, guid: str) -> str:
+        """从 guid (如 t3_1u4zbld) 中提取 ID"""
+        if '_' in guid:
+            return guid.split('_')[-1]
+        return guid
 
     def scrape(self):
-        subs = ["MachineLearning", "ArtificialInteligence", "OpenAI", "LocalLLaMA"]
+        # 核心 AI 相关子版块
+        subs = ["MachineLearning", "ArtificialInteligence", "OpenAI", "LocalLLaMA", "ChatGPTCoding", "StableDiffusion"]
+        
+        self.logger.info(f"🚀 Starting Reddit RSS scraping for {len(subs)} subreddits...")
+
         for sub in subs:
             last_timestamp = self.get_last_id(sub)
-            url = f"https://www.reddit.com/r/{sub}/new.json?limit=25"
+            # 使用 .rss 后缀绕过 JSON API 403 限制
+            url = f"https://www.reddit.com/r/{sub}/new/.rss"
+            
             try:
-                response = requests.get(url, headers=self.headers)
-                data = response.json()
+                # 随机延迟，防止触发 WAF
+                time.sleep(random.uniform(2, 5))
                 
+                response = requests.get(url, headers=self.headers, timeout=15)
+                if response.status_code != 200:
+                    self.logger.error(f"❌ Failed to fetch r/{sub} RSS: HTTP {response.status_code}")
+                    continue
+
+                feed = feedparser.parse(response.content)
+                if not feed.entries:
+                    self.logger.warning(f"⚠️ No entries found in r/{sub} RSS feed.")
+                    continue
+
                 newest_timestamp = None
-                
                 tasks = []
-                for post in data['data']['children']:
-                    p_data = post['data']
-                    date_str = str(p_data.get('created_utc', 'N/A'))
-                    self.logger.info(f"🔗 Processing Item ID: {p_data['id']} | Date: {date_str}")
-                    created_utc = str(int(p_data['created_utc']))
+
+                for entry in feed.entries:
+                    # 提取时间戳
+                    published_at = entry.get('published_parsed')
+                    if not published_at:
+                        continue
                     
+                    # 转换为时间戳字符串用于游标对比
+                    timestamp_val = int(time.mktime(published_at))
+                    timestamp_str = str(timestamp_val)
+
                     # 增量判断
-                    if last_timestamp and int(created_utc) <= int(last_timestamp):
-                        self.logger.info(f"⏱️ Reached last seen post in r/{sub}, stopping.")
+                    if last_timestamp and timestamp_val <= int(last_timestamp):
                         break
                     
                     if newest_timestamp is None:
-                        newest_timestamp = created_utc
+                        newest_timestamp = timestamp_str
 
-                    # 🛡️ 前置过滤：跳过明显无价值的低质量水帖
-                    ups = p_data.get('ups', 0)
-                    num_comments = p_data.get('num_comments', 0)
-                    title_lower = p_data.get('title', '').lower()
-                    selftext_len = len(p_data.get('selftext', ''))
+                    # 基础信息提取
+                    post_id = self._extract_post_id(entry.id)
+                    title = entry.title
+                    link = entry.link
                     
-                    # 规则：点赞 < 2 且评论 < 2，并且（正文很短或包含典型的新手提问词汇，且没有外链）
-                    is_link_post = p_data.get('url') and 'reddit.com' not in p_data['url']
-                    if ups < 2 and num_comments < 2 and not is_link_post:
-                        if selftext_len < 100 or any(q in title_lower for q in ["how do i", "help", "question", "noob", "beginner", "error"]):
-                            self.logger.info(f"⏭️ Skipping low-value post: {p_data['title'][:30]}...")
-                            continue
-                            
+                    # 过滤低质量标题（如太短或纯求助）
+                    if len(title) < 15 or any(q in title.lower() for q in ["help", "error", "question", "why does"]):
+                        continue
+
+                    # 将 entry 数据包装成后续处理需要的格式
+                    p_data = {
+                        "id": post_id,
+                        "title": title,
+                        "url": link,
+                        "published_at": datetime.fromtimestamp(timestamp_val),
+                        "summary_html": entry.get('summary', ''),
+                        "author": entry.get('author', 'Unknown')
+                    }
                     tasks.append((p_data, sub))
 
                 def process_post(p_data, sub):
-                    # 🧵 获取热门评论增强内容
-                    comments_text = self._get_top_comments(p_data['permalink'])
+                    # 🧩 内容提取与清理
+                    soup = BeautifulSoup(p_data['summary_html'], 'html.parser')
+                    # 移除表格、链接占位符等杂质
+                    for tag in soup.find_all(['table', 'thead', 'tbody']):
+                        tag.decompose()
                     
-                    # 🔗 获取外链内容摘要 (如果帖子是一个外链)
+                    raw_text = soup.get_text(separator='\n').strip()
+                    
+                    # 🔗 获取外链内容摘要 (如果存在)
+                    # 尝试从摘要中抠出外部链接，或者直接使用 p_data['url'] 如果它不是 reddit 域名
+                    external_url = None
+                    if 'reddit.com/r/' not in p_data['url']:
+                        external_url = p_data['url']
+                    else:
+                        # 查找摘要中的第一个非 reddit 链接
+                        for a in soup.find_all('a', href=True):
+                            if 'reddit.com' not in a['href'] and a['href'].startswith('http'):
+                                external_url = a['href']
+                                break
+                    
                     link_context = ""
-                    if p_data.get('url') and not any(p_data['url'].endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
-                        # 排除掉图片链接，只抓取文章类链接
-                        link_context = scrape_link_content(p_data['url'])
+                    if external_url and not any(external_url.lower().endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg', '.pdf']):
+                        link_context = scrape_link_content(external_url)
+
+                    full_content = f"{raw_text}\n\n{link_context}".strip()
                     
-                    full_content = f"{p_data.get('selftext', '')}\n\n{link_context}\n\n{comments_text}".strip()
-                    
-                    # 再次防呆：如果合并后的内容几乎为空，不调 Gemini
-                    if len(full_content) < 20:
+                    if len(full_content) < 50 and len(p_data['title']) < 40:
                         return None
 
-                    # 🖼️ 提取多媒体 (强制高清)
+                    # 🖼️ 媒体提取 (RSS 版主要靠摘要中的 img 标签)
                     media_urls = []
-                    
-                    # 1. 优先提取 Reddit 视频
-                    if p_data.get('is_video') and p_data.get('media', {}).get('reddit_video'):
-                        video_url = p_data['media']['reddit_video'].get('fallback_url')
-                        if video_url:
-                            clean_video_url = video_url.split('?')[0]
-                            media_urls.append(clean_video_url)
-                    
-                    # 2. 尝试提取高清预览图
-                    if p_data.get('preview', {}).get('images'):
-                        try:
-                            import html
-                            source_img = p_data['preview']['images'][0]['source']['url']
-                            high_res_url = html.unescape(source_img)
-                            media_urls.append(high_res_url)
-                        except: pass
-                    
-                    # 3. 备选提取缩略图或直接图
-                    if not media_urls and p_data.get('thumbnail') and str(p_data.get('thumbnail')).startswith('http'):
-                        media_urls.append(p_data['thumbnail'])
-                    
-                    if p_data.get('url') and any(str(p_data.get('url')).endswith(ext) for ext in ['.jpg', '.png', '.gif', '.jpeg']):
-                        if p_data['url'] not in media_urls:
-                            media_urls.append(p_data['url'])
+                    for img in soup.find_all('img'):
+                        src = img.get('src')
+                        if src and 'http' in src and 'static' not in src:
+                            media_urls.append(src)
 
-                    # 🤖 AI 评分与理由
+                    # 🤖 AI 评分
                     try:
-                        score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(p_data['title'], full_content)
+                        score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(p_data['title'], full_content)
                     except Exception as e:
                         self.logger.error(f"Error evaluating Reddit post {p_data['id']}: {e}")
                         return None
 
-                    item = {
+                    return {
                         "platform": "reddit",
                         "external_id": p_data['id'],
                         "title": p_data['title'],
                         "content": full_content,
-                        "url": f"https://reddit.com{p_data['permalink']}",
-                        "published_at": datetime.fromtimestamp(p_data['created_utc']).isoformat(),
+                        "url": p_data['url'],
+                        "published_at": p_data['published_at'].isoformat(),
                         "score": score,
                         "reason": reason,
                         "takeaways": takeaways,
                         "cluster_id": cluster_id,
-                        "mentioned_users": mentioned_users,
-                        "trending_keywords": trending_keywords,
-                        "media_urls": media_urls,
+                        "mentioned_users": users,
+                        "trending_keywords": keywords,
+                        "media_urls": list(set(media_urls)),
                         "metadata_json": {
                             "subreddit": sub,
-                            "ups": p_data.get('ups', 0),
-                            "num_comments": p_data.get('num_comments', 0),
-                            "author": p_data.get('author', 'Unknown')
+                            "author": p_data['author'],
+                            "source": "rss_enhanced"
                         }
                     }
-                    return item
 
                 if tasks:
-                    self.logger.info(f"⚡ Processing {len(tasks)} valid posts concurrently in r/{sub}...")
+                    self.logger.info(f"⚡ Processing {len(tasks)} new items in r/{sub} via RSS...")
                     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
                         future_to_post = {executor.submit(process_post, p_data, sub): p_data for p_data, sub in tasks}
                         for future in concurrent.futures.as_completed(future_to_post):
-                            item = future.result()
-                            if item:
-                                self.push_to_backend(item)
-                
-                # 更新游标
+                            try:
+                                item = future.result()
+                                if item:
+                                    self.push_to_backend(item)
+                            except Exception as e:
+                                self.logger.error(f"Post processing error: {e}")
+
                 if newest_timestamp:
                     self.update_last_id(sub, newest_timestamp)
-                    
+
             except Exception as e:
                 self.logger.error(f"Error scraping Reddit r/{sub}: {e}")
+
+import random # 补充缺失的导入
