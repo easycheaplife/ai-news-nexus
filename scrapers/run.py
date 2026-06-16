@@ -32,7 +32,9 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
             f"{api_url}/news/", 
             params={
                 "limit": 1000, 
-                "start_date": lookback_start.isoformat()
+                "start_date": lookback_start.isoformat(),
+                "include_pending": True,
+                "min_score": 0
             }
         )
             

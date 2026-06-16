@@ -2,6 +2,8 @@ import os
 import json
 import logging
 import re
+import threading
+import time
 from datetime import datetime
 from typing import Dict, Any, Tuple, Optional, List
 from google import genai
@@ -30,6 +32,8 @@ class GeminiEvaluator:
         models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
         self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
         self.logger = logging.getLogger("evaluator.gemini")
+        # 🔒 全局并发控制，防止高并发爬虫瞬间刷爆 429
+        self.lock = threading.Semaphore(2) 
         
         if not self.api_key:
             self.logger.warning("⚠️ GEMINI_API_KEY not found in environment. AI evaluation will be skipped.")
@@ -42,25 +46,43 @@ class GeminiEvaluator:
                 self.logger.error(f"❌ Failed to initialize Gemini client: {e}")
                 self.enabled = False
 
+    def _extract_text_from_response(self, response) -> str:
+        """从多部分响应中提取纯文本，跳过思维链(thought/thought_signature)"""
+        if not response or not response.candidates:
+            return ""
+        
+        full_text = []
+        for part in response.candidates[0].content.parts:
+            # 跳过思维链部分 (Gemini 2.0/3.1 特性)
+            is_thought = False
+            if hasattr(part, 'thought') and part.thought:
+                is_thought = True
+            
+            if not is_thought:
+                if hasattr(part, 'text') and part.text:
+                    full_text.append(part.text)
+        
+        return "".join(full_text).strip()
+
     def _generate_content_with_fallback(self, prompt: str):
-        """核心生成逻辑：支持模型自动降级"""
-        for model_name in self.model_names:
-            try:
-                import time
-                response = self.client.models.generate_content(
-                    model=model_name,
-                    contents=prompt
-                )
-                return response
-            except Exception as e:
-                error_msg = str(e)
-                if "429" in error_msg or "quota" in error_msg.lower():
-                    self.logger.warning(f"⚠️ Model {model_name} hit quota limit (429). Waiting 2s before fallback...")
-                    time.sleep(2) # 增加延迟以规避 RPM 限制
-                    continue
-                else:
-                    self.logger.error(f"❌ Gemini error with model {model_name}: {e}")
-                    continue
+        """核心生成逻辑：带全局锁、模型降级与 5s 异常隔离"""
+        with self.lock: # 限制全局 AI 请求并发
+            for model_name in self.model_names:
+                try:
+                    response = self.client.models.generate_content(
+                        model=model_name,
+                        contents=prompt
+                    )
+                    return response
+                except Exception as e:
+                    error_msg = str(e)
+                    if "429" in error_msg or "quota" in error_msg.lower():
+                        self.logger.warning(f"⚠️ Model {model_name} hit quota limit (429). Waiting 5s before fallback...")
+                        time.sleep(5) # 增加延迟以规避 RPM 限制
+                        continue
+                    else:
+                        self.logger.error(f"❌ Gemini error with model {model_name}: {e}")
+                        continue
         
         self.logger.error("🚫 All Gemini fallback models failed.")
         return None
@@ -101,11 +123,15 @@ class GeminiEvaluator:
             if not response:
                 return 0, None, None, None, None, None
 
-            text = response.text.strip()
-            if "```json" in text:
-                text = text.split("```json")[1].split("```")[0].strip()
-            elif "```" in text:
-                text = text.split("```")[1].split("```")[0].strip()
+            # 🛠️ 健壮的文本提取：跳过 Thinking 过程
+            text = self._extract_text_from_response(response)
+            if not text:
+                return 0, None, None, None, None, None
+
+            # 🧹 正则匹配 JSON 块，防止 thought 溢出导致解析失败
+            json_match = re.search(r'\{.*\}', text, re.DOTALL)
+            if json_match:
+                text = json_match.group(0)
             
             data = json.loads(text)
             return (
@@ -182,7 +208,7 @@ class GeminiEvaluator:
             if not response:
                 return None
             
-            text = response.text.strip()
+            text = self._extract_text_from_response(response)
             # 🧹 后置处理：剥离 Markdown 代码块标签
             if text.startswith("```"):
                 text = re.sub(r'^```[a-zA-Z]*\n', '', text)

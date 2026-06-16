@@ -1,5 +1,6 @@
 import requests
 import time
+import random
 import feedparser
 import concurrent.futures
 from .base import BaseScraper
@@ -11,15 +12,26 @@ from bs4 import BeautifulSoup
 class RedditScraper(BaseScraper):
     """
     Reddit 采集引擎 (RSS 增强版)
-    由于 Reddit 官方 JSON API 对数据中心 IP 进行了严格的 403 封锁，
-    本引擎改用官方 RSS 订阅源 (.rss) 进行抓取，稳定性显著提升。
+    由于 Reddit 官方对数据中心 IP 进行了严格封锁，
+    本引擎改用官方 RSS 订阅源 (.rss) 并配合拟人化 Header 与重试机制。
     """
     def __init__(self, api_url: str = "http://localhost:8000"):
         super().__init__("reddit", api_url)
+        self.session = requests.Session()
         self.headers = {
-            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Accept-Language": "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            "Referer": "https://www.google.com/",
+            "Sec-Ch-Ua": '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+            "Sec-Ch-Ua-Mobile": "?0",
+            "Sec-Ch-Ua-Platform": '"Windows"',
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1"
         }
 
     def _extract_post_id(self, guid: str) -> str:
@@ -36,18 +48,41 @@ class RedditScraper(BaseScraper):
 
         for sub in subs:
             last_timestamp = self.get_last_id(sub)
-            # 使用 .rss 后缀绕过 JSON API 403 限制
-            url = f"https://www.reddit.com/r/{sub}/new/.rss"
+            # 轮询使用不同子域名，分散检测风险
+            subdomain = random.choice(["www", "old", "new"])
+            url = f"https://{subdomain}.reddit.com/r/{sub}/new/.rss"
             
-            try:
-                # 随机延迟，防止触发 WAF
-                time.sleep(random.uniform(2, 5))
-                
-                response = requests.get(url, headers=self.headers, timeout=15)
-                if response.status_code != 200:
-                    self.logger.error(f"❌ Failed to fetch r/{sub} RSS: HTTP {response.status_code}")
-                    continue
+            success = False
+            for attempt in range(3):
+                try:
+                    # 随机延迟，防止触发 WAF
+                    wait_time = random.uniform(5, 12) if attempt == 0 else random.uniform(20, 40)
+                    if attempt > 0:
+                        self.logger.info(f"⏳ Retrying r/{sub} in {int(wait_time)}s (Attempt {attempt+1}/3)...")
+                    time.sleep(wait_time)
+                    
+                    response = self.session.get(url, headers=self.headers, timeout=20)
+                    
+                    if response.status_code == 200:
+                        success = True
+                        break
+                    elif response.status_code == 429:
+                        self.logger.warning(f"⚠️ Rate limited (429) on r/{sub}, cooling down...")
+                        continue
+                    elif response.status_code == 403:
+                        self.logger.error(f"❌ Forbidden (403) on r/{sub}. Skipping for now.")
+                        break
+                    else:
+                        self.logger.error(f"❌ HTTP {response.status_code} on r/{sub}")
+                        break
+                except Exception as e:
+                    self.logger.error(f"Fetch error r/{sub}: {e}")
+                    break
 
+            if not success:
+                continue
+
+            try:
                 feed = feedparser.parse(response.content)
                 if not feed.entries:
                     self.logger.warning(f"⚠️ No entries found in r/{sub} RSS feed.")
@@ -103,12 +138,10 @@ class RedditScraper(BaseScraper):
                     raw_text = soup.get_text(separator='\n').strip()
                     
                     # 🔗 获取外链内容摘要 (如果存在)
-                    # 尝试从摘要中抠出外部链接，或者直接使用 p_data['url'] 如果它不是 reddit 域名
                     external_url = None
                     if 'reddit.com/r/' not in p_data['url']:
                         external_url = p_data['url']
                     else:
-                        # 查找摘要中的第一个非 reddit 链接
                         for a in soup.find_all('a', href=True):
                             if 'reddit.com' not in a['href'] and a['href'].startswith('http'):
                                 external_url = a['href']
@@ -123,7 +156,7 @@ class RedditScraper(BaseScraper):
                     if len(full_content) < 50 and len(p_data['title']) < 40:
                         return None
 
-                    # 🖼️ 媒体提取 (RSS 版主要靠摘要中的 img 标签)
+                    # 🖼️ 媒体提取
                     media_urls = []
                     for img in soup.find_all('img'):
                         src = img.get('src')
@@ -154,7 +187,7 @@ class RedditScraper(BaseScraper):
                         "metadata_json": {
                             "subreddit": sub,
                             "author": p_data['author'],
-                            "source": "rss_enhanced"
+                            "source": "rss_enhanced_v2"
                         }
                     }
 
@@ -174,6 +207,4 @@ class RedditScraper(BaseScraper):
                     self.update_last_id(sub, newest_timestamp)
 
             except Exception as e:
-                self.logger.error(f"Error scraping Reddit r/{sub}: {e}")
-
-import random # 补充缺失的导入
+                self.logger.error(f"Error parsing feed r/{sub}: {e}")
