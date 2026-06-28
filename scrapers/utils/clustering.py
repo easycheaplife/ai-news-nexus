@@ -3,7 +3,8 @@ import json
 import logging
 import requests
 from typing import List, Dict, Any
-from .ai import evaluator
+from .ai import get_evaluator
+evaluator = get_evaluator("gemini")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("clustering_engine")

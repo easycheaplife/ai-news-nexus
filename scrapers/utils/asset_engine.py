@@ -4,7 +4,8 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
-from .ai import evaluator
+from .ai import get_evaluator
+evaluator = get_evaluator("gemini")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("asset_engine")
