@@ -42,14 +42,24 @@ class GeminiEvaluator(BaseEvaluator):
     def generate_content(self, prompt: str) -> Any:
         if not self.enabled: return None
         try:
-            response = self.client.chat.completions.create(
+            # 尝试直接调用 completions
+            response = self.client.completions.create(
                 model=self.model,
                 messages=[{"role": "user", "content": prompt}]
             )
             return response
         except Exception as e:
-            self.logger.error(f"❌ Zhipu error: {e}")
-            return None
+            self.logger.error(f"❌ Zhipu error (1): {e}")
+            try:
+                # 备用方案
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[{"role": "user", "content": prompt}]
+                )
+                return response
+            except Exception as e2:
+                self.logger.error(f"❌ Zhipu error (2): {e2}")
+                return None
     # ... (keep __init__, _generate, evaluate, _build_prompt, _parse_json)
     
     def _extract_text_from_response(self, response) -> str:
@@ -208,7 +218,19 @@ class ZhipuEvaluator(BaseEvaluator):
             self.enabled = True
         else:
             self.logger.warning("⚠️ ZHIPU_API_KEY not found.")
-
+            
+    def generate_content(self, prompt: str) -> Any:
+        if not self.enabled: return None
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response
+        except Exception as e:
+            self.logger.error(f"❌ Zhipu error: {e}")
+            return None
+            
     def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
         if not self.enabled: return (0, None, None, None, None, None)
         
@@ -245,8 +267,6 @@ class ZhipuEvaluator(BaseEvaluator):
             self.logger.error(f"❌ Zhipu error: {e}")
             return (0, None, None, None, None, None)
 
-# Factory function
-def get_evaluator(provider="gemini"):
-    if provider == "zhipu":
-        return ZhipuEvaluator()
-    return GeminiEvaluator()
+    def summarize_clusters(self, clusters_data: List[Dict[str, Any]], style: str = "toxic") -> str:
+        # Zhipu 目前未实现综述功能，返回占位
+        return "Zhipu AI 暂未实现聚类综述功能。"
