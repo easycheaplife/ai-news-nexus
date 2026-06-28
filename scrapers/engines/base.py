@@ -5,6 +5,7 @@ import json
 import os
 import re
 from ..utils.media_mirror import MediaMirror
+from ..utils.ai import get_evaluator
 
 class BaseScraper:
     def __init__(self, platform: str, api_url: str = "http://localhost:8000", region: str = "global"):
@@ -18,6 +19,9 @@ class BaseScraper:
         self.mirror = MediaMirror(api_url)
         # 本地去重缓存（仅限本次运行）
         self.seen_ids = set()
+        
+        # AI Evaluator
+        self.evaluator = get_evaluator("zhipu" if self.region == "cn" else "gemini")
         
         # 状态持久化文件路径 (放在 scrapers 根目录)
         self.state_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), "state.json")
@@ -104,20 +108,33 @@ class BaseScraper:
         item_key = f"{item['platform']}:{item['external_id']}"
         if item_key in self.seen_ids:
             return
+            
+        # 2. 实时打分 (如果还没有得分)
+        if item.get('score', 0) == 0 and self.evaluator.enabled:
+            self.logger.info(f"🤖 Evaluating item: {item['title'][:30]}...")
+            score, reason, takeaways, cluster_id, users, keywords = self.evaluator.evaluate(item['title'], item['content'])
+            item.update({
+                "score": score,
+                "reason": reason,
+                "takeaways": takeaways,
+                "cluster_id": cluster_id,
+                "mentioned_users": users,
+                "trending_keywords": keywords
+            })
         
-        # 2. 媒体转存 (Mirroring) —— 核心：将外部链接转化为本站链接
+        # 3. 媒体转存 (Mirroring) —— 核心：将外部链接转化为本站链接
         if item.get('media_urls'):
             self.logger.info(f"📸 Mirroring {len(item['media_urls'])} media items...")
             item['media_urls'] = self.mirror.mirror_all(item['media_urls'])
 
         try:
-            # 3. 推送到后端
+            # 4. 推送到后端
             response = requests.post(f"{self.api_url}/news/", json=item)
             if response.status_code == 200:
                 self.logger.info(f"✅ Successfully pushed: {item['title'][:50]}...")
                 self.seen_ids.add(item_key)
                 
-                # 3. 处理发现信号 (如果是 90+ 高分内容，提取信号)
+                # 5. 处理发现信号 (如果是 90+ 高分内容，提取信号)
                 if item.get('score', 0) >= 80:
                     self._push_discovery_signals(item)
 

@@ -169,17 +169,22 @@ class DomesticMediaScraper(BaseScraper):
                 if not entries:
                     self.logger.warning(f"❌ Failed to find recent content for {config['name']}")
                     continue
+                
+                # Sort entries by publication time descending (newest first)
+                entries.sort(key=lambda e: e.get('published_parsed', time.struct_time((0,0,0,0,0,0,0,0,0))), reverse=True)
 
                 self.logger.info(f"✅ Found {len(entries)} items for {config['name']}")
-                self._process_entries(entries, platform_key, config)
+                last_id = self.get_last_id(platform_key)
+                self._process_entries(entries, platform_key, config, last_id)
 
             except Exception as e:
                 self.logger.error(f"Error scraping {config['name']}: {e}")
 
         self.logger.info("🏁 Domestic Media scraping finished.")
 
-    def _process_entries(self, entries, platform_key, config):
+    def _process_entries(self, entries, platform_key, config, last_id=None):
         processed_count = 0
+        new_max_id = last_id
         import re
         strict_ai_keywords = ["llm", "gpt", "大模型", "智能体", "agent", "rag", "深度学习", "机器学习", "transformer", "claude", "deepseek", "sora", "算力", "英伟达", "nvidia", "生成式", "语言模型", "向量数据库", "推理", "训练", "微调", "提示词", "prompt", "机器人", "自动驾驶", "端到端", "多模态", "aigc", "算力", "h100", "b200", "openrouter", "openai", "anthropic", "mistral", "llama", "qwen", "通义千问", "智谱", "kimi", "月之暗面", "零一万物", "百川智能", "面壁智能", "商汤", "字节跳动 ai"]
         blacklist = ["融资", "上市", "财报", "股价", "收购", "亏损", "裁员", "高管变动", "内斗", "手机", "数码", "笔记本", "游戏", "发布会", "预订", "开售", "javascript", "vue", "react", "css", "html", "mysql", "sql", "redis", "架构设计", "设计模式", "单元测试", "执行计划", "性能调优", "组件重构"]
@@ -188,6 +193,24 @@ class DomesticMediaScraper(BaseScraper):
             title = entry.title
             url = entry.link
             title = re.sub(r'\s-\s.*$', '', title).strip()
+            
+            # 🛡️ 截断超长 URL (针对 Google News 极端情况)，防止数据库插入报错
+            clean_url = url
+            if len(clean_url) > 500:
+                if '?oc=' in clean_url:
+                    clean_url = clean_url.split('?')[0]
+
+            external_id = entry.id if hasattr(entry, 'id') else clean_url
+            if len(external_id) > 255:
+                external_id = hashlib.md5(external_id.encode()).hexdigest()
+
+            # 🛑 如果遇到上次处理的 ID，说明后续的都是旧数据，直接停止
+            if last_id and external_id == last_id:
+                self.logger.debug(f"🛑 Reached last processed ID {last_id}, stopping.")
+                break
+            
+            self.logger.debug(f"Processing ID: {external_id} (Last: {last_id})")
+
             title_lower = title.lower()
             has_standalone_ai = bool(re.search(r'\bai\b', title_lower))
             has_core_ai = any(k in title_lower for k in strict_ai_keywords)
@@ -199,20 +222,6 @@ class DomesticMediaScraper(BaseScraper):
                 dt = datetime.fromtimestamp(time.mktime(entry.published_parsed))
             if dt and not self.is_within_window(dt): continue
 
-            # 🛡️ 截断超长 URL (针对 Google News 极端情况)，防止数据库插入报错
-            # 如果 URL 超过 500 字符，通常是带有追踪参数或 base64 编码的 Google News 链接
-            clean_url = url
-            if len(clean_url) > 500:
-                # 尝试剥离 Google News 的冗余参数 (oc=5 等)
-                if '?oc=' in clean_url:
-                    clean_url = clean_url.split('?')[0]
-                # 如果还是太长，则进行截断或保留原始 (后端已改为 TEXT 类型)
-                # 为保险起见，这里做一个 2000 字符的硬截断，或者保留原始链接
-
-            external_id = entry.id if hasattr(entry, 'id') else clean_url
-            if len(external_id) > 255:
-                external_id = hashlib.md5(external_id.encode()).hexdigest()
-            
             self.push_to_backend({
                 "platform": platform_key,
                 "external_id": external_id,
@@ -225,6 +234,14 @@ class DomesticMediaScraper(BaseScraper):
                 "metadata_json": {"source": config['name'], "discovery_type": "official_or_search"}
             })
             processed_count += 1
+            
+            # 更新最新 ID
+            if not new_max_id or external_id > str(new_max_id):
+                new_max_id = external_id
+
+        if new_max_id:
+            self.update_last_id(platform_key, str(new_max_id))
+            
         self.logger.info(f"📝 Processed {processed_count} relevant items for {config['name']}")
 
 if __name__ == "__main__":

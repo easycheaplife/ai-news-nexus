@@ -4,7 +4,8 @@ import os
 import json
 import time
 from dotenv import load_dotenv
-from scrapers.utils.ai import evaluator
+from scrapers.utils.ai import get_evaluator
+evaluator = get_evaluator("gemini")
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

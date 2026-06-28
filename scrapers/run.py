@@ -15,15 +15,18 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
-def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bool = False):
+def generate_daily_insights(api_url: str, region: str = "global", style: str = "toxic", skip_scoring: bool = False):
     """
     抓取后分析逻辑：从后端获取最近 24 小时资讯，进行聚类分析并生成 AI 战略简报
     """
     # 🚀 Lazy Load AI Utilities
-    from scrapers.utils.ai import evaluator
+    from scrapers.utils.ai import get_evaluator
     from scrapers.utils.report_engine import run_report_generation
     
-    logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style)...")
+    provider = "zhipu" if region == "cn" else "gemini"
+    evaluator = get_evaluator(provider)
+    
+    logging.info(f"🧠 Starting AI Deep Insights synthesis ({style} style, provider={provider})...")
     try:
         # 1. 获取最近 24 小时发布的内容进行分析
         lookback_start = datetime.now() - timedelta(hours=24)
@@ -53,6 +56,7 @@ def generate_daily_insights(api_url: str, style: str = "toxic", skip_scoring: bo
         evaluated_count = 0
         if not skip_scoring:
             for item in all_news:
+                # 使用函数内局部变量 evaluator
                 if item.get('score') == 0 and evaluator.enabled:
                     logging.info(f"🤖 Late-evaluating today's item: {item['title'][:30]}...")
                     score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(item['title'], item['content'])
@@ -269,7 +273,7 @@ def run_scrapers(target_platform: str = None,
             actual_style = random.choice(["toxic", "official"])
             logging.info(f"🎲 No style selected. Randomly selected: {actual_style}")
             
-        generate_daily_insights(api_url, style=actual_style, skip_scoring=skip_scoring)
+        generate_daily_insights(api_url, region=target_region, style=actual_style, skip_scoring=skip_scoring)
 
         # 🏺 Phase 1: 知识资产沉淀 (Knowledge Asset Curation)
         try:

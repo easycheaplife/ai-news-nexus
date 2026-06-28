@@ -3,7 +3,8 @@ import requests
 import json
 import subprocess
 from datetime import datetime, timedelta
-from scrapers.utils.ai import evaluator
+from scrapers.utils.ai import get_evaluator
+evaluator = get_evaluator("gemini")
 from scrapers.utils.media_mirror import MediaMirror
 from youtube_transcript_api import YouTubeTranscriptApi
 
