@@ -33,35 +33,57 @@ class BaseEvaluator:
         raise NotImplementedError
 
 class GeminiEvaluator(BaseEvaluator):
-    # ... (keep existing methods)
-    
+    def __init__(self):
+        self.api_key = os.getenv("GEMINI_API_KEY")
+        models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
+        self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
+        self.logger = logging.getLogger("evaluator.gemini")
+        self.lock = threading.Semaphore(2) 
+        
+        if not self.api_key:
+            self.logger.warning("⚠️ GEMINI_API_KEY not found.")
+            self.enabled = False
+        else:
+            self.client = genai.Client(api_key=self.api_key)
+            self.enabled = True
+
+    def _generate(self, prompt: str):
+        with self.lock:
+            for model_name in self.model_names:
+                try:
+                    response = self.client.models.generate_content(model=model_name, contents=prompt)
+                    return response
+                except Exception as e:
+                    self.logger.error(f"❌ Gemini error: {e}")
+                    continue
+        return None
+
     def generate_content(self, prompt: str) -> Any:
         return self._generate(prompt)
 
-# ... (inside ZhipuEvaluator)
-    def generate_content(self, prompt: str) -> Any:
-        if not self.enabled: return None
+    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
+        if not self.enabled: return (0, None, None, None, None, None)
+        
+        prompt = self._build_prompt(title, content)
+        response = self._generate(prompt)
+        if not response: return (0, None, None, None, None, None)
+        
+        # Simple extraction for Gemini (assuming no thinking block or handled elsewhere)
+        text = response.text
+        return self._parse_json(text)
+
+    def _build_prompt(self, title, content):
+        return f"分析此新闻: {title}\n{content}\n返回JSON格式: {{'score': int, 'reason': str, 'takeaways': list, 'cluster_id': str, 'mentioned_users': list, 'trending_keywords': list}}"
+
+    def _parse_json(self, text):
+        json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if json_match: text = json_match.group(0)
         try:
-            # 尝试直接调用 completions
-            response = self.client.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            return response
-        except Exception as e:
-            self.logger.error(f"❌ Zhipu error (1): {e}")
-            try:
-                # 备用方案
-                response = self.client.chat.completions.create(
-                    model=self.model,
-                    messages=[{"role": "user", "content": prompt}]
-                )
-                return response
-            except Exception as e2:
-                self.logger.error(f"❌ Zhipu error (2): {e2}")
-                return None
-    # ... (keep __init__, _generate, evaluate, _build_prompt, _parse_json)
-    
+            data = json.loads(text)
+            return (data.get("score", 0), data.get("reason"), data.get("takeaways"), data.get("cluster_id"), data.get("mentioned_users"), data.get("trending_keywords"))
+        except:
+            return (0, None, None, None, None, None)
+            
     def _extract_text_from_response(self, response) -> str:
         """从多部分响应中提取纯文本，跳过思维链(thought/thought_signature)"""
         if not response or not response.candidates:
@@ -159,54 +181,6 @@ class GeminiEvaluator(BaseEvaluator):
         
         return '\n'.join(cleaned_text).strip()
 
-    def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
-        models_str = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite,gemini-2.0-flash,gemini-2.0-flash-lite,gemini-1.5-pro,gemini-1.5-flash")
-        self.model_names = [m.strip() for m in models_str.split(",") if m.strip()]
-        self.logger = logging.getLogger("evaluator.gemini")
-        self.lock = threading.Semaphore(2) 
-        
-        if not self.api_key:
-            self.logger.warning("⚠️ GEMINI_API_KEY not found.")
-            self.enabled = False
-        else:
-            self.client = genai.Client(api_key=self.api_key)
-            self.enabled = True
-
-    def _generate(self, prompt: str):
-        with self.lock:
-            for model_name in self.model_names:
-                try:
-                    response = self.client.models.generate_content(model=model_name, contents=prompt)
-                    return response
-                except Exception as e:
-                    self.logger.error(f"❌ Gemini error: {e}")
-                    continue
-        return None
-
-    def evaluate(self, title: str, content: str) -> Tuple[int, Optional[str], Optional[List[str]], Optional[str], Optional[List[str]], Optional[List[str]]]:
-        if not self.enabled: return (0, None, None, None, None, None)
-        
-        prompt = self._build_prompt(title, content)
-        response = self._generate(prompt)
-        if not response: return (0, None, None, None, None, None)
-        
-        # Simple extraction for Gemini (assuming no thinking block or handled elsewhere)
-        text = response.text
-        return self._parse_json(text)
-
-    def _build_prompt(self, title, content):
-        return f"分析此新闻: {title}\n{content}\n返回JSON格式: {{'score': int, 'reason': str, 'takeaways': list, 'cluster_id': str, 'mentioned_users': list, 'trending_keywords': list}}"
-
-    def _parse_json(self, text):
-        json_match = re.search(r'\{.*\}', text, re.DOTALL)
-        if json_match: text = json_match.group(0)
-        try:
-            data = json.loads(text)
-            return (data.get("score", 0), data.get("reason"), data.get("takeaways"), data.get("cluster_id"), data.get("mentioned_users"), data.get("trending_keywords"))
-        except:
-            return (0, None, None, None, None, None)
-
 class ZhipuEvaluator(BaseEvaluator):
     def __init__(self):
         self.api_key = os.getenv("ZHIPU_API_KEY")
@@ -270,3 +244,9 @@ class ZhipuEvaluator(BaseEvaluator):
     def summarize_clusters(self, clusters_data: List[Dict[str, Any]], style: str = "toxic") -> str:
         # Zhipu 目前未实现综述功能，返回占位
         return "Zhipu AI 暂未实现聚类综述功能。"
+
+# Factory function
+def get_evaluator(provider="gemini"):
+    if provider == "zhipu":
+        return ZhipuEvaluator()
+    return GeminiEvaluator()
