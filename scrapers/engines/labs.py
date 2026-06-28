@@ -3,7 +3,7 @@ import feedparser
 import logging
 from datetime import datetime
 from .base import BaseScraper
-from ..utils.ai import evaluator
+
 
 class LabsScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -85,7 +85,7 @@ class LabsScraper(BaseScraper):
                     self.logger.info(f"✍️ Analyzing: {title[:50]}...")
                     
                     # 🤖 AI 评分与深度分析
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(
                         f"Official Blog from {lab_name}: {title}", 
                         content
                     )

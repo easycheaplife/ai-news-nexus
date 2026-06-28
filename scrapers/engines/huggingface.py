@@ -2,7 +2,7 @@ import requests
 from .base import BaseScraper
 from datetime import datetime
 import time
-from ..utils.ai import evaluator
+
 
 class HuggingFaceScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -65,7 +65,7 @@ class HuggingFaceScraper(BaseScraper):
                 full_content = f"{summary}\n\n[HF AI Summary]:\n{ai_summary}".strip()
                 
                 # AI 评估
-                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(
+                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(
                     f"Research Paper: {title}", 
                     full_content
                 )
@@ -137,7 +137,7 @@ class HuggingFaceScraper(BaseScraper):
                 full_content = f"Model ID: {repo_id}\nTask: {pipeline_tag}\nLikes: {likes}\n\n[README Preview]:\n{readme}".strip()
                 
                 # AI 评估
-                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(
+                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(
                     f"HF Trending Model: {repo_id}", 
                     full_content
                 )

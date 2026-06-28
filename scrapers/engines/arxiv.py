@@ -2,7 +2,7 @@ import requests
 import feedparser
 from .base import BaseScraper
 from datetime import datetime
-from ..utils.ai import evaluator
+
 
 class ArxivScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -38,7 +38,7 @@ class ArxivScraper(BaseScraper):
                 pdf_link = next((link.href for link in entry.links if link.get('title') == 'pdf'), entry.link)
 
                 # 🤖 AI 评分与理由
-                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"ArXiv Paper: {title}", abstract)
+                score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(f"ArXiv Paper: {title}", abstract)
 
                 item = {
                     "platform": "arxiv",

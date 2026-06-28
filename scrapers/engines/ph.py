@@ -4,7 +4,7 @@ import os
 import concurrent.futures
 from .base import BaseScraper
 from datetime import datetime
-from ..utils.ai import evaluator
+
 
 class ProductHuntScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -108,7 +108,7 @@ class ProductHuntScraper(BaseScraper):
 
                 # 🤖 AI 评分与理由提取
                 try:
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(node.get('name'), rich_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(node.get('name'), rich_content)
                 except Exception as e:
                     self.logger.error(f"Error evaluating item {node.get('id')}: {e}")
                     return None

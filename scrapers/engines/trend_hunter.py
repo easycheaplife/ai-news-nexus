@@ -3,7 +3,7 @@ import feedparser
 import urllib.parse
 from datetime import datetime, timedelta
 from .base import BaseScraper
-from ..utils.ai import evaluator
+
 from ..utils.link_scraper import scrape_link_content
 
 class TrendHunterScraper(BaseScraper):
@@ -52,7 +52,7 @@ class TrendHunterScraper(BaseScraper):
 
                     # 🤖 AI 评估该趋势内容
                     title = entry.title
-                    score, reason, takeaways, cluster_id, _, _ = evaluator.evaluate(f"Trend Search [{kw}]: {title}", article_content)
+                    score, reason, takeaways, cluster_id, _, _ = self.evaluator.evaluate(f"Trend Search [{kw}]: {title}", article_content)
 
                     # 只有真正高质量的才入库
                     if score < 75: continue

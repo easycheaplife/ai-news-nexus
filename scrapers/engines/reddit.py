@@ -5,7 +5,7 @@ import feedparser
 import concurrent.futures
 from .base import BaseScraper
 from datetime import datetime
-from ..utils.ai import evaluator
+
 from ..utils.link_scraper import scrape_link_content
 from bs4 import BeautifulSoup
 
@@ -165,7 +165,7 @@ class RedditScraper(BaseScraper):
 
                     # 🤖 AI 评分
                     try:
-                        score, reason, takeaways, cluster_id, users, keywords = evaluator.evaluate(p_data['title'], full_content)
+                        score, reason, takeaways, cluster_id, users, keywords = self.evaluator.evaluate(p_data['title'], full_content)
                     except Exception as e:
                         self.logger.error(f"Error evaluating Reddit post {p_data['id']}: {e}")
                         return None

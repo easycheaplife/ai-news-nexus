@@ -5,7 +5,7 @@ from .base import BaseScraper
 from datetime import datetime
 import time
 import re
-from ..utils.ai import evaluator
+
 
 class GitHubScraper(BaseScraper):
     def __init__(self, api_url: str = "http://localhost:8000"):
@@ -77,7 +77,7 @@ class GitHubScraper(BaseScraper):
                     readme_content = self._get_readme(repo_path)
                     full_content = (description + "\n\n" + readme_content).strip()
 
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"GitHub Repository: {title}", full_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(f"GitHub Repository: {title}", full_content)
 
                     item = {
                         "platform": "github",
@@ -162,7 +162,7 @@ class GitHubScraper(BaseScraper):
                         self.logger.info(f"⏩ Skipping {repo_path} (No AI keywords found)")
                         continue
 
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"GitHub Target Update: {repo_path}", readme_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(f"GitHub Target Update: {repo_path}", readme_content)
 
                     item = {
                         "platform": "github",

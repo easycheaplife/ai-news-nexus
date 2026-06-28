@@ -6,7 +6,7 @@ import os
 from bs4 import BeautifulSoup
 from .base import BaseScraper
 from datetime import datetime
-from ..utils.ai import evaluator
+
 from ..utils.link_scraper import scrape_link_content
 from twikit import Client
 
@@ -245,7 +245,7 @@ class TwitterScraper(BaseScraper):
                         continue
 
                     # AI 评估与推送到后端
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"Tweet from @{username}", content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(f"Tweet from @{username}", content)
                     
                     # 避免低分垃圾推文堆积
                     if score < 50:

@@ -3,7 +3,7 @@ import feedparser
 from .base import BaseScraper
 from datetime import datetime
 import time
-from ..utils.ai import evaluator
+
 from ..utils.media_mirror import MediaMirror
 
 class YouTubeScraper(BaseScraper):
@@ -93,7 +93,7 @@ class YouTubeScraper(BaseScraper):
                     media_urls = self.mirror.mirror_all(raw_media_urls)
 
                     # 🤖 AI 评分与理由
-                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(f"YouTube Video: {entry.title}", full_content)
+                    score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(f"YouTube Video: {entry.title}", full_content)
 
                     item = {
                         "platform": "youtube",

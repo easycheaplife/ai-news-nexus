@@ -1,7 +1,6 @@
 import requests
 from .base import BaseScraper
 from datetime import datetime
-from ..utils.ai import evaluator
 from ..utils.link_scraper import scrape_link_content
 from bs4 import BeautifulSoup
 
@@ -81,8 +80,8 @@ class HNScraper(BaseScraper):
                         
                         full_content = f"{text}\n\n{link_context}\n\n{comments_text}".strip()
 
-                        # 🤖 AI 评分与理由
-                        score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = evaluator.evaluate(title, full_content)
+                        # 🤖 AI 评分与理由 (如果 push_to_backend 的自动打分不够，这里依然可以调用)
+                        score, reason, takeaways, cluster_id, mentioned_users, trending_keywords = self.evaluator.evaluate(title, full_content)
 
                         item = {
                             "platform": "hn",
